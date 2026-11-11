@@ -32,6 +32,25 @@ public sealed class BancoApp
         );
         create index LoteItem_lote on LoteItem(lote_id, ordem);
         """,
+        // 2: configuracoes, regras do organizador e perfis
+        """
+        create table Config (
+            chave text primary key,
+            valor text not null
+        );
+        create table Regra (
+            id text primary key,
+            ordem integer not null,
+            json text not null
+        );
+        create table Perfil (
+            id text primary key,
+            modulo text not null,
+            nome text not null,
+            json text not null
+        );
+        create unique index Perfil_nome on Perfil(modulo, nome);
+        """,
     ];
 
     private readonly string _conexao;

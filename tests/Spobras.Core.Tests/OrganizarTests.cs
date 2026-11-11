@@ -231,3 +231,108 @@ public class OrganizarTests : ComPastaTemporaria
         Assert.Equal(esperado, TipoArquivo.Descrever(nome));
     }
 }
+
+public class VigiaPastaTests : ComPastaTemporaria
+{
+    private readonly RelogioFixo _relogio = new();
+
+    private static async Task<bool> Ate(Func<bool> condicao)
+    {
+        for (int i = 0; i < 100 && !condicao(); i++)
+        {
+            await Task.Delay(50);
+        }
+
+        return condicao();
+    }
+
+    [Fact]
+    public void T06_so_avisa_do_que_chega_depois_e_nao_repete()
+    {
+        Criar("ja-estava.pdf");
+        var vistos = new List<string>();
+        using var vigia = new VigiaPasta(Pasta, _relogio, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(10));
+        vigia.Novos += n => vistos.AddRange(n.Select(a => Path.GetFileName(a.Caminho)));
+
+        vigia.Rodada(); // primeira varredura: cataloga o que ja existia
+        Criar("novo.pdf", "conteudo");
+        Criar("baixando.pdf.crdownload");
+        _relogio.Agora = _relogio.Agora.AddSeconds(1);
+        vigia.Rodada();
+        Assert.Empty(vistos); // ainda nao ficou quieto pelo tempo pedido
+
+        // Chega pelo evento do sistema ou, se ele se perder, pela varredura seguinte.
+        _relogio.Agora = _relogio.Agora.AddSeconds(11);
+        vigia.Rodada();
+        _relogio.Agora = _relogio.Agora.AddSeconds(4);
+        vigia.Rodada();
+        Assert.Equal(["novo.pdf"], vistos);
+
+        // Salvar de novo um arquivo ja avisado nao vira novidade outra vez.
+        File.WriteAllText(Em("novo.pdf"), "salvo de novo, maior");
+        _relogio.Agora = _relogio.Agora.AddSeconds(30);
+        vigia.Rodada();
+        _relogio.Agora = _relogio.Agora.AddSeconds(5);
+        vigia.Rodada();
+        Assert.Equal(["novo.pdf"], vistos);
+    }
+
+    [Fact]
+    public void T06_ao_reiniciar_recupera_o_que_chegou_com_o_app_fechado()
+    {
+        Criar("antigo.pdf");
+        var fechouEm = DateTimeOffset.UtcNow.AddSeconds(-1);
+        File.SetCreationTimeUtc(Em("antigo.pdf"), fechouEm.UtcDateTime.AddDays(-3));
+        File.SetLastWriteTimeUtc(Em("antigo.pdf"), fechouEm.UtcDateTime.AddDays(-3));
+        Criar("chegou-com-o-app-fechado.pdf");
+        var vistos = new List<ArquivoParaOrganizar>();
+        using var vigia = new VigiaPasta(Pasta, _relogio, TimeSpan.FromSeconds(3)) { NovidadesDesde = fechouEm };
+        vigia.Novos += vistos.AddRange;
+
+        vigia.Rodada();
+        _relogio.Agora = _relogio.Agora.AddSeconds(4);
+        vigia.Rodada();
+
+        // No Linux a data de criacao nao e ajustavel; la os dois contam como chegados depois.
+        Assert.Contains(vistos, a => Path.GetFileName(a.Caminho) == "chegou-com-o-app-fechado.pdf" && a.ChegouEm is null);
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Single(vistos);
+        }
+    }
+
+    [Fact]
+    public async Task T06_evento_do_sistema_e_download_que_troca_de_nome()
+    {
+        var relogio = new Spobras.Core.Abstracoes.RelogioSistema();
+        var vistos = new List<string>();
+        using var vigia = new VigiaPasta(Pasta, relogio, TimeSpan.FromMilliseconds(300), TimeSpan.FromHours(1));
+        vigia.Novos += n =>
+        {
+            lock (vistos)
+            {
+                vistos.AddRange(n.Select(a => Path.GetFileName(a.Caminho)));
+            }
+        };
+        vigia.Iniciar();
+        await Task.Delay(300);
+
+        Criar("relatorio.pdf.crdownload", "baixando");
+        await Task.Delay(200);
+        File.Move(Em("relatorio.pdf.crdownload"), Em("relatorio.pdf")); // o navegador terminou o download
+
+        Assert.True(await Ate(() => { lock (vistos) { return vistos.Count > 0; } }));
+        lock (vistos)
+        {
+            Assert.Equal(["relatorio.pdf"], vistos);
+        }
+    }
+
+    [Fact]
+    public void Pasta_inexistente_nao_derruba_a_vigia()
+    {
+        using var vigia = new VigiaPasta(Em("nao-existe"), _relogio);
+        vigia.Rodada();
+        vigia.Iniciar();
+    }
+}

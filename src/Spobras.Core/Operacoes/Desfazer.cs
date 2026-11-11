@@ -22,6 +22,12 @@ public sealed class Desfazer(IArquivos arquivos, IRelogio relogio)
         var concluidos = original.Itens.Where(i => i.Estado == EstadoItem.Concluido).ToList();
         var motivos = new Dictionary<Guid, string?>();
 
+        if (original.Tipo == TipoLote.Criar)
+        {
+            // Gerar um documento nao da ao app o direito de apaga-lo (especificacao 3.4).
+            return new PlanoDesfazer(original, [.. concluidos.Select(i => new LinhaDesfazer(i, false, "Arquivo gerado pelo app: não é apagado. Use Abrir pasta."))]);
+        }
+
         if (original.DesfeitoPorLoteId is not null)
         {
             return new PlanoDesfazer(original, [.. concluidos.Select(i => new LinhaDesfazer(i, false, "Esta ação já foi desfeita."))]);

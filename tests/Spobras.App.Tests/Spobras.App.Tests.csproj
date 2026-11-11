@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Spobras.App.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- A logica das telas (servicos e view models) nao usa WPF: e compilada aqui para ser testada em Linux e Windows. -->
+    <Compile Include="../../src/Spobras.App/Servicos/**/*.cs" LinkBase="App/Servicos" />
+    <Compile Include="../../src/Spobras.App/ViewModels/**/*.cs" LinkBase="App/ViewModels" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <ProjectReference Include="../../src/Spobras.Core/Spobras.Core.csproj" />
+    <ProjectReference Include="../../src/Spobras.Dados/Spobras.Dados.csproj" />
+    <ProjectReference Include="../../src/Spobras.Documentos/Spobras.Documentos.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

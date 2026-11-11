@@ -4,6 +4,9 @@ public enum TipoLote
 {
     Renomear,
     Mover,
+
+    /// <summary>Arquivos gerados pelo app (zip, relatorio...). Ficam no historico, mas nao sao desfeitos.</summary>
+    Criar,
 }
 
 /// <summary>Estados da especificacao 3.4.</summary>
