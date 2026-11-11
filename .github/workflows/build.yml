@@ -24,6 +24,27 @@ jobs:
       - name: Testar
         run: dotnet test -c Release --no-build
 
+      - name: Guardar as imagens das telas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas
+          path: artifacts/telas
+          if-no-files-found: warn
+
+      - name: Publicar o app (executavel unico, autocontido)
+        run: >
+          dotnet publish src/Spobras.App -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -o publish/app
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArquivosSPOBRAS
+          path: publish/app/ArquivosSPOBRAS.exe
+          if-no-files-found: error
+
       - name: Publicar o Teste de Ambiente (executavel unico, autocontido)
         run: >
           dotnet publish src/Spobras.TesteAmbiente -c Release -r win-x64 --self-contained true

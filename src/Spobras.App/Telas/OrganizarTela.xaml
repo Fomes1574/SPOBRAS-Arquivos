@@ -1,0 +1,198 @@
+<UserControl x:Class="Spobras.App.Telas.OrganizarTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="220" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Organizar arquivos" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="O app olha o nome e o tipo de cada arquivo e sugere a pasta pelas suas regras. Você confirma antes de qualquer coisa ser movida."
+                       Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <!-- Estado do monitoramento -->
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Style="{StaticResource Painel}" Padding="20,14">
+                <DockPanel>
+                    <Button x:Name="BotaoAuto" DockPanel.Dock="Right" Margin="12,0,0,0" MinWidth="110" Command="{Binding AlternarModoAutomaticoCommand}"
+                            AutomationProperties.Name="Ligar ou desligar o modo automático">
+                        <Button.Style>
+                            <Style TargetType="Button" BasedOn="{StaticResource BotaoSecundario}">
+                                <Setter Property="Content" Value="Desligado" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ModoAutomatico}" Value="True">
+                                        <Setter Property="Content" Value="Ligado" />
+                                        <Setter Property="Background" Value="{StaticResource Preto}" />
+                                        <Setter Property="Foreground" Value="White" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Modo automático" Style="{StaticResource Forte}" />
+                        <TextBlock Text="{Binding TextoModoAutomatico}" Style="{StaticResource Texto2}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <Border Grid.Column="2" Style="{StaticResource Painel}" Padding="20,14">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher outra pasta" Margin="12,0,0,0"
+                            Command="{Binding EscolherPastaVigiadaCommand}" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Pasta vigiada" Style="{StaticResource Forte}" />
+                        <TextBlock Text="{Binding PastaVigiada}" Style="{StaticResource Texto2}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding PastaVigiada}" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Lista -->
+        <Border Grid.Row="2" Style="{StaticResource Painel}" Margin="0,16,0,0">
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="{Binding TextoBotaoMover}" Margin="8,0,0,0" Command="{Binding MoverSugeridosCommand}" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Procurar de novo" Margin="8,0,0,0" Command="{Binding ProcurarDeNovoCommand}"
+                            ToolTip="Olha todos os arquivos da pasta, não só os que acabaram de chegar" />
+                    <TextBlock Text="{Binding TituloLista}" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+                    <WrapPanel>
+                        <Button Style="{StaticResource BotaoLinha}" Content="Escolher uma pasta para os sem sugestão" Margin="0,0,8,6"
+                                Command="{Binding EscolherDestinoDosIndecisosCommand}" Visibility="{Binding TemVoceDecide, Converter={StaticResource Visivel}}" />
+                        <Button Style="{StaticResource BotaoLinha}" Content="Mostrar só os novos" Margin="0,0,8,6" Command="{Binding SoNovidadesCommand}" />
+                        <Button Style="{StaticResource BotaoLinha}" Content="Limpar a lista de novos" Margin="0,0,8,6" Command="{Binding DispensarNovidadesCommand}"
+                                ToolTip="Tira os arquivos desta lista sem mexer neles" Visibility="{Binding TemLinhas, Converter={StaticResource Visivel}}" />
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13"
+                               Text="Nada é apagado: arquivo com nome repetido no destino ganha (2), (3). Cada movimento vai para o histórico e pode ser desfeito." />
+                </StackPanel>
+
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,6" Visibility="{Binding TemLinhas, Converter={StaticResource Visivel}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="36" />
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="3*" />
+                        <ColumnDefinition Width="130" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="1" Text="Arquivo" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="2" Text="O que o app encontrou" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="Destino sugerido" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                </Grid>
+
+                <Grid>
+                    <TextBlock Text="{Binding TextoVazio}" Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"
+                               Visibility="{Binding TemLinhas, Converter={StaticResource VisivelSeNao}}" />
+                    <ListBox ItemsSource="{Binding Linhas}" Style="{StaticResource ListaSimples}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="36" />
+                                        <ColumnDefinition Width="3*" />
+                                        <ColumnDefinition Width="3*" />
+                                        <ColumnDefinition Width="3*" />
+                                        <ColumnDefinition Width="130" />
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox IsChecked="{Binding Selecionado}" VerticalAlignment="Center" AutomationProperties.Name="Mover este arquivo"
+                                              x:Name="Marca" />
+                                    <StackPanel Grid.Column="1" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Nome}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Caminho}" />
+                                        <TextBlock Text="{Binding Tipo}" Style="{StaticResource Texto2}" FontSize="13" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding Achou}" TextWrapping="Wrap" Margin="0,0,12,0" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="3" Margin="0,0,12,0" VerticalAlignment="Center">
+                                        <TextBlock x:Name="Destino" Text="{Binding Destino}" FontWeight="Bold" Foreground="{StaticResource Azul}" TextTrimming="CharacterEllipsis" ToolTip="{Binding DestinoCompleto}" />
+                                        <TextBlock Text="{Binding Motivo}" Style="{StaticResource Texto2}" FontSize="13" />
+                                        <Button Style="{StaticResource BotaoLink}" Content="{Binding TextoLembrar}" FontSize="13" HorizontalAlignment="Left"
+                                                Command="{Binding DataContext.LembrarEscolhaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding PodeLembrar, Converter={StaticResource Visivel}}" />
+                                    </StackPanel>
+                                    <Button x:Name="Outra" Grid.Column="4" Style="{StaticResource BotaoLinha}" Content="Outra pasta…" VerticalAlignment="Center"
+                                            Command="{Binding DataContext.EscolherDestinoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                </Grid>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding VoceDecide}" Value="True">
+                                        <Setter TargetName="Destino" Property="Foreground" Value="{StaticResource Laranja}" />
+                                        <Setter TargetName="Outra" Property="Content" Value="Escolher…" />
+                                        <Setter TargetName="Marca" Property="IsEnabled" Value="False" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- Regras (area secundaria) -->
+        <Border Grid.Row="3" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,10">
+            <Expander IsExpanded="{Binding RegrasAbertas}">
+                <Expander.Header>
+                    <TextBlock Text="Regras: para onde vai cada tipo de arquivo" FontWeight="SemiBold" />
+                </Expander.Header>
+                <StackPanel Margin="0,10,0,6">
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8"
+                               Text="A regra vale quando o arquivo bate com tudo o que estiver preenchido. Separe vários trechos ou extensões com vírgula. No destino você pode usar {ano} e {mes}. Prioridade maior ganha quando duas regras servem." />
+                    <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding Regras}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="1.4*" />
+                                            <ColumnDefinition Width="3*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="70" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox IsChecked="{Binding Ativa}" VerticalAlignment="Center" Margin="0,0,8,0" ToolTip="Regra ligada" AutomationProperties.Name="Regra ligada" />
+                                        <TextBox Grid.Column="1" Text="{Binding Nome}" Margin="0,0,6,0" ToolTip="Nome da regra" AutomationProperties.Name="Nome da regra" />
+                                        <TextBox Grid.Column="2" Text="{Binding NomeContem}" Margin="0,0,6,0" ToolTip="Nome do arquivo contém (ex.: medicao, medição)" AutomationProperties.Name="Nome do arquivo contém" />
+                                        <TextBox Grid.Column="3" Text="{Binding Extensoes}" Margin="0,0,6,0" ToolTip="Extensões (ex.: pdf, xlsx)" AutomationProperties.Name="Extensões" />
+                                        <TextBox Grid.Column="4" Text="{Binding Destino}" Margin="0,0,6,0" ToolTip="Pasta de destino" AutomationProperties.Name="Pasta de destino" />
+                                        <Button Grid.Column="5" Style="{StaticResource BotaoLinha}" Content="Pasta…" MinHeight="44" Margin="0,0,6,0"
+                                                Command="{Binding DataContext.EscolherDestinoDaRegraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        <TextBox Grid.Column="6" Text="{Binding Prioridade}" Margin="0,0,6,0" ToolTip="Prioridade (número maior ganha)" AutomationProperties.Name="Prioridade" />
+                                        <Button Grid.Column="7" Style="{StaticResource BotaoLinha}" Content="✕" MinHeight="44" ToolTip="Remover a regra" AutomationProperties.Name="Remover a regra"
+                                                Command="{Binding DataContext.RemoverRegraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <ItemsControl ItemsSource="{Binding AvisosRegras}" ItemTemplate="{StaticResource AvisoModelo}" Focusable="False" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Style="{StaticResource BotaoSecundario}" Content="Nova regra" Command="{Binding NovaRegraCommand}" />
+                        <Button Style="{StaticResource BotaoEscuro}" Content="Salvar regras" Margin="8,0,0,0" Command="{Binding SalvarRegrasCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Expander>
+        </Border>
+
+        <!-- Resultado -->
+        <Border Grid.Row="4" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,12" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Desfazer" Margin="12,0,0,0" Command="{Binding DesfazerUltimaCommand}"
+                        Visibility="{Binding PodeDesfazerUltima, Converter={StaticResource Visivel}}" />
+                <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" VerticalAlignment="Center" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

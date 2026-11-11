@@ -16,3 +16,4 @@ relatorio-ambiente*.txt
 *.pdf
 !amostras/**/*.xlsx
 !amostras/**/*.pdf
+artifacts/

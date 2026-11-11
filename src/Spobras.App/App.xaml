@@ -1,4 +1,17 @@
 <Application x:Class="Spobras.App.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             StartupUri="MainWindow.xaml" />
+             xmlns:t="clr-namespace:Spobras.App.Telas"
+             ShutdownMode="OnExplicitShutdown">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Tema/Tema.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <t:EnumIgual x:Key="EnumIgual" />
+            <t:VisivelSe x:Key="VisivelSe" />
+            <t:VisivelSeNao x:Key="VisivelSeNao" />
+            <t:Iguais x:Key="Iguais" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

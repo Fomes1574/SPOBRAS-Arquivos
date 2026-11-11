@@ -1,0 +1,213 @@
+<UserControl x:Class="Spobras.App.Telas.RenomearTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:r="clr-namespace:Spobras.Core.Renomear;assembly=Spobras.Core"
+             AllowDrop="True" Drop="AoSoltar" DragOver="AoArrastar" Background="Transparent">
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Renomear em lote" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="Digite o nome e o app numera todos em sequência. Funciona com PDF e com qualquer outro tipo de arquivo."
+                       Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <!-- Entrada -->
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Limpar lista" Margin="8,0,0,0" MinHeight="44"
+                        Command="{Binding LimparCommand}" Visibility="{Binding TemLinhas, Converter={StaticResource Visivel}}" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher pasta" Margin="8,0,0,0" Command="{Binding EscolherPastaCommand}" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher arquivos" Margin="16,0,0,0" Command="{Binding EscolherArquivosCommand}" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding TextoEntrada}" Style="{StaticResource Forte}" />
+                    <TextBlock Text="{Binding PastaEntrada}" Style="{StaticResource Texto2}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Como renomear -->
+            <Border Style="{StaticResource Painel}" Padding="0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                    <StackPanel Margin="20">
+                        <TextBlock Text="Como renomear" Style="{StaticResource TituloPainel}" Margin="0,0,0,10" />
+
+                        <RadioButton GroupName="ModoRenomear" Content="Nome + número  (Relatório 01, 02, 03…)"
+                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=NomeNumero}" />
+                        <RadioButton GroupName="ModoRenomear" Content="Nome + complemento em cada arquivo"
+                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=NomeComplemento}" />
+                        <RadioButton GroupName="ModoRenomear" Content="Nomes livres (digitar ou colar uma lista)"
+                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=NomesLivres}" />
+
+                        <StackPanel Visibility="{Binding UsaNomeBase, Converter={StaticResource Visivel}}" Margin="0,14,0,0">
+                            <TextBlock Text="Nome" Style="{StaticResource Rotulo}" />
+                            <TextBox Text="{Binding NomeBase, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding ModoNomeNumero, Converter={StaticResource Visivel}}" Margin="0,12,0,0">
+                            <CheckBox Content="Colocar número depois do nome" IsChecked="{Binding Numerar}" />
+                            <StackPanel IsEnabled="{Binding Numerar}">
+                                <TextBlock Text="Começar no número" Style="{StaticResource Rotulo}" Margin="0,8,0,6" />
+                                <TextBox Text="{Binding NumeroInicial, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left"
+                                         AutomationProperties.Name="Começar no número" />
+                                <CheckBox Content="Número com zero na frente (01, 02, 03)" IsChecked="{Binding ZeroEsquerda}" Margin="0,8,0,0" />
+                                <CheckBox Content="Continuar de onde a pasta parou" IsChecked="{Binding ContinuarNumeracao}" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding ModoComplemento, Converter={StaticResource Visivel}}" Margin="0,10,0,0">
+                            <TextBlock Text="Digite o complemento de cada arquivo na prévia ao lado (por exemplo, o lote)." Style="{StaticResource Texto2}" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding ModoLivre, Converter={StaticResource Visivel}}" Margin="0,10,0,0">
+                            <TextBlock Text="Digite o nome novo de cada arquivo na prévia ao lado, ou cole uma lista com um nome por linha." Style="{StaticResource Texto2}" />
+                            <Button Style="{StaticResource BotaoSecundario}" Content="Colar lista de nomes" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                    Command="{Binding ColarNomesCommand}" />
+                        </StackPanel>
+
+                        <TextBlock Text="Ordem da numeração" Style="{StaticResource Rotulo}" Margin="0,16,0,6" />
+                        <ComboBox SelectedValue="{Binding Ordem}" SelectedValuePath="Tag" AutomationProperties.Name="Ordem da numeração">
+                            <ComboBoxItem Content="Pelo nome atual (2 antes de 10)" Tag="{x:Static r:OrdemRenomear.NomeNatural}" />
+                            <ComboBoxItem Content="Pela data de modificação do arquivo" Tag="{x:Static r:OrdemRenomear.Data}" />
+                            <ComboBoxItem Content="Na ordem que eu montar (setas na prévia)" Tag="{x:Static r:OrdemRenomear.Manual}" />
+                        </ComboBox>
+
+                        <Expander Header="Outras opções" Margin="0,16,0,0">
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock Text="Entre o nome e o número" Style="{StaticResource Rotulo}" />
+                                <TextBox Text="{Binding Separador, UpdateSourceTrigger=PropertyChanged}" Width="120" HorizontalAlignment="Left"
+                                         AutomationProperties.Name="Separador" />
+                                <TextBlock Text="Data de modificação no nome (formato 2026-11-10)" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
+                                <ComboBox SelectedValue="{Binding PosicaoData}" SelectedValuePath="Tag" AutomationProperties.Name="Data no nome">
+                                    <ComboBoxItem Content="Não colocar" Tag="{x:Static r:PosicaoData.Nenhuma}" />
+                                    <ComboBoxItem Content="No começo do nome" Tag="{x:Static r:PosicaoData.Inicio}" />
+                                    <ComboBoxItem Content="No fim do nome" Tag="{x:Static r:PosicaoData.Fim}" />
+                                </ComboBox>
+                                <TextBlock Text="Trocar um trecho por outro" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Text="{Binding SubstituirDe, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Trecho a trocar" />
+                                    <TextBlock Grid.Column="1" Text="por" VerticalAlignment="Center" Margin="8,0" />
+                                    <TextBox Grid.Column="2" Text="{Binding SubstituirPor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Trecho novo" />
+                                </Grid>
+                                <CheckBox Content="Tirar espaços sobrando" IsChecked="{Binding RemoverEspacosExcedentes}" Margin="0,10,0,0" />
+                                <CheckBox Content="Tirar acentos (evite em documentos oficiais)" IsChecked="{Binding RemoverAcentos}" />
+                            </StackPanel>
+                        </Expander>
+
+                        <TextBlock Text="Perfil" Style="{StaticResource Rotulo}" Margin="0,16,0,6" />
+                        <ComboBox ItemsSource="{Binding Perfis}" DisplayMemberPath="Nome" SelectedItem="{Binding PerfilSelecionado}"
+                                  AutomationProperties.Name="Perfil" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Style="{StaticResource BotaoLinha}" Content="Salvar estas opções" Command="{Binding SalvarPerfilCommand}" />
+                            <Button Style="{StaticResource BotaoLinha}" Content="Remover perfil" Margin="8,0,0,0" Command="{Binding RemoverPerfilCommand}"
+                                    Visibility="{Binding PerfilSelecionado, Converter={StaticResource VisivelSe}}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Previa -->
+            <Border Grid.Column="2" Style="{StaticResource Painel}">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Contagem}" Style="{StaticResource Forte}" VerticalAlignment="Center" />
+                        <TextBlock Text="Prévia: nada muda até você confirmar" Style="{StaticResource TituloPainel}" />
+                    </DockPanel>
+                    <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,6" Visibility="{Binding TemLinhas, Converter={StaticResource Visivel}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="170" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Nome de hoje" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="2" Text="Nome novo (pode editar)" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                    </Grid>
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding TemLinhas, Converter={StaticResource VisivelSeNao}}">
+                            <TextBlock Text="Arraste arquivos ou uma pasta para cá" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="ou use os botões Escolher arquivos e Escolher pasta, acima." Style="{StaticResource Texto2}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <ListBox ItemsSource="{Binding Linhas}" Style="{StaticResource ListaSimples}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="28" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="170" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding NomeAtual}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding NomeAtual}" />
+                                            <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource Secundario}" />
+                                            <DockPanel Grid.Column="2">
+                                                <TextBox DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" Text="{Binding Complemento}"
+                                                         AutomationProperties.Name="Complemento" ToolTip="Complemento deste arquivo"
+                                                         Visibility="{Binding DataContext.ModoComplemento, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visivel}}" />
+                                                <TextBox x:Name="CampoNovo" Text="{Binding NomeNovo}" FontWeight="SemiBold" AutomationProperties.Name="Nome novo" KeyDown="AoTeclarNoNome" />
+                                            </DockPanel>
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource BotaoLinha}" Content="↺" ToolTip="Voltar ao nome sugerido" AutomationProperties.Name="Voltar ao nome sugerido"
+                                                        Command="{Binding DataContext.VoltarAoSugeridoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                        Visibility="{Binding FoiEditado, Converter={StaticResource Visivel}}" Margin="0,0,4,0" />
+                                                <Button Style="{StaticResource BotaoLinha}" Content="↑" ToolTip="Subir na ordem" AutomationProperties.Name="Subir na ordem"
+                                                        Command="{Binding DataContext.SubirCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Margin="0,0,4,0" />
+                                                <Button Style="{StaticResource BotaoLinha}" Content="↓" ToolTip="Descer na ordem" AutomationProperties.Name="Descer na ordem"
+                                                        Command="{Binding DataContext.DescerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Margin="0,0,4,0" />
+                                                <Button Style="{StaticResource BotaoLinha}" Content="✕" ToolTip="Tirar da lista (o arquivo não é apagado)" AutomationProperties.Name="Tirar da lista"
+                                                        Command="{Binding DataContext.RemoverCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock x:Name="Motivo" TextWrapping="Wrap" FontSize="13" Margin="0,4,0,0" Foreground="{StaticResource Laranja}"
+                                                   Visibility="{Binding Motivo, Converter={StaticResource VisivelSe}}">
+                                            <Run Text="{Binding Situacao, Mode=OneWay}" FontWeight="Bold" /><Run Text=":  " /><Run Text="{Binding Motivo, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Impedido}" Value="True">
+                                            <Setter TargetName="Motivo" Property="Foreground" Value="{StaticResource Vermelho}" />
+                                            <Setter TargetName="CampoNovo" Property="BorderBrush" Value="{StaticResource Vermelho}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Acao -->
+        <Border Grid.Row="3" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="{Binding TextoBotao}" Command="{Binding RenomearCommand}" Margin="12,0,0,0" IsDefault="False" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Desfazer a última" Command="{Binding DesfazerUltimaCommand}" Margin="12,0,0,0"
+                        Visibility="{Binding PodeDesfazerUltima, Converter={StaticResource Visivel}}" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="Resultado" Text="{Binding Resultado}" Style="{StaticResource Forte}"
+                               Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}" />
+                    <TextBlock Text="Os arquivos ficam na mesma pasta. Para desfazer, use o botão ao lado ou o Histórico." Style="{StaticResource Texto2}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</UserControl>

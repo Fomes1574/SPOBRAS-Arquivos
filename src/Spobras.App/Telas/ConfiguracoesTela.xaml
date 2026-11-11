@@ -1,0 +1,62 @@
+<UserControl x:Class="Spobras.App.Telas.ConfiguracoesTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="40,32" MaxWidth="980" HorizontalAlignment="Left">
+            <TextBlock Text="Configurações" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="O que vale para o app inteiro. As opções de cada módulo ficam na tela do próprio módulo." Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Pastas" Style="{StaticResource TituloPainel}" />
+
+                    <TextBlock Text="Pasta de trabalho" Style="{StaticResource Forte}" Margin="0,14,0,0" />
+                    <TextBlock Text="Onde você organiza, renomeia e compacta, e onde os arquivos gerados são salvos por padrão. É a pasta que o modo automático vigia."
+                               Style="{StaticResource Texto2}" FontSize="13" />
+                    <DockPanel Margin="0,8,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher outra pasta" Margin="12,0,0,0" Command="{Binding EscolherPastaTrabalhoCommand}" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PastaTrabalho}" TextTrimming="CharacterEllipsis" ToolTip="{Binding PastaTrabalho}" />
+                            <TextBlock Text="{Binding EstadoPastaTrabalho}" Style="{StaticResource Texto2}" FontSize="13" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Margin="0,16,0,0" />
+
+                    <TextBlock Text="Pasta das planilhas base" Style="{StaticResource Forte}" Margin="0,14,0,0" />
+                    <TextBlock Text="Onde ficam a planilha mestra e as outras fontes de dados. O app só lê desta pasta e o organizador nunca mexe nela."
+                               Style="{StaticResource Texto2}" FontSize="13" />
+                    <DockPanel Margin="0,8,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher pasta" Margin="12,0,0,0" Command="{Binding EscolherPastaBaseCommand}" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PastaPlanilhasBase}" TextTrimming="CharacterEllipsis" ToolTip="{Binding PastaPlanilhasBase}"
+                                       Visibility="{Binding PastaPlanilhasBase, Converter={StaticResource VisivelSe}}" />
+                            <TextBlock Text="{Binding EstadoPastaBase}" Style="{StaticResource Texto2}" FontSize="13" />
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Modo automático" Style="{StaticResource TituloPainel}" />
+                    <CheckBox Content="Vigiar a pasta de trabalho e avisar quando chegar arquivo novo" IsChecked="{Binding ModoAutomatico}" Margin="0,10,0,0" />
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,0"
+                               Text="Com ele ligado, fechar a janela deixa o app na bandeja, perto do relógio, para continuar avisando. Para sair de vez, clique no ícone da bandeja com o botão direito e escolha Sair. O app só avisa e sugere: nada é movido sem a sua confirmação." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="Sobre e diagnóstico" Style="{StaticResource TituloPainel}" />
+                    <TextBlock Margin="0,10,0,0"><Run Text="Versão do app: " /><Run Text="{Binding Versao, Mode=OneWay}" FontWeight="SemiBold" /></TextBlock>
+                    <TextBlock Text="Dados do app (histórico, regras, perfis e registro de erros)" Style="{StaticResource Forte}" Margin="0,12,0,0" />
+                    <DockPanel Margin="0,4,0,0">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Abrir pasta de dados" Margin="12,0,0,0" Command="{Binding AbrirPastaDadosCommand}" />
+                        <TextBlock Text="{Binding PastaDados}" Style="{StaticResource Texto2}" VerticalAlignment="Center" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding PastaDados}" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

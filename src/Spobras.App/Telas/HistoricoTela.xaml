@@ -1,0 +1,123 @@
+<UserControl x:Class="Spobras.App.Telas.HistoricoTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Histórico e tarefas" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="Tudo o que o app fez, arquivo por arquivo. Daqui você desfaz, continua o que ficou pendente e abre a pasta do resultado."
+                       Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <!-- Fila de tarefas desta sessao -->
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,12" Visibility="{Binding TemTarefas, Converter={StaticResource Visivel}}">
+            <StackPanel>
+                <TextBlock Text="Tarefas desde que o app abriu" Style="{StaticResource Forte}" />
+                <ScrollViewer MaxHeight="130" VerticalScrollBarVisibility="Auto" Focusable="False" Margin="0,6,0,0">
+                    <ItemsControl ItemsSource="{Binding Tarefas}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,3">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Cancelar" Margin="8,0,0,0"
+                                            Command="{Binding DataContext.CancelarTarefaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                            Visibility="{Binding PodeCancelar, Converter={StaticResource Visivel}}" />
+                                    <TextBlock TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                                        <Run Text="{Binding Estado, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  ·  " /><Run Text="{Binding Titulo, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding Mensagem, Mode=OneWay}" Foreground="{StaticResource Secundario}" />
+                                    </TextBlock>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <DockPanel Grid.Row="2" Margin="0,16,0,0">
+            <CheckBox DockPanel.Dock="Right" Content="Só com pendência ou falha" IsChecked="{Binding SoComPendencia}" Margin="16,0,0,0" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Left" Text="Procurar" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0" />
+            <TextBox Text="{Binding Filtro, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Procurar no histórico por ação ou nome de arquivo" />
+        </DockPanel>
+
+        <Grid Grid.Row="3" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="5*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="4*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource Painel}" Padding="10">
+                <Grid>
+                    <TextBlock Text="Nada por aqui ainda." Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                               Visibility="{Binding TemLotes, Converter={StaticResource VisivelSeNao}}" />
+                    <ListBox ItemsSource="{Binding Lotes}" SelectedItem="{Binding Selecionado}" BorderThickness="0" Background="Transparent"
+                             ItemContainerStyle="{StaticResource LinhaSelecionavel}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             AutomationProperties.Name="Ações do histórico">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                        <Button Style="{StaticResource BotaoLinha}" Content="Continuar" Margin="0,0,6,0"
+                                                Command="{Binding DataContext.ContinuarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding TemPendentes, Converter={StaticResource Visivel}}" />
+                                        <Button Style="{StaticResource BotaoLinha}" Content="Desfazer" Margin="0,0,6,0"
+                                                Command="{Binding DataContext.DesfazerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding PodeDesfazer, Converter={StaticResource Visivel}}" />
+                                        <Button Style="{StaticResource BotaoLinha}" Content="Abrir pasta"
+                                                Command="{Binding DataContext.AbrirPastaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding PodeAbrirPasta, Converter={StaticResource Visivel}}" />
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Descricao}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                        <TextBlock Style="{StaticResource Texto2}" FontSize="13">
+                                            <Run Text="{Binding Quando, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding Resumo, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource Painel}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Arquivos desta ação" Style="{StaticResource TituloPainel}" Margin="0,0,0,8" />
+                    <Grid>
+                        <TextBlock Text="Clique numa ação à esquerda para ver os arquivos." Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center"
+                                   Visibility="{Binding Selecionado, Converter={StaticResource VisivelSeNao}}" />
+                        <ListBox ItemsSource="{Binding Selecionado.Itens}" Style="{StaticResource ListaSimples}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock TextWrapping="Wrap">
+                                            <Run Text="{Binding De, Mode=OneWay}" /><Run Text="  →  " Foreground="{StaticResource Secundario}" /><Run Text="{Binding Para, Mode=OneWay}" FontWeight="SemiBold" />
+                                        </TextBlock>
+                                        <TextBlock x:Name="Estado" FontSize="13" TextWrapping="Wrap" Foreground="{StaticResource Secundario}">
+                                            <Run Text="{Binding Estado, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Mensagem, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Falhou}" Value="True">
+                                            <Setter TargetName="Estado" Property="Foreground" Value="{StaticResource Vermelho}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="4" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,12" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+            <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" />
+        </Border>
+    </Grid>
+</UserControl>

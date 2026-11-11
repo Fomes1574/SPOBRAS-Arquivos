@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Spobras.App.Telas.Tests</RootNamespace>
+    <!-- So roda no Windows: fora dele o projeto compila, mas nao entra no "dotnet test". -->
+    <IsTestProject Condition="!$([MSBuild]::IsOSPlatform('Windows'))">false</IsTestProject>
+    <IsTestingPlatformApplication Condition="!$([MSBuild]::IsOSPlatform('Windows'))">false</IsTestingPlatformApplication>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <ProjectReference Include="../../src/Spobras.App/Spobras.App.csproj" />
+  </ItemGroup>
+</Project>

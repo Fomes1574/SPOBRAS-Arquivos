@@ -1,0 +1,103 @@
+<UserControl x:Class="Spobras.App.Telas.InicioTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="40,32">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" VerticalAlignment="Center" Cursor="Hand" Command="{Binding AbrirOrganizarCommand}"
+                        FocusVisualStyle="{StaticResource FocoVisivel}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="White" BorderBrush="{StaticResource Borda}" BorderThickness="1" CornerRadius="22" Padding="16,0" MinHeight="44">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Ellipse x:Name="Ponto" Width="10" Height="10" Fill="{StaticResource Secundario}" Margin="0,0,10,0" />
+                                    <TextBlock Text="{Binding EstadoAutomatico}" FontWeight="SemiBold" />
+                                </StackPanel>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <DataTrigger Binding="{Binding AutomaticoLigado}" Value="True">
+                                    <Setter TargetName="Ponto" Property="Fill" Value="{StaticResource Azul}" />
+                                </DataTrigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <StackPanel>
+                    <TextBlock Text="Início" Style="{StaticResource TituloPagina}" />
+                    <TextBlock Text="Escolha o que você quer fazer. Tudo roda neste computador." Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+                </StackPanel>
+            </DockPanel>
+
+            <!-- Modulos disponiveis -->
+            <ItemsControl ItemsSource="{Binding Modulos}" Margin="-8,16,-8,0" Focusable="False">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Width="280" MinHeight="150" Margin="8" Cursor="Hand"
+                                Command="{Binding DataContext.AbrirCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}" FocusVisualStyle="{StaticResource FocoVisivel}"
+                                AutomationProperties.Name="{Binding Titulo}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Cartao" Background="White" BorderBrush="{StaticResource Borda}" BorderThickness="1" CornerRadius="10" Padding="20">
+                                        <StackPanel>
+                                            <Path Data="{Binding Icone}" Stroke="{StaticResource Vermelho}" StrokeThickness="1.8" Width="28" Height="28"
+                                                  Stretch="Uniform" HorizontalAlignment="Left" StrokeLineJoin="Round" />
+                                            <TextBlock Text="{Binding Titulo}" FontSize="18" FontWeight="Bold" Margin="0,8,0,4" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Descricao}" Style="{StaticResource Texto2}" />
+                                        </StackPanel>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Cartao" Property="BorderBrush" Value="{StaticResource Preto}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Ultimas acoes -->
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Ver histórico" Command="{Binding AbrirHistoricoCommand}" VerticalAlignment="Center" />
+                        <TextBlock Text="Últimas ações" Style="{StaticResource TituloPainel}" />
+                    </DockPanel>
+                    <TextBlock Text="O app nunca apaga arquivos. Renomear e mover podem ser desfeitos enquanto o arquivo não for alterado."
+                               Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
+                    <TextBlock Text="Nada ainda. O que você fizer no app aparece aqui." Style="{StaticResource Texto2}"
+                               Visibility="{Binding TemAcoes, Converter={StaticResource VisivelSeNao}}" />
+                    <ItemsControl ItemsSource="{Binding UltimasAcoes}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Abrir pasta" Margin="12,0,0,0"
+                                                Command="{Binding DataContext.AbrirPastaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Visibility="{Binding PodeAbrirPasta, Converter={StaticResource Visivel}}" />
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Desfazer" Margin="12,0,0,0"
+                                                Command="{Binding DataContext.DesfazerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                CommandParameter="{Binding}" Visibility="{Binding PodeDesfazer, Converter={StaticResource Visivel}}" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Descricao}" TextWrapping="Wrap" />
+                                            <TextBlock Style="{StaticResource Texto2}" FontSize="13">
+                                                <Run Text="{Binding Quando, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{Binding Resumo, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
