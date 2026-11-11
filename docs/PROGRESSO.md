@@ -1,6 +1,19 @@
 # Progresso
 
-Passo atual: **1. Solução, CI e Teste de Ambiente** (seção 10 da arquitetura): construído, **aguardando o relatório do usuário**. Não iniciar o passo 2 antes disso.
+Passo atual: **2. Core: tarefas, histórico, arquivos, renomear, zip, organizador** (seção 10 da arquitetura). **Bloqueado**: falta `docs/ESPECIFICACAO.md`.
+
+Passo 1 concluído: o usuário rodou o Teste de Ambiente no PC do trabalho em 11/11/2026 e os 9 itens passaram. A arquitetura não precisou de ajuste.
+
+## Resultado do Teste de Ambiente (PC do trabalho)
+
+- O executável único autocontido abriu sem bloqueio da TI (processo de 64 bits, .NET 10 embutido).
+- Windows 11 x64 (compilação 26200), escala 100%, dois monitores (1920x1080 e 1600x900).
+- Excel do Microsoft 365, **64 bits**, versão 16.0, registrado para automação.
+- Excel invisível: abre em cerca de 4,5 s; escrever, recalcular, ler total, exportar PDF, salvar e fechar funcionaram com o Excel do usuário aberto, sem afetá-lo.
+- Modelo do cronograma (`.xlsx`, 4 abas): abrir cópia, recalcular e exportar PDF levou cerca de 6 s.
+- Downloads: criar, renomear (com acento), mover e remover funcionam; a vigia detecta arquivo novo em milissegundos.
+- OneDrive e a biblioteca sincronizada das planilhas base foram encontrados pelo registro. **Quase todos os arquivos estão só na nuvem** (24 de 27 na pasta das planilhas base): a leitura sob demanda funciona, mas o importador (passo 5) deve contar com o tempo de download e com falha sem internet.
+- SQLite em `%LOCALAPPDATA%\ArquivosSPOBRAS`, ícone na bandeja e notificação: ok.
 
 ## Feito
 
@@ -27,8 +40,7 @@ Passo atual: **1. Solução, CI e Teste de Ambiente** (seção 10 da arquitetura
 
 ## Pendências com o usuário
 
-- [ ] Relatório do Teste de Ambiente (`relatorio-ambiente.txt`).
-- [ ] Enviar `docs/ESPECIFICACAO.md` (revisão 2.3): não veio junto com os outros arquivos. Necessário a partir do passo 2.
+- [ ] **Enviar `docs/ESPECIFICACAO.md` (revisão 2.3)**: não veio junto com os outros arquivos. Sem ela o passo 2 não começa (modos de renomeação, regras do organizador e casos T01 a T35 estão lá).
 - [ ] Enviar o modelo de front-end criado pelo Claude (telas): não veio junto. Necessário no passo 3.
 - [ ] Qual coluna é a data oficial da Ordem de Serviço: `INÍCIO EXECUÇÃO`, `INICIO`, `DATA DE INÍCIO` ou a coluna `OS` da aba STATUS?
 
@@ -41,5 +53,5 @@ Passo atual: **1. Solução, CI e Teste de Ambiente** (seção 10 da arquitetura
 
 ## Não testado (e por quê)
 
-- Execução do `TesteAmbienteSPOBRAS.exe` em Windows: tela, bandeja, notificação, OneDrive, registro e automação do Excel real. O ambiente do Claude Code é Linux e o runner do CI não tem Excel. É exatamente o que o relatório do usuário vai cobrir.
+- Execução do `TesteAmbienteSPOBRAS.exe` em Windows não é testável pelo Claude Code (Linux; o CI não tem Excel). Coberta pelo relatório do usuário acima.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).
