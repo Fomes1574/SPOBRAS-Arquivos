@@ -99,6 +99,7 @@ public partial class App : Application
         })
         { IsBackground = true, Name = "Sinal de segunda instancia" }.Start();
 
+        SugerirPastaDasPlanilhasBase(_composicao);
         _composicao.Iniciar();
         _janela.Show();
     }
@@ -110,6 +111,32 @@ public partial class App : Application
         _sinalMostrar?.Dispose();
         _instancia?.Dispose();
         base.OnExit(e);
+    }
+
+    /// <summary>
+    /// Primeira execucao: se a pasta das planilhas base ainda nao foi escolhida, procura a planilha mestra pelo
+    /// nome nas pastas sincronizadas e sugere a pasta onde ela esta. Pode ser trocada em Configuracoes.
+    /// </summary>
+    private static void SugerirPastaDasPlanilhasBase(Composicao composicao)
+    {
+        if (!string.IsNullOrWhiteSpace(composicao.Preferencias.Atual.PastaPlanilhasBase))
+        {
+            return;
+        }
+
+        try
+        {
+            string? pasta = PastasWindows.Sincronizadas()
+                .FirstOrDefault(p => File.Exists(Path.Combine(p, Spobras.Core.Base.Fontes.NomeArquivoMestra)));
+            if (pasta is not null)
+            {
+                composicao.Preferencias.Alterar(p => p with { PastaPlanilhasBase = pasta });
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Pasta fora do ar: fica para o usuario escolher.
+        }
     }
 
     private void MostrarJanela(string? pagina)

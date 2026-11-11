@@ -51,7 +51,7 @@ public sealed class Composicao : IDisposable
             [RelatorioVm.Modulo] = new RelatorioVm(dialogos, @interface, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias),
-            [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias),
+            [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos),
         };

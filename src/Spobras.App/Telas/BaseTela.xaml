@@ -1,0 +1,223 @@
+<UserControl x:Class="Spobras.App.Telas.BaseTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:b="clr-namespace:Spobras.Core.Base;assembly=Spobras.Core">
+    <UserControl.Resources>
+        <!-- Um filtro: rotulo, lista de opcoes compativeis e botao de limpar -->
+        <Style x:Key="LimparFiltro" TargetType="Button" BasedOn="{StaticResource BotaoLinha}">
+            <Setter Property="Content" Value="✕" />
+            <Setter Property="MinHeight" Value="44" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="ToolTip" Value="Limpar este filtro" />
+        </Style>
+    </UserControl.Resources>
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="200" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Fontes de dados" VerticalAlignment="Center" Margin="16,0,0,0"
+                    Command="{Binding AbrirFontesCommand}" ToolTip="De onde vêm os dados, quando foram lidos e Reler agora" />
+            <StackPanel>
+                <TextBlock Text="Base de dados" Style="{StaticResource TituloPagina}" />
+                <TextBlock Text="{Binding EstadoDaBase}" Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Filtros: cada escolha atualiza o resultado e as opcoes dos outros campos -->
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Limpar filtros" Margin="12,0,0,0" Command="{Binding LimparFiltrosCommand}" />
+                    <TextBlock DockPanel.Dock="Left" Text="Procurar" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <TextBox Text="{Binding Texto, UpdateSourceTrigger=PropertyChanged, Delay=300}" AutomationProperties.Name="Procurar por contrato, escola, contratada, lote ou processo"
+                             ToolTip="Contrato, escola, contratada, lote, processo SEI ou escopo" />
+                </DockPanel>
+
+                <UniformGrid Rows="1" Margin="-6,12,-6,0">
+                    <StackPanel Margin="6,0">
+                        <TextBlock Text="Portaria" Style="{StaticResource Rotulo}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="portaria" AutomationProperties.Name="Limpar o filtro de portaria" />
+                            <ComboBox ItemsSource="{Binding Portarias}" SelectedItem="{Binding Portaria}" AutomationProperties.Name="Portaria" />
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Margin="6,0">
+                        <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="contrato" AutomationProperties.Name="Limpar o filtro de contrato" />
+                            <ComboBox ItemsSource="{Binding Contratos}" SelectedItem="{Binding Contrato}" AutomationProperties.Name="Contrato" />
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Margin="6,0">
+                        <TextBlock Text="Escola" Style="{StaticResource Rotulo}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="escola" AutomationProperties.Name="Limpar o filtro de escola" />
+                            <ComboBox ItemsSource="{Binding Escolas}" SelectedItem="{Binding Escola}" AutomationProperties.Name="Escola" />
+                        </DockPanel>
+                    </StackPanel>
+                </UniformGrid>
+
+                <Expander Header="Mais filtros: contrato de receita, dotação, valores e Data da OS" Margin="0,12,0,0">
+                    <StackPanel Margin="0,10,0,0">
+                        <UniformGrid Rows="1" Margin="-6,0">
+                            <StackPanel Margin="6,0">
+                                <TextBlock Text="Contrato de receita" Style="{StaticResource Rotulo}" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="receita" AutomationProperties.Name="Limpar o filtro de contrato de receita" />
+                                    <ComboBox ItemsSource="{Binding ContratosReceita}" SelectedItem="{Binding ContratoReceita}" AutomationProperties.Name="Contrato de receita" />
+                                </DockPanel>
+                            </StackPanel>
+                            <StackPanel Margin="6,0">
+                                <TextBlock Text="Dotação (atividade)" Style="{StaticResource Rotulo}" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="dotacao" AutomationProperties.Name="Limpar o filtro de dotação" />
+                                    <ComboBox ItemsSource="{Binding Dotacoes}" SelectedItem="{Binding Dotacao}" AutomationProperties.Name="Dotação" />
+                                </DockPanel>
+                            </StackPanel>
+                            <StackPanel Margin="6,0">
+                                <TextBlock Text="Status da obra" Style="{StaticResource Rotulo}" />
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="status" AutomationProperties.Name="Limpar o filtro de status" />
+                                    <ComboBox ItemsSource="{Binding Situacoes}" SelectedItem="{Binding Status}" AutomationProperties.Name="Status da obra" />
+                                </DockPanel>
+                            </StackPanel>
+                        </UniformGrid>
+
+                        <WrapPanel Margin="0,12,0,0">
+                            <StackPanel Margin="0,0,12,8" Width="250">
+                                <TextBlock Text="Valor" Style="{StaticResource Rotulo}" />
+                                <ComboBox ItemsSource="{Binding CamposDeValor}" DisplayMemberPath="Rotulo" SelectedItem="{Binding ValorFiltrado}" AutomationProperties.Name="Qual valor filtrar" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8" Width="140">
+                                <TextBlock Text="A partir de (R$)" Style="{StaticResource Rotulo}" />
+                                <TextBox Text="{Binding ValorDe, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Valor mínimo em reais" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8" Width="140">
+                                <TextBlock Text="Até (R$)" Style="{StaticResource Rotulo}" />
+                                <TextBox Text="{Binding ValorAte, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Valor máximo em reais" />
+                            </StackPanel>
+                            <CheckBox Content="Sem informação de valor" IsChecked="{Binding ValorSemInformacao}" VerticalAlignment="Bottom" Margin="0,0,24,16" />
+                            <StackPanel Margin="0,0,12,8" Width="140">
+                                <TextBlock Text="Data da OS de" Style="{StaticResource Rotulo}" />
+                                <TextBox Text="{Binding OsDe, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Data da OS a partir de, dia mês ano" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,8" Width="140">
+                                <TextBlock Text="até" Style="{StaticResource Rotulo}" />
+                                <TextBox Text="{Binding OsAte, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Data da OS até, dia mês ano" />
+                            </StackPanel>
+                            <CheckBox Content="Sem data da OS" IsChecked="{Binding SemDataOs}" VerticalAlignment="Bottom" Margin="0,0,24,16" />
+                            <StackPanel Margin="0,0,12,8" Width="230">
+                                <TextBlock Text="Ordenar por" Style="{StaticResource Rotulo}" />
+                                <ComboBox SelectedValue="{Binding Ordem}" SelectedValuePath="Tag" AutomationProperties.Name="Ordenar por">
+                                    <ComboBoxItem Content="Contrato" Tag="{x:Static b:OrdemObras.Contrato}" />
+                                    <ComboBoxItem Content="Escola" Tag="{x:Static b:OrdemObras.Escola}" />
+                                    <ComboBoxItem Content="Data da OS" Tag="{x:Static b:OrdemObras.DataOs}" />
+                                    <ComboBoxItem Content="Maior saldo a pagar" Tag="{x:Static b:OrdemObras.SaldoAPagar}" />
+                                </ComboBox>
+                            </StackPanel>
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Texto2}" FontSize="13"
+                                   Text="Os limites entram na faixa. Valor zero e valor sem informação são coisas diferentes. Os valores são os que a planilha traz para cada obra." />
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="360" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Resultados -->
+            <Border Style="{StaticResource Painel}" Padding="10">
+                <DockPanel>
+                    <Grid DockPanel.Dock="Top" Margin="10,4,26,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="130" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Contrato" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="Escola e portaria" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="2" Text="Data da OS" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap" />
+                        <TextBlock Grid.Column="3" Text="Saldo a pagar" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" TextWrapping="NoWrap" />
+                    </Grid>
+                    <Grid>
+                        <TextBlock Text="{Binding Resumo}" Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                   Visibility="{Binding Obras.Count, Converter={StaticResource VisivelSeNao}}" />
+                        <ListBox ItemsSource="{Binding Obras}" SelectedItem="{Binding Selecionada}" BorderThickness="0" Background="Transparent"
+                                 ItemContainerStyle="{StaticResource LinhaSelecionavel}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="Obras encontradas">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="130" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Contrato}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Status}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                            <TextBlock Text="{Binding Escola}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Escola}" />
+                                            <TextBlock Text="{Binding Portaria}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Portaria}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding DataOs}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="3" Text="{Binding SaldoAPagar}" TextAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- Ficha da obra escolhida -->
+            <Border Grid.Column="2" Style="{StaticResource Painel}" Padding="0">
+                <Grid>
+                    <TextBlock Text="Clique numa obra para ver todos os dados dela." Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center"
+                               TextAlignment="Center" Margin="20" Visibility="{Binding Selecionada, Converter={StaticResource VisivelSeNao}}" />
+                    <DockPanel Visibility="{Binding Selecionada, Converter={StaticResource VisivelSe}}">
+                        <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,16">
+                            <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
+                            <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
+                                    ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Margin="20,16,20,0" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Key}" Style="{StaticResource Texto2}" FontSize="13" />
+                                            <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar mais" Margin="12,0,0,0" Command="{Binding MostrarMaisCommand}"
+                        Visibility="{Binding TemMais, Converter={StaticResource Visivel}}" />
+                <TextBlock Text="{Binding Resumo}" Style="{StaticResource Forte}" VerticalAlignment="Center" />
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+        </StackPanel>
+    </Grid>
+</UserControl>

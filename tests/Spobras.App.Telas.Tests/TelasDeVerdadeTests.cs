@@ -84,7 +84,10 @@ public class TelasDeVerdadeTests
             var app = new Spobras.App.App();
             app.InitializeComponent();
 
-            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste");
+            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste")
+            {
+                VigiarFontes = false,
+            };
             composicao.Preferencias.Alterar(p => p with { ModoAutomatico = false });
             composicao.Novidades.GravarRegras(
             [
@@ -213,6 +216,38 @@ public class TelasDeVerdadeTests
             pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
             Fotografar(janela, saida, "33-pdf-reduzir");
 
+            // Base de dados e Fontes de dados, com planilhas sinteticas de verdade
+            string mestra = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoMestra);
+            string dotacoes = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoDotacoes);
+            Spobras.Testes.XlsxSintetico.Gravar(Spobras.Testes.BaseSintetica.Mestra(), mestra);
+            Spobras.Testes.XlsxSintetico.Gravar(Spobras.Testes.BaseSintetica.Dotacoes(), dotacoes);
+            principal.Navegar(BaseVm.Modulo);
+            var baseDados = (BaseVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "34-base-vazia");
+            principal.Navegar(FontesVm.Modulo);
+            Fotografar(janela, saida, "35-fontes-sem-arquivo");
+            var lendo = Task.WhenAll(
+                composicao.Fontes.DefinirAsync(Spobras.Core.Base.Fontes.Mestra, mestra),
+                composicao.Fontes.DefinirAsync(Spobras.Core.Base.Fontes.Dotacoes, dotacoes));
+            Esperar(() => lendo.IsCompleted);
+            Assert.Equal(5, composicao.Base.TotalDeObras());
+            Fotografar(janela, saida, "36-fontes-lidas");
+            principal.Navegar(BaseVm.Modulo);
+            Fotografar(janela, saida, "37-base-todas");
+            baseDados.Portaria = Spobras.Testes.BaseSintetica.P3De2021;
+            baseDados.Selecionada = baseDados.Obras.First();
+            Fotografar(janela, saida, "38-base-filtro-e-ficha");
+            Assert.Equal(Spobras.Testes.BaseSintetica.P3De2021, baseDados.Portaria); // a tela nao pode soltar o filtro ao trocar as opcoes
+            Assert.Equal(3, baseDados.Obras.Count);
+            baseDados.ValorDe = "abc";
+            baseDados.Contrato = "002/EX/2024";
+            Fotografar(janela, saida, "39-base-avisos");
+            baseDados.LimparFiltrosCommand.Execute(null);
+            baseDados.Selecionada = baseDados.Obras.First();
+            baseDados.UsarNoRelatorioCommand.Execute(null);
+            Assert.IsType<RelatorioVm>(principal.PaginaAtual);
+            Fotografar(janela, saida, "40-relatorio-com-dados-da-base");
+
             // Historico, configuracoes e inicio com acoes
             principal.Navegar("historico");
             var historico = (HistoricoVm)principal.PaginaAtual!;
@@ -268,7 +303,7 @@ public class TelasDeVerdadeTests
             Assert.True(Problemas.Count == 0, "Elementos cortados ou fora da janela:\n" + string.Join("\n", Problemas.Take(30)));
             Assert.True(errosDeLigacao.Mensagens.Count == 0,
                 "Erros de ligação de dados nas telas:\n" + string.Join("\n", errosDeLigacao.Mensagens.Distinct().Take(20)));
-            Assert.True(Directory.GetFiles(saida, "*.png").Length >= 33);
+            Assert.True(Directory.GetFiles(saida, "*.png").Length >= 40);
         }
         finally
         {

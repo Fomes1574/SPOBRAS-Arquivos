@@ -1,0 +1,148 @@
+<UserControl x:Class="Spobras.App.Telas.FontesTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+        <StackPanel Margin="40,32" MaxWidth="1100" HorizontalAlignment="Left">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Voltar para a Base de dados" VerticalAlignment="Center" Margin="16,0,0,0"
+                        Command="{Binding VoltarCommand}" />
+                <StackPanel>
+                    <TextBlock Text="Fontes de dados" Style="{StaticResource TituloPagina}" />
+                    <TextBlock Style="{StaticResource Texto2}" Margin="0,4,0,0"
+                               Text="As planilhas que alimentam a base. Você continua editando no Excel; quando salvar, o app percebe e relê sozinho. O app só lê: nunca altera, move ou renomeia essas planilhas." />
+                </StackPanel>
+            </DockPanel>
+
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,12" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+                <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" />
+            </Border>
+
+            <ItemsControl ItemsSource="{Binding Fontes}" Focusable="False">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <DockPanel>
+                                    <Border x:Name="Selo" DockPanel.Dock="Right" CornerRadius="6" Padding="10,4" Background="{StaticResource LaranjaClaro}" VerticalAlignment="Center">
+                                        <TextBlock x:Name="SeloTexto" Text="{Binding Estado}" FontWeight="Bold" Foreground="{StaticResource Laranja}" />
+                                    </Border>
+                                    <TextBlock Text="{Binding Nome}" Style="{StaticResource TituloPainel}" />
+                                </DockPanel>
+                                <TextBlock Text="{Binding Caminho}" Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+
+                                <UniformGrid Rows="1" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Última leitura pelo app" Style="{StaticResource Texto2}" FontSize="13" />
+                                        <TextBlock Text="{Binding UltimaLeitura}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Arquivo modificado em" Style="{StaticResource Texto2}" FontSize="13" />
+                                        <TextBlock Text="{Binding ModificadoArquivo}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                    <StackPanel>
+                                        <TextBlock Text="Linhas lidas" Style="{StaticResource Texto2}" FontSize="13" />
+                                        <TextBlock Text="{Binding Linhas}" FontWeight="SemiBold" />
+                                    </StackPanel>
+                                </UniformGrid>
+
+                                <TextBlock Text="{Binding Mensagem}" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{StaticResource Laranja}" FontWeight="SemiBold"
+                                           Visibility="{Binding Mensagem, Converter={StaticResource VisivelSe}}" />
+
+                                <Expander Margin="0,10,0,0" Visibility="{Binding TemAvisos, Converter={StaticResource Visivel}}">
+                                    <Expander.Header>
+                                        <TextBlock Text="Avisos da última leitura (o que o app corrigiu ou deixou de fora)" FontWeight="SemiBold" />
+                                    </Expander.Header>
+                                    <ItemsControl ItemsSource="{Binding Avisos}" Margin="0,6,0,0" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Expander>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                    <Button Style="{StaticResource BotaoEscuro}" Content="Reler agora" Margin="0,0,8,0"
+                                            Command="{Binding DataContext.RelerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                            Visibility="{Binding TemArquivo, Converter={StaticResource Visivel}}" />
+                                    <Button Style="{StaticResource BotaoSecundario}" Content="Escolher o arquivo…" Margin="0,0,8,0"
+                                            Command="{Binding DataContext.EscolherArquivoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    <Button Style="{StaticResource BotaoSecundario}" Content="Usar o arquivo encontrado"
+                                            Command="{Binding DataContext.UsarCandidatoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                            Visibility="{Binding TemCandidato, Converter={StaticResource Visivel}}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Ok}" Value="True">
+                                <Setter TargetName="Selo" Property="Background" Value="{StaticResource AzulClaro}" />
+                                <Setter TargetName="SeloTexto" Property="Foreground" Value="{StaticResource Azul}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Apelidos de portaria -->
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0" Visibility="{Binding TemApelidos, Converter={StaticResource Visivel}}">
+                <StackPanel>
+                    <TextBlock Text="Como a planilha mestra escreve cada portaria" Style="{StaticResource TituloPainel}" />
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,10"
+                               Text="Diga a qual portaria da sua lista de dotações cada texto corresponde. O app não deduz isso sozinho; o que você escolher aqui fica guardado e vale nas próximas leituras." />
+                    <ItemsControl ItemsSource="{Binding Apelidos}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="40" />
+                                        <ColumnDefinition Width="260" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Texto}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                    <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource Secundario}" />
+                                    <ComboBox Grid.Column="2" ItemsSource="{Binding DataContext.PortariasDaBase, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                              SelectedItem="{Binding Portaria}" AutomationProperties.Name="Portaria da base correspondente" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Portarias, contratos de receita e dotacoes -->
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0" Visibility="{Binding TemVinculos, Converter={StaticResource Visivel}}">
+                <StackPanel>
+                    <TextBlock Text="Portarias, contratos de receita e dotações" Style="{StaticResource TituloPainel}" />
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,10"
+                               Text="Como está na planilha de dotações (já com os pontos padronizados). Para mudar, edite a planilha no Excel e salve." />
+                    <ItemsControl ItemsSource="{Binding Vinculos}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="2*" />
+                                            <ColumnDefinition Width="4*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,10,0">
+                                            <TextBlock Text="{Binding Portaria}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Finalidade}" Style="{StaticResource Texto2}" FontSize="13" Visibility="{Binding Finalidade, Converter={StaticResource VisivelSe}}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="1" Text="{Binding ContratoReceita}" TextWrapping="Wrap" Margin="0,0,10,0" />
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="{Binding DotacaoCompleta}" TextWrapping="Wrap" />
+                                            <TextBlock Style="{StaticResource Texto2}" FontSize="13">
+                                                <Run Text="{Binding DotacaoResumida, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Descricao, Mode=OneWay}" />
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

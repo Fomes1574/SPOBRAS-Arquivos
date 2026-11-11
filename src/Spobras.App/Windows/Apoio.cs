@@ -37,6 +37,50 @@ internal static class PastasWindows
     public static string DadosDoApp() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ArquivosSPOBRAS");
 
+    /// <summary>
+    /// Pastas sincronizadas pelo OneDrive neste usuario: o OneDrive pessoal/corporativo e as bibliotecas do
+    /// SharePoint (pontos de montagem). Vem do proprio Windows; nenhum caminho fica fixo no codigo.
+    /// </summary>
+    public static IReadOnlyList<string> Sincronizadas()
+    {
+        var pastas = new List<string>();
+        void Somar(string? caminho)
+        {
+            if (!string.IsNullOrWhiteSpace(caminho) && Directory.Exists(caminho) && !pastas.Contains(caminho.TrimEnd('\\'), StringComparer.OrdinalIgnoreCase))
+            {
+                pastas.Add(caminho.TrimEnd('\\'));
+            }
+        }
+
+        try
+        {
+            using var provedores = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\SyncEngines\Providers\OneDrive");
+            foreach (string nome in provedores?.GetSubKeyNames() ?? [])
+            {
+                using var provedor = provedores!.OpenSubKey(nome);
+                Somar(provedor?.GetValue("MountPoint") as string);
+            }
+
+            using var contas = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\OneDrive\Accounts");
+            foreach (string nome in contas?.GetSubKeyNames() ?? [])
+            {
+                using var conta = contas!.OpenSubKey(nome);
+                Somar(conta?.GetValue("UserFolder") as string);
+            }
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            // Sem acesso ao registro: o usuario escolhe a pasta em Configuracoes.
+        }
+
+        foreach (string variavel in new[] { "OneDriveCommercial", "OneDrive", "OneDriveConsumer" })
+        {
+            Somar(Environment.GetEnvironmentVariable(variavel));
+        }
+
+        return pastas;
+    }
+
     [DllImport("shell32.dll")]
     private static extern int SHGetKnownFolderPath(
         [MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, nint hToken, out nint ppszPath);

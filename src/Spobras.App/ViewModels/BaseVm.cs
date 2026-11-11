@@ -318,12 +318,13 @@ public sealed partial class BaseVm : TelaVm
         var filtro = Filtro();
         var opcoes = _base.Opcoes(filtro);
         _atualizando = true;
-        Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
-        Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
-        Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
-        Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
-        Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
-        Trocar(Situacoes, opcoes.Status, Status, "Status");
+        // Trocar a lista faz a tela soltar a selecao; o valor escolhido e reposto logo depois.
+        Portaria = Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
+        Contrato = Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
+        Escola = Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
+        ContratoReceita = Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
+        Dotacao = Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
+        Status = Trocar(Situacoes, opcoes.Status, Status, "Status");
         _atualizando = false;
 
         long? selecionada = Selecionada?.Obra.Id;
@@ -353,19 +354,25 @@ public sealed partial class BaseVm : TelaVm
     /// Troca a lista de opcoes mantendo o valor escolhido. Se a base foi atualizada e o valor escolhido nao existe
     /// mais, ele continua visivel na lista (para o usuario ver e limpar) e um aviso aponta o campo.
     /// </summary>
-    private void Trocar(ObservableCollection<string> lista, IReadOnlyList<string> novas, string? escolhido, string campo)
+    private string? Trocar(ObservableCollection<string> lista, IReadOnlyList<string> novas, string? escolhido, string campo)
     {
-        lista.Clear();
-        foreach (string opcao in novas)
+        bool falta = escolhido is not null && !novas.Contains(escolhido, StringComparer.OrdinalIgnoreCase);
+        var desejada = falta ? [escolhido!, .. novas] : novas;
+        if (!lista.SequenceEqual(desejada))
         {
-            lista.Add(opcao);
+            lista.Clear();
+            foreach (string opcao in desejada)
+            {
+                lista.Add(opcao);
+            }
         }
 
-        if (escolhido is not null && !novas.Contains(escolhido, StringComparer.OrdinalIgnoreCase))
+        if (falta)
         {
-            lista.Insert(0, escolhido);
             Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"O filtro {campo} (\"{escolhido}\") não combina com nenhuma obra da base atual. Limpe ou troque esse filtro."));
         }
+
+        return escolhido;
     }
 
     private void AtualizarMedicoes()
@@ -434,8 +441,13 @@ public sealed partial class FontesVm : TelaVm
     private readonly ServicoPreferencias _preferencias;
     private bool _carregando;
 
-    public FontesVm(ServicoFontes fontes, BaseRepositorio @base, IDialogos dialogos, IInterface @interface, ServicoPreferencias preferencias)
+    private readonly Action<string>? _navegar;
+
+    public FontesVm(
+        ServicoFontes fontes, BaseRepositorio @base, IDialogos dialogos, IInterface @interface, ServicoPreferencias preferencias,
+        Action<string>? navegar = null)
     {
+        _navegar = navegar;
         _fontes = fontes;
         _base = @base;
         _dialogos = dialogos;
@@ -456,6 +468,9 @@ public sealed partial class FontesVm : TelaVm
     public bool TemVinculos => Vinculos.Count > 0;
 
     public override void AoEntrar() => Carregar();
+
+    [RelayCommand]
+    private void Voltar() => _navegar?.Invoke(BaseVm.Modulo);
 
     [RelayCommand]
     private async Task EscolherArquivoAsync(FonteVm fonte)
