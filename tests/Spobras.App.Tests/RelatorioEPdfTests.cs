@@ -44,7 +44,8 @@ public class RelatorioVmTests : ComApp
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "Foto 01 — Fachada");
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "EMEF Exemplo");
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "10/11/2026");
-        Assert.True(await Ate(() => vm.Fotos.All(f => f.Miniatura is not null))); // miniaturas em segundo plano
+        await vm.Miniaturas; // miniaturas em segundo plano
+        Assert.All(vm.Fotos, f => Assert.NotNull(f.Miniatura));
 
         vm.GerarPdf = true;
         Assert.True(vm.GerarCommand.CanExecute(null));
@@ -84,10 +85,11 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
-    public void Ordenar_mover_girar_legenda_em_lote_e_opcoes_de_layout()
+    public async Task Ordenar_mover_girar_legenda_em_lote_e_opcoes_de_layout()
     {
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(5).AsEnumerable().Reverse());
+        await vm.Miniaturas.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.Equal("foto 5.jpg", vm.Fotos[0].Nome);
 
         vm.OrdenarPorNomeCommand.Execute(null);
@@ -101,8 +103,10 @@ public class RelatorioVmTests : ComApp
         var foto = vm.Fotos[0];
         Assert.Equal((400, 300), (foto.Largura, foto.Altura));
         vm.GirarDireitaCommand.Execute(foto);
+        await vm.Miniaturas.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.Equal((300, 400, 90), (foto.Largura, foto.Altura, foto.Rotacao));
         vm.GirarEsquerdaCommand.Execute(foto);
+        await vm.Miniaturas.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.Equal(0, foto.Rotacao);
 
         vm.Fotos[2].Legenda = "Já tinha";
@@ -129,10 +133,11 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
-    public void Data_invalida_impede_gerar_e_explica()
+    public async Task Data_invalida_impede_gerar_e_explica()
     {
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(1));
+        await vm.Miniaturas.WaitAsync(TimeSpan.FromSeconds(30));
         Assert.True(vm.GerarCommand.CanExecute(null));
 
         vm.DataTexto = "31/02/2026";
@@ -151,18 +156,21 @@ public class RelatorioVmTests : ComApp
         var vm = NovoRelatorio();
         vm.Unidade = "CEI Exemplo";
         vm.Adicionar(fotos);
+        await vm.Miniaturas;
         vm.Fotos[1].Legenda = "Cobertura";
         vm.Fotos[1].Descricao = "Troca de telhas";
         vm.SubirCommand.Execute(vm.Fotos[2]);
         vm.FotosPorPagina = 4;
         vm.Modo = ModoLegenda.DescricaoServico;
         vm.GirarDireitaCommand.Execute(vm.Fotos[0]);
+        await vm.Miniaturas;
 
         // "Fecha o app" e a foto 2 muda de pasta.
         string novoLugar = Em("Downloads", "Movidas", "foto 2.jpg");
         Directory.CreateDirectory(Path.GetDirectoryName(novoLugar)!);
         File.Move(fotos[1], novoLugar);
         var reaberto = NovoRelatorio();
+        await reaberto.Miniaturas;
         reaberto.AoEntrar();
 
         Assert.Equal("CEI Exemplo", reaberto.Unidade);
@@ -179,6 +187,7 @@ public class RelatorioVmTests : ComApp
 
         Dialogos.Arquivos.Enqueue([novoLugar]);
         reaberto.LocalizarCommand.Execute(sumida);
+        await reaberto.Miniaturas;
 
         Assert.False(sumida.Faltando);
         Assert.Equal(novoLugar, sumida.Caminho);
@@ -189,11 +198,12 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
-    public void Novo_relatorio_limpa_o_contexto_e_o_rascunho()
+    public async Task Novo_relatorio_limpa_o_contexto_e_o_rascunho()
     {
         var vm = NovoRelatorio();
         vm.Unidade = "EMEF Exemplo";
         vm.Adicionar(CriarFotos(2));
+        await vm.Miniaturas.WaitAsync(TimeSpan.FromSeconds(30));
         vm.Etapa = 2;
 
         Dialogos.Confirmacoes.Enqueue(false);
@@ -217,6 +227,7 @@ public class RelatorioVmTests : ComApp
         Exportador.Disponivel = false;
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(1));
+        await vm.Miniaturas;
         vm.GerarPdf = true;
         Assert.False(vm.PdfDisponivel);
         Assert.Contains(vm.Avisos, a => a.Conferir && a.Texto.Contains("Será gerado só o arquivo Excel"));
@@ -233,7 +244,7 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
-    public void Logo_cadastrado_entra_na_previa_e_pode_ser_tirado()
+    public async Task Logo_cadastrado_entra_na_previa_e_pode_ser_tirado()
     {
         string imagem = CriarFoto("logo-do-usuario.jpg", 195, 138);
         var config = new ConfiguracoesVm(Preferencias, Novidades, Dialogos, Disco, Relogio, "0.1.0", Em("dados"), Modelos);
@@ -246,6 +257,7 @@ public class RelatorioVmTests : ComApp
         Assert.StartsWith(Em("dados", "modelos"), config.Logo); // copia interna, fora de Downloads
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(1));
+        await vm.Miniaturas;
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Imagem == config.Logo);
 
         Dialogos.Confirmacoes.Enqueue(true);

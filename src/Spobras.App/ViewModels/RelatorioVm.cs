@@ -823,17 +823,22 @@ public sealed partial class RelatorioVm : TelaVm
         return e;
     }
 
+    /// <summary>Termina quando as miniaturas pedidas ate agora estiverem prontas e a previa atualizada.</summary>
+    public Task Miniaturas { get; private set; } = Task.CompletedTask;
+
     /// <summary>Miniaturas em segundo plano, uma por vez, sem travar a tela nem carregar todas as fotos de uma vez.</summary>
     private void GerarMiniaturas()
     {
+        var anterior = Miniaturas;
         var pendentes = Fotos.Where(f => f.Miniatura is null && !f.Faltando).Select(f => (Foto: f, f.Caminho, f.Rotacao)).ToList();
         if (pendentes.Count == 0)
         {
             return;
         }
 
-        _ = Task.Run(() =>
+        Miniaturas = Task.Run(async () =>
         {
+            await anterior.ConfigureAwait(false); // uma leva de cada vez
             foreach (var (foto, caminho, rotacao) in pendentes)
             {
                 try
