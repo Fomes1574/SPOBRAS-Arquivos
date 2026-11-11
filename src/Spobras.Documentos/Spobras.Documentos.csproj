@@ -5,5 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../Spobras.Core/Spobras.Core.csproj" />
     <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="PDFsharp" />
   </ItemGroup>
 </Project>
