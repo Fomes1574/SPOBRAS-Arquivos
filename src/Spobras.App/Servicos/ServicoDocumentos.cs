@@ -22,6 +22,26 @@ public sealed class SemExportadorPdf : IExportadorPdf
         throw new InvalidOperationException("O Excel não foi encontrado neste computador; o PDF não pôde ser gerado.");
 }
 
+/// <summary>O que o Excel calculou no cronograma gerado (para conferir contra o que foi digitado).</summary>
+public sealed record ConferenciaCronograma(
+    decimal? TotalParaObras, decimal? TotalGeral, decimal? SomaDosMeses, string Resumo, int Erros, string? Pdf);
+
+/// <summary>Abre o cronograma gerado no Excel instalado, recalcula, le os totais e salva com os resultados.</summary>
+public interface IVerificadorCronograma
+{
+    bool Disponivel { get; }
+
+    ConferenciaCronograma Conferir(string caminho, string aba, string? pdf);
+}
+
+public sealed class SemVerificadorCronograma : IVerificadorCronograma
+{
+    public bool Disponivel => false;
+
+    public ConferenciaCronograma Conferir(string caminho, string aba, string? pdf) =>
+        throw new InvalidOperationException("O Excel não foi encontrado neste computador.");
+}
+
 /// <summary>
 /// Cadastro central do logo e cache de miniaturas, dentro da pasta de dados do app
 /// (fora de Downloads e do OneDrive). O logo nunca vai para o instalador nem para o repositorio.
@@ -58,6 +78,29 @@ public sealed class ServicoModelos(string pastaDados)
         {
             File.Delete(antigo);
         }
+    }
+
+    /// <summary>Copia do modelo de cronograma cadastrado pelo usuario, ou null.</summary>
+    public string? ModeloCronograma =>
+        Directory.Exists(PastaModelos) ? Directory.EnumerateFiles(PastaModelos, "cronograma.xls?").FirstOrDefault() : null;
+
+    /// <summary>
+    /// Guarda uma copia do modelo de cronograma (depois de conferir que e mesmo o modelo). O arquivo do
+    /// usuario nao e alterado; a copia interna e a que o app usa para gerar.
+    /// </summary>
+    public Spobras.Documentos.Modelos.ModeloCronogramaLido DefinirModeloCronograma(string origem)
+    {
+        var lido = Spobras.Documentos.Modelos.ModeloCronograma.Analisar(origem);
+        Directory.CreateDirectory(PastaModelos);
+        foreach (string antigo in Directory.EnumerateFiles(PastaModelos, "cronograma.xls?"))
+        {
+            File.Delete(antigo);
+        }
+
+        string destino = Path.Combine(PastaModelos, "cronograma" + Path.GetExtension(origem).ToLowerInvariant());
+        File.Copy(origem, destino);
+        File.SetAttributes(destino, FileAttributes.Normal);
+        return lido;
     }
 
     /// <summary>

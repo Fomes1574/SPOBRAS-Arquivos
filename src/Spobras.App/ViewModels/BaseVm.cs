@@ -103,11 +103,15 @@ public sealed partial class BaseVm : TelaVm
     private readonly IInterface _interface;
     private readonly Action<string> _navegar;
     private readonly Action<ObraLida>? _usarNoRelatorio;
+    private readonly Action<ObraLida>? _usarNoCronograma;
     private bool _atualizando;
     private int _mostrando = Pagina;
 
-    public BaseVm(BaseRepositorio @base, ServicoFontes fontes, IInterface @interface, Action<string> navegar, Action<ObraLida>? usarNoRelatorio = null)
+    public BaseVm(
+        BaseRepositorio @base, ServicoFontes fontes, IInterface @interface, Action<string> navegar, Action<ObraLida>? usarNoRelatorio = null,
+        Action<ObraLida>? usarNoCronograma = null)
     {
+        _usarNoCronograma = usarNoCronograma;
         _base = @base;
         _fontes = fontes;
         _interface = @interface;
@@ -196,6 +200,7 @@ public sealed partial class BaseVm : TelaVm
 
     public bool TemFiltro => !Filtro().Vazio;
     public bool PodeUsarNoRelatorio => _usarNoRelatorio is not null && Selecionada is not null;
+    public bool PodeUsarNoCronograma => _usarNoCronograma is not null && Selecionada is not null;
 
     public override void AoEntrar() => Buscar();
 
@@ -217,6 +222,7 @@ public sealed partial class BaseVm : TelaVm
                 break;
             case nameof(Selecionada):
                 OnPropertyChanged(nameof(PodeUsarNoRelatorio));
+                OnPropertyChanged(nameof(PodeUsarNoCronograma));
                 AtualizarMedicoes();
                 break;
         }
@@ -264,6 +270,15 @@ public sealed partial class BaseVm : TelaVm
         if (Selecionada is { } obra)
         {
             _usarNoRelatorio?.Invoke(obra.Obra);
+        }
+    }
+
+    [RelayCommand]
+    private void UsarNoCronograma()
+    {
+        if (Selecionada is { } obra)
+        {
+            _usarNoCronograma?.Invoke(obra.Obra);
         }
     }
 
@@ -346,6 +361,7 @@ public sealed partial class BaseVm : TelaVm
         Selecionada = Obras.FirstOrDefault(o => o.Obra.Id == selecionada);
         _atualizando = false;
         OnPropertyChanged(nameof(PodeUsarNoRelatorio));
+        OnPropertyChanged(nameof(PodeUsarNoCronograma));
         OnPropertyChanged(nameof(TemFiltro));
         AtualizarMedicoes();
     }

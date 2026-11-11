@@ -118,6 +118,36 @@ public sealed class SessaoExcel : IDisposable
     public double LerNumero(string aba, string celula) =>
         Tentar(() => Convert.ToDouble(_pasta!.Worksheets[aba].Range[celula].Value2));
 
+    /// <summary>Texto que a celula mostra (ex.: "RESUMO OK" ou "#REF!"); vazio se nao houver nada.</summary>
+    public string LerTexto(string aba, string celula) =>
+        Tentar(() => Convert.ToString(_pasta!.Worksheets[aba].Range[celula].Text) ?? "");
+
+    /// <summary>Valor numerico da celula, ou null se estiver vazia, com texto ou com erro.</summary>
+    public double? LerNumeroOuNada(string aba, string celula) => Tentar<double?>(() =>
+    {
+        object? valor = _pasta!.Worksheets[aba].Range[celula].Value2;
+        return valor is double d ? d : null;
+    });
+
+    /// <summary>Quantas celulas da faixa estao mostrando erro (#REF!, #VALOR!, #N/D...).</summary>
+    public int ContarErros(string aba, string faixa) => Tentar(() =>
+    {
+        int erros = 0;
+        foreach (dynamic celula in _pasta!.Worksheets[aba].Range[faixa].Cells)
+        {
+            if (Convert.ToString(celula.Text) is string texto && texto.StartsWith('#'))
+            {
+                erros++;
+            }
+        }
+
+        return erros;
+    });
+
+    /// <summary>PDF so de uma aba, como ela seria impressa.</summary>
+    public void ExportarAbaPdf(string aba, string caminhoPdf) =>
+        Tentar(() => _pasta!.Worksheets[aba].ExportAsFixedFormat(XlTypePdf, caminhoPdf));
+
     public void Recalcular() => Tentar(() => _excel!.CalculateFull());
 
     public void ExportarPdf(string caminhoPdf) => Tentar(() => _pasta!.ExportAsFixedFormat(XlTypePdf, caminhoPdf));

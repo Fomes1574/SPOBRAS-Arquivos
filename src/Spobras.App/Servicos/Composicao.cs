@@ -12,7 +12,8 @@ public sealed class Composicao : IDisposable
 {
     public Composicao(
         string pastaDados, string pastaTrabalhoPadrao, IDialogos dialogos, IInterface @interface, string versao,
-        IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null, bool eventosDasFontes = true)
+        IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null, bool eventosDasFontes = true,
+        IVerificadorCronograma? verificadorCronograma = null)
     {
         PastaDados = pastaDados;
         var arquivos = new ArquivosDisco();
@@ -40,6 +41,8 @@ public sealed class Composicao : IDisposable
                 "M5 3h14v18H5zM12 3v10M10 15h4v3h-4z"),
             new ModuloVm(RelatorioVm.Modulo, "Relatório fotográfico", "50 fotos ou mais no modelo SPOBRAS, em Excel ou PDF.",
                 "M3 6h18v13H3zM3 16l5-5 4 4 3-3 6 5"),
+            new ModuloVm(CronogramaVm.Modulo, "Cronograma padrão", "Cronograma novo a partir do modelo, com as fórmulas intactas.",
+                "M3 5h18v15H3zM3 10h18M8 3v4M16 3v4"),
             new ModuloVm(PdfVm.Modulo, "PDF", "Juntar, separar, transformar fotos em PDF e reduzir o tamanho.",
                 "M6 3h9l4 4v14H6zM15 3v4h4"),
             new ModuloVm(BaseVm.Modulo, "Base de dados", "Portarias, dotações, contratos e escolas, sempre atualizados.",
@@ -54,6 +57,8 @@ public sealed class Composicao : IDisposable
             [RelatorioVm.Modulo] = new RelatorioVm(dialogos, @interface, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias),
+            [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
+                verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos),
@@ -64,6 +69,10 @@ public sealed class Composicao : IDisposable
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
             relatorio.PreencherDaObra(obra);
             Principal!.Navegar(RelatorioVm.Modulo);
+        }, obra =>
+        {
+            ((CronogramaVm)telas[CronogramaVm.Modulo]).AdicionarDaBase(obra);
+            Principal!.Navegar(CronogramaVm.Modulo);
         });
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);

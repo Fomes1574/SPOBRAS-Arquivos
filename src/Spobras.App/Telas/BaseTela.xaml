@@ -193,6 +193,8 @@
                             <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
                                     ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
+                            <Button Style="{StaticResource BotaoSecundario}" Content="Usar no cronograma" Margin="0,8,0,0" Command="{Binding UsarNoCronogramaCommand}"
+                                    ToolTip="Acrescenta esta obra ao cronograma, com o início na Data da OS" />
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                             <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Margin="20,16,20,0" Focusable="False">

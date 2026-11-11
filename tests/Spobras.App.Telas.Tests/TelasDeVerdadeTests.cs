@@ -216,6 +216,31 @@ public class TelasDeVerdadeTests
             pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
             Fotografar(janela, saida, "33-pdf-reduzir");
 
+            // Cronograma: sem modelo, com modelo e linhas, com linha impedida
+            principal.Navegar(CronogramaVm.Modulo);
+            var cronograma = (CronogramaVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "41-cronograma-sem-modelo");
+            string modeloCronograma = Path.Combine(raiz, "Base", "Cronograma modelo.xlsx");
+            Spobras.Testes.XlsxSintetico.GravarModeloCronograma(modeloCronograma);
+            composicao.Modelos.DefinirModeloCronograma(modeloCronograma);
+            cronograma.AoEntrar();
+            Fotografar(janela, saida, "42-cronograma-com-modelo-vazio");
+            for (int n = 1; n <= 3; n++)
+            {
+                cronograma.NovaLinhaCommand.Execute(null);
+                var linha = cronograma.Linhas[n - 1];
+                linha.Portaria = "3";
+                linha.Lote = "12";
+                linha.Dotacao = "3362";
+                linha.Nome = n == 2 ? "EMEF Professora Fulana de Tal da Silva Sauro - Unidade II" : $"Escola Exemplo {n}";
+                linha.Escopo = "Reforma geral";
+                linha.Valor = n == 3 ? "abc" : "1.250.000,00";
+                linha.Inicio = "10/11/2026";
+                linha.Fim = "02/2027";
+            }
+
+            Fotografar(janela, saida, "43-cronograma-linhas-e-avisos");
+
             // Base de dados e Fontes de dados, com planilhas sinteticas de verdade
             string mestra = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoMestra);
             string dotacoes = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoDotacoes);
