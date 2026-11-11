@@ -5,6 +5,10 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Compartilhado/**/*.cs" LinkBase="Compartilhado" />
+    <Compile Include="../CompartilhadoXlsx/**/*.cs" LinkBase="CompartilhadoXlsx" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <!-- So para os testes rodarem em Linux; no Windows o SkiaSharp ja traz a parte nativa. -->
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />

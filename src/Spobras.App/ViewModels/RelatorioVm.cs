@@ -579,6 +579,33 @@ public sealed partial class RelatorioVm : TelaVm
         Replanejar();
     }
 
+    /// <summary>
+    /// Preenche o cabecalho com os dados de uma obra escolhida na Base de dados. So entra o que a base tem;
+    /// tudo continua editavel e as fotos ja escolhidas ficam.
+    /// </summary>
+    public void PreencherDaObra(Spobras.Core.Base.ObraLida obra)
+    {
+        _restaurando = true;
+        Unidade = obra.Empreendimento;
+        Contratada = obra.Contratada ?? "";
+        Contrato = obra.Contrato;
+        Lote = obra.Lote ?? "";
+        Portaria = obra.Portaria ?? "";
+        ProcessoSei = obra.ProcessoSei ?? "";
+        Objeto = obra.Escopo ?? "";
+        DataOsTexto = obra.DataOs?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "";
+        _nomeEditado = false;
+        Etapa = 0;
+        _restaurando = false;
+        OnPropertyChanged(nameof(EtapaDados));
+        OnPropertyChanged(nameof(EtapaFotos));
+        OnPropertyChanged(nameof(EtapaConferencia));
+        OnPropertyChanged(nameof(TextoBotaoAvancar));
+        Resultado = $"Dados de {obra.Empreendimento} (contrato {obra.Contrato}) trazidos da Base de dados. Confira e ajuste o que precisar.";
+        ResultadoComFalha = false;
+        Replanejar();
+    }
+
     // ---- Interno ----
 
     private static string? NomeArquivo_Problema(string nome) => Spobras.Core.Nomes.NomeArquivo.Problema(nome + ".xlsx");

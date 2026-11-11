@@ -117,6 +117,35 @@ public abstract class ComApp : IDisposable
         new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
 
+    private Spobras.Dados.Base.BaseRepositorio? _base;
+    private ServicoFontes? _fontes;
+    protected Spobras.Dados.Base.BaseRepositorio Base => _base ??= new(Banco);
+
+    /// <summary>Fontes lendo planilhas .xlsx de verdade; sem vigia automatica (o teste manda conferir).</summary>
+    protected ServicoFontes Fontes => _fontes ??= new ServicoFontes(Base, c => new Spobras.Documentos.Planilhas.LeitorXlsx(c), Relogio, Operacoes.Fila, Preferencias)
+    {
+        Quieto = TimeSpan.FromSeconds(4),
+    };
+
+    protected string GravarMestra(Spobras.Testes.PlanilhaFalsa? planilha = null, string pasta = "Base")
+    {
+        string caminho = Em(pasta, Spobras.Core.Base.Fontes.NomeArquivoMestra);
+        if (File.Exists(caminho))
+        {
+            File.Delete(caminho);
+        }
+
+        Spobras.Testes.XlsxSintetico.Gravar(planilha ?? Spobras.Testes.BaseSintetica.Mestra(), caminho);
+        return caminho;
+    }
+
+    protected string GravarDotacoes(string pasta = "Base")
+    {
+        string caminho = Em(pasta, Spobras.Core.Base.Fontes.NomeArquivoDotacoes);
+        Spobras.Testes.XlsxSintetico.Gravar(Spobras.Testes.BaseSintetica.Dotacoes(), caminho);
+        return caminho;
+    }
+
     /// <summary>Foto JPEG de verdade, pequena, para os testes.</summary>
     protected string CriarFoto(string relativo, int largura = 400, int altura = 300)
     {

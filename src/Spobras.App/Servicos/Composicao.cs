@@ -12,7 +12,7 @@ public sealed class Composicao : IDisposable
 {
     public Composicao(
         string pastaDados, string pastaTrabalhoPadrao, IDialogos dialogos, IInterface @interface, string versao,
-        IExportadorPdf? exportadorPdf = null)
+        IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null)
     {
         PastaDados = pastaDados;
         var arquivos = new ArquivosDisco();
@@ -23,6 +23,8 @@ public sealed class Composicao : IDisposable
         Operacoes = new ServicoOperacoes(arquivos, new HistoricoSqlite(banco), relogio, new FilaTarefas());
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);
+        Base = new Spobras.Dados.Base.BaseRepositorio(banco);
+        Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias);
 
         // So entram no menu os modulos que ja funcionam (especificacao 9.1).
         Modulos =
@@ -37,6 +39,8 @@ public sealed class Composicao : IDisposable
                 "M3 6h18v13H3zM3 16l5-5 4 4 3-3 6 5"),
             new ModuloVm(PdfVm.Modulo, "PDF", "Juntar, separar, transformar fotos em PDF e reduzir o tamanho.",
                 "M6 3h9l4 4v14H6zM15 3v4h4"),
+            new ModuloVm(BaseVm.Modulo, "Base de dados", "Portarias, dotações, contratos e escolas, sempre atualizados.",
+                "M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"),
         ];
 
         var telas = new Dictionary<string, TelaVm>
@@ -47,9 +51,17 @@ public sealed class Composicao : IDisposable
             [RelatorioVm.Modulo] = new RelatorioVm(dialogos, @interface, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias),
+            [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos),
         };
+        var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
+        telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
+        {
+            // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
+            relatorio.PreencherDaObra(obra);
+            Principal!.Navegar(RelatorioVm.Modulo);
+        });
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
     }
@@ -59,6 +71,8 @@ public sealed class Composicao : IDisposable
     public ServicoOperacoes Operacoes { get; }
     public ServicoNovidades Novidades { get; }
     public ServicoModelos Modelos { get; }
+    public Spobras.Dados.Base.BaseRepositorio Base { get; }
+    public ServicoFontes Fontes { get; }
     public IReadOnlyList<ModuloVm> Modulos { get; }
     public PrincipalVm Principal { get; }
 
@@ -67,7 +81,15 @@ public sealed class Composicao : IDisposable
     {
         Operacoes.ReconciliarInterrompidos();
         Novidades.Aplicar();
+        Fontes.Iniciar(VigiarFontes);
     }
 
-    public void Dispose() => Novidades.Dispose();
+    /// <summary>False nos testes: as fontes so sao conferidas quando o teste manda.</summary>
+    public bool VigiarFontes { get; init; } = true;
+
+    public void Dispose()
+    {
+        Novidades.Dispose();
+        Fontes.Dispose();
+    }
 }

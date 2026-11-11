@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Compartilhado/**/*.cs" LinkBase="Compartilhado" />
+    <Compile Include="../CompartilhadoXlsx/**/*.cs" LinkBase="CompartilhadoXlsx" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
