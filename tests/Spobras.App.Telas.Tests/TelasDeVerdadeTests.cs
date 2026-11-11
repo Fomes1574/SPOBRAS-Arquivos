@@ -155,6 +155,64 @@ public class TelasDeVerdadeTests
             Esperar(() => !compactar.Ocupado && compactar.Resultado.Length > 0);
             Fotografar(janela, saida, "14-compactar-resultado");
 
+            // Relatorio fotografico: tres etapas, com logo, fotos deitadas e em pe
+            string logo = CriarFoto(Path.Combine(raiz, "logo.png"), 195, 138, System.Windows.Media.Colors.Firebrick);
+            composicao.Modelos.DefinirLogo(logo);
+            var fotos = Enumerable.Range(1, 9).Select(n => CriarFoto(Path.Combine(trabalho, "Fotos", $"foto {n}.png"), n % 4 == 0 ? 600 : 800, n % 4 == 0 ? 800 : 600,
+                n % 2 == 0 ? System.Windows.Media.Colors.SteelBlue : System.Windows.Media.Colors.Peru)).ToList();
+            principal.Navegar(RelatorioVm.Modulo);
+            var relatorio = (RelatorioVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "21-relatorio-dados-vazio");
+            relatorio.Unidade = "EMEF Exemplo de Escola";
+            relatorio.Contratada = "Construtora Exemplo Ltda";
+            relatorio.DataTexto = "10/11/2026";
+            relatorio.Contrato = "000/EXEMPLO/2026";
+            relatorio.Lote = "12";
+            Fotografar(janela, saida, "22-relatorio-dados");
+            relatorio.Etapa = 1;
+            Fotografar(janela, saida, "23-relatorio-fotos-vazio");
+            relatorio.Adicionar([.. fotos, Path.Combine(trabalho, "arquivo.zip")]);
+            relatorio.Fotos[0].Legenda = "Execução de alvenaria de vedação no bloco administrativo, pavimento térreo";
+            relatorio.Fotos[1].Legenda = "Fachada principal";
+            Esperar(() => relatorio.Fotos.All(f => f.Miniatura is not null));
+            Fotografar(janela, saida, "24-relatorio-fotos");
+            relatorio.Etapa = 2;
+            Fotografar(janela, saida, "25-relatorio-conferencia");
+            relatorio.Modo = Spobras.Core.Relatorio.ModoLegenda.DescricaoServico;
+            relatorio.Fotos[0].Descricao = "Serviço de impermeabilização da laje de cobertura com manta asfáltica, incluindo regularização da base e proteção mecânica.";
+            relatorio.FotosPorPagina = 4;
+            relatorio.Assinaturas = true;
+            relatorio.AssinaturaFiscal = "Fulano de Tal";
+            relatorio.DataTexto = "31/02/2026";
+            Fotografar(janela, saida, "26-relatorio-descricao-e-avisos");
+            relatorio.DataTexto = "10/11/2026";
+            relatorio.GerarCommand.ExecuteAsync(null);
+            Esperar(() => !relatorio.Ocupado && relatorio.Resultado.Length > 0);
+            Assert.False(relatorio.ResultadoComFalha, relatorio.Resultado);
+            Fotografar(janela, saida, "27-relatorio-gerado");
+            relatorio.Etapa = 1;
+            Fotografar(janela, saida, "28-relatorio-fotos-com-descricao");
+
+            // PDF: as quatro ferramentas
+            principal.Navegar(PdfVm.Modulo);
+            var pdf = (PdfVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "29-pdf-juntar-vazio");
+            pdf.Ferramenta = FerramentaPdf.FotosEmPdf;
+            pdf.Adicionar(fotos.Take(3));
+            Fotografar(janela, saida, "30-pdf-fotos");
+            pdf.ExecutarCommand.ExecuteAsync(null);
+            Esperar(() => !pdf.Ocupado && pdf.Resultado.Length > 0);
+            Assert.False(pdf.ResultadoComFalha, pdf.Resultado);
+            Fotografar(janela, saida, "31-pdf-resultado");
+            pdf.Ferramenta = FerramentaPdf.Separar;
+            pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
+            pdf.SepararCadaPagina = false;
+            pdf.Intervalos = "1-2, 9";
+            Fotografar(janela, saida, "32-pdf-separar-intervalo-invalido");
+            pdf.Ferramenta = FerramentaPdf.Reduzir;
+            pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
+            Fotografar(janela, saida, "33-pdf-reduzir");
+
             // Historico, configuracoes e inicio com acoes
             principal.Navegar("historico");
             var historico = (HistoricoVm)principal.PaginaAtual!;
@@ -210,7 +268,7 @@ public class TelasDeVerdadeTests
             Assert.True(Problemas.Count == 0, "Elementos cortados ou fora da janela:\n" + string.Join("\n", Problemas.Take(30)));
             Assert.True(errosDeLigacao.Mensagens.Count == 0,
                 "Erros de ligação de dados nas telas:\n" + string.Join("\n", errosDeLigacao.Mensagens.Distinct().Take(20)));
-            Assert.True(Directory.GetFiles(saida, "*.png").Length >= 20);
+            Assert.True(Directory.GetFiles(saida, "*.png").Length >= 33);
         }
         finally
         {
@@ -224,6 +282,27 @@ public class TelasDeVerdadeTests
                 // Pasta temporaria; o sistema limpa depois.
             }
         }
+    }
+
+    /// <summary>Imagem de teste (PNG) com uma faixa mais escura, para dar para ver a orientacao.</summary>
+    private static string CriarFoto(string caminho, int largura, int altura, Color cor)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
+        var desenho = new DrawingVisual();
+        using (var contexto = desenho.RenderOpen())
+        {
+            contexto.DrawRectangle(new SolidColorBrush(cor), null, new Rect(0, 0, largura, altura));
+            contexto.DrawRectangle(Brushes.Black, null, new Rect(0, altura * 0.8, largura, altura * 0.2));
+            contexto.DrawEllipse(Brushes.White, null, new Point(largura / 2.0, altura / 2.5), largura / 6.0, largura / 6.0);
+        }
+
+        var imagem = new RenderTargetBitmap(largura, altura, 96, 96, PixelFormats.Pbgra32);
+        imagem.Render(desenho);
+        var png = new PngBitmapEncoder();
+        png.Frames.Add(BitmapFrame.Create(imagem));
+        using var arquivo = File.Create(caminho);
+        png.Save(arquivo);
+        return caminho;
     }
 
     private static void Fotografar(Window janela, string pasta, string nome)

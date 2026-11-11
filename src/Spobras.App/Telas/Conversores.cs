@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
+using System.Windows.Media.Imaging;
 
 namespace Spobras.App.Telas;
 
@@ -50,4 +51,43 @@ public sealed class Iguais : IMultiValueConverter
 
     public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) =>
         throw new NotSupportedException();
+}
+
+/// <summary>
+/// Caminho de arquivo -> imagem carregada inteira na memoria, sem manter o arquivo aberto
+/// (assim o logo e as miniaturas podem ser trocados com a tela aberta). O parametro limita a largura.
+/// </summary>
+public sealed class CaminhoParaImagem : IValueConverter
+{
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is not string caminho || caminho.Length == 0 || !System.IO.File.Exists(caminho))
+        {
+            return null;
+        }
+
+        try
+        {
+            var imagem = new BitmapImage();
+            imagem.BeginInit();
+            imagem.CacheOption = BitmapCacheOption.OnLoad;
+            imagem.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            if (parameter is string largura && int.TryParse(largura, out int pixels))
+            {
+                imagem.DecodePixelWidth = pixels;
+            }
+
+            imagem.UriSource = new Uri(caminho, UriKind.Absolute);
+            imagem.EndInit();
+            imagem.Freeze();
+            return imagem;
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or NotSupportedException or UnauthorizedAccessException or ArgumentException
+                                       or System.Runtime.InteropServices.COMException)
+        {
+            return null; // arquivo ilegivel: a tela mostra o espaco vazio
+        }
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }

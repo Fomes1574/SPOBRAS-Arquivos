@@ -13,6 +13,8 @@
         <DataTemplate DataType="{x:Type vm:OrganizarVm}"><t:OrganizarTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:RenomearVm}"><t:RenomearTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CompactarVm}"><t:CompactarTela /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:RelatorioVm}"><t:RelatorioTela /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:PdfVm}"><t:PdfTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:HistoricoVm}"><t:HistoricoTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ConfiguracoesVm}"><t:ConfiguracoesTela /></DataTemplate>
 

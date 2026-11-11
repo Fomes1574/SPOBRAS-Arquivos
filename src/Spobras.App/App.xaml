@@ -12,6 +12,7 @@
             <t:VisivelSe x:Key="VisivelSe" />
             <t:VisivelSeNao x:Key="VisivelSeNao" />
             <t:Iguais x:Key="Iguais" />
+            <t:CaminhoParaImagem x:Key="Imagem" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
