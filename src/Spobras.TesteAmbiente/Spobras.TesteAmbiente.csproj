@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!-- Windows Forms entra so pelo icone da bandeja (NotifyIcon) e pela lista de monitores. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>TesteAmbienteSPOBRAS</AssemblyName>
+    <RootNamespace>Spobras.TesteAmbiente</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Spobras.Core/Spobras.Core.csproj" />
+    <ProjectReference Include="../Spobras.Dados/Spobras.Dados.csproj" />
+    <ProjectReference Include="../Spobras.Documentos/Spobras.Documentos.csproj" />
+    <ProjectReference Include="../Spobras.Excel/Spobras.Excel.csproj" />
+  </ItemGroup>
+</Project>

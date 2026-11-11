@@ -1,0 +1,38 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Compilar
+        run: dotnet build -c Release
+
+      - name: Testar
+        run: dotnet test -c Release --no-build
+
+      - name: Publicar o Teste de Ambiente (executavel unico, autocontido)
+        run: >
+          dotnet publish src/Spobras.TesteAmbiente -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true -p:DebugType=none
+          -o publish/teste-ambiente
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TesteAmbienteSPOBRAS
+          path: publish/teste-ambiente/TesteAmbienteSPOBRAS.exe
+          if-no-files-found: error

@@ -1,0 +1,86 @@
+<Window x:Class="Spobras.TesteAmbiente.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Arquivos SPOBRAS - Teste de Ambiente"
+        Width="760" Height="720" MinWidth="560" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Segoe UI" FontSize="14" Background="#F5F6F8">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="Teste de Ambiente" FontSize="24" FontWeight="SemiBold" Foreground="#1B2A3A" />
+            <TextBlock TextWrapping="Wrap" Margin="0,6,0,0" Foreground="#44505C"
+                       Text="Confere se este PC tem o que o app Arquivos SPOBRAS precisa. Leva cerca de um minuto. O teste só cria e remove arquivos dele mesmo: não altera nem apaga nenhum arquivo seu, e não mexe no Excel que você estiver usando." />
+        </StackPanel>
+
+        <Border Grid.Row="1" Margin="0,16,0,0" Padding="12" Background="White" BorderBrush="#D9DEE4" BorderThickness="1" CornerRadius="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock Text="Modelo do cronograma (opcional)" FontWeight="SemiBold" Foreground="#1B2A3A" />
+                    <TextBlock x:Name="TextoModelo" TextTrimming="CharacterEllipsis" Foreground="#44505C" Margin="0,2,0,0"
+                               Text="Nenhum arquivo escolhido. Se escolher, o teste abre uma cópia dele; o original não é alterado." />
+                </StackPanel>
+                <Button x:Name="BotaoModelo" Grid.Column="1" Content="Escolher arquivo…" Padding="12,6" Margin="12,0,0,0"
+                        VerticalAlignment="Center" Click="EscolherModelo_Click" />
+                <Button x:Name="BotaoLimparModelo" Grid.Column="2" Content="Limpar" Padding="12,6" Margin="8,0,0,0"
+                        VerticalAlignment="Center" Visibility="Collapsed" Click="LimparModelo_Click" />
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,16,0,12">
+            <Button x:Name="BotaoRodar" Content="Rodar teste" Padding="28,10" FontSize="16" FontWeight="SemiBold"
+                    Background="#1F5FA8" Foreground="White" BorderThickness="0" IsDefault="True" Click="Rodar_Click" />
+            <TextBlock x:Name="TextoAndamento" VerticalAlignment="Center" Margin="16,0,0,0" Foreground="#44505C" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+            <ItemsControl x:Name="ListaItens">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,0,0,8" Padding="12" Background="White" BorderBrush="#D9DEE4" BorderThickness="1" CornerRadius="6">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Background="{Binding CorFundo}" CornerRadius="4" Padding="8,4" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                    <TextBlock Text="{Binding EstadoTexto}" Foreground="{Binding CorTexto}" FontWeight="SemiBold" FontSize="12" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding TituloNumerado}" FontWeight="SemiBold" Foreground="#1B2A3A" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding DetalhesTexto}" Foreground="#44505C" FontSize="12.5" TextWrapping="Wrap" Margin="0,4,0,0"
+                                               Visibility="{Binding VisibilidadeDetalhes}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Border x:Name="PainelRelatorio" Grid.Row="4" Margin="0,12,0,0" Padding="12" Background="#E8F1FB" BorderBrush="#B7D0EC"
+                BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="TextoRelatorio" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="#1B2A3A" />
+                <Button x:Name="BotaoAbrirRelatorio" Grid.Column="1" Content="Mostrar o relatório na pasta" Padding="12,6" Margin="12,0,0,0"
+                        VerticalAlignment="Center" Click="AbrirRelatorio_Click" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

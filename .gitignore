@@ -1,0 +1,18 @@
+bin/
+obj/
+.vs/
+*.user
+publish/
+TestResults/
+
+# Modelos oficiais e logo ficam so no PC do usuario (repositorio publico)
+modelos/
+
+# Nunca versionar planilhas reais nem relatorios do PC do trabalho
+relatorio-ambiente*.txt
+*.xlsx
+*.xlsm
+*.xls
+*.pdf
+!amostras/**/*.xlsx
+!amostras/**/*.pdf

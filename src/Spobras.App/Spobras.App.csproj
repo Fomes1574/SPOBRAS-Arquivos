@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>ArquivosSPOBRAS</AssemblyName>
+    <RootNamespace>Spobras.App</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <ProjectReference Include="../Spobras.Core/Spobras.Core.csproj" />
+    <ProjectReference Include="../Spobras.Dados/Spobras.Dados.csproj" />
+    <ProjectReference Include="../Spobras.Documentos/Spobras.Documentos.csproj" />
+    <ProjectReference Include="../Spobras.Excel/Spobras.Excel.csproj" />
+  </ItemGroup>
+</Project>
