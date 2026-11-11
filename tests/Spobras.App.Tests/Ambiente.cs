@@ -42,6 +42,25 @@ public sealed class DialogosFalsos : IDialogos
     public void AbrirPasta(string pasta) => Abertos.Add(pasta);
 }
 
+/// <summary>Faz de conta que e o Excel exportando PDF: grava um arquivo no lugar pedido.</summary>
+public sealed class ExportadorFalso : IExportadorPdf
+{
+    public bool Disponivel { get; set; } = true;
+    public bool Falhar { get; set; }
+    public List<(string Planilha, string Pdf)> Chamadas { get; } = [];
+
+    public void Exportar(string planilha, string pdf)
+    {
+        Chamadas.Add((planilha, pdf));
+        if (Falhar)
+        {
+            throw new InvalidOperationException("O Excel não respondeu.");
+        }
+
+        File.WriteAllText(pdf, "%PDF de teste");
+    }
+}
+
 /// <summary>O app inteiro sem tela: disco real numa pasta temporaria, banco SQLite real, janelas falsas.</summary>
 public abstract class ComApp : IDisposable
 {
@@ -92,4 +111,31 @@ public abstract class ComApp : IDisposable
     protected OrganizarVm NovoOrganizar() => new(Disco, Dialogos, new InterfaceDireta(), Operacoes, Novidades, Preferencias, Relogio);
     protected CompactarVm NovoCompactar() => new(Disco, Dialogos, Operacoes, Preferencias);
     protected HistoricoVm NovoHistorico() => new(Operacoes, Dialogos, new InterfaceDireta());
+    protected ServicoModelos Modelos => new(Em("dados"));
+    protected ExportadorFalso Exportador { get; } = new();
+    protected RelatorioVm NovoRelatorio() =>
+        new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio);
+    protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
+
+    /// <summary>Foto JPEG de verdade, pequena, para os testes.</summary>
+    protected string CriarFoto(string relativo, int largura = 400, int altura = 300)
+    {
+        string caminho = Em(relativo);
+        Directory.CreateDirectory(Path.GetDirectoryName(caminho)!);
+        using var bitmap = new SkiaSharp.SKBitmap(largura, altura);
+        bitmap.Erase(SkiaSharp.SKColors.SteelBlue);
+        using var imagem = SkiaSharp.SKImage.FromBitmap(bitmap);
+        File.WriteAllBytes(caminho, imagem.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 85).ToArray());
+        return caminho;
+    }
+
+    protected static async Task<bool> Ate(Func<bool> condicao)
+    {
+        for (int i = 0; i < 200 && !condicao(); i++)
+        {
+            await Task.Delay(25);
+        }
+
+        return condicao();
+    }
 }

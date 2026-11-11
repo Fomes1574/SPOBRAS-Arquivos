@@ -51,6 +51,14 @@ public sealed class BancoApp
         );
         create unique index Perfil_nome on Perfil(modulo, nome);
         """,
+        // 3: rascunhos (trabalho em preparacao, salvo sozinho)
+        """
+        create table Rascunho (
+            chave text primary key,
+            json text not null,
+            atualizado_em text not null
+        );
+        """,
     ];
 
     private readonly string _conexao;

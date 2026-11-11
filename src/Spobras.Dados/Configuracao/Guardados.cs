@@ -139,3 +139,46 @@ public sealed class PerfilRepositorio(BancoApp banco)
 
     public static T? Abrir<T>(PerfilGuardado perfil) => JsonSerializer.Deserialize<T>(perfil.Json, Json.Opcoes);
 }
+
+/// <summary>Rascunhos: o trabalho em preparacao de cada modulo, gravado sozinho a cada mudanca.</summary>
+public sealed class RascunhoRepositorio(BancoApp banco)
+{
+    public T? Ler<T>(string chave)
+    {
+        using var conexao = banco.Abrir();
+        using var cmd = conexao.CreateCommand();
+        cmd.CommandText = "select json from Rascunho where chave = $chave";
+        cmd.Parameters.AddWithValue("$chave", chave);
+        try
+        {
+            return cmd.ExecuteScalar() is string json ? JsonSerializer.Deserialize<T>(json, Json.Opcoes) : default;
+        }
+        catch (JsonException)
+        {
+            return default; // rascunho de uma versao antiga que nao da mais para ler: comeca vazio
+        }
+    }
+
+    public void Gravar<T>(string chave, T valor, DateTimeOffset agora)
+    {
+        using var conexao = banco.Abrir();
+        using var cmd = conexao.CreateCommand();
+        cmd.CommandText = """
+            insert into Rascunho (chave, json, atualizado_em) values ($chave, $json, $agora)
+            on conflict(chave) do update set json = excluded.json, atualizado_em = excluded.atualizado_em
+            """;
+        cmd.Parameters.AddWithValue("$chave", chave);
+        cmd.Parameters.AddWithValue("$json", JsonSerializer.Serialize(valor, Json.Opcoes));
+        cmd.Parameters.AddWithValue("$agora", agora.UtcDateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        cmd.ExecuteNonQuery();
+    }
+
+    public void Remover(string chave)
+    {
+        using var conexao = banco.Abrir();
+        using var cmd = conexao.CreateCommand();
+        cmd.CommandText = "delete from Rascunho where chave = $chave";
+        cmd.Parameters.AddWithValue("$chave", chave);
+        cmd.ExecuteNonQuery();
+    }
+}

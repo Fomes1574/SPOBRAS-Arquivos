@@ -1,0 +1,90 @@
+using System.Security.Cryptography;
+using System.Text;
+using Spobras.Documentos.Imagens;
+
+namespace Spobras.App.Servicos;
+
+/// <summary>Exporta uma planilha para PDF pelo Excel instalado (saida fiel a impressao).</summary>
+public interface IExportadorPdf
+{
+    /// <summary>False quando nao ha Excel neste computador.</summary>
+    bool Disponivel { get; }
+
+    void Exportar(string planilha, string pdf);
+}
+
+/// <summary>Sem Excel (testes e computadores sem Office): informa que o PDF nao pode ser gerado.</summary>
+public sealed class SemExportadorPdf : IExportadorPdf
+{
+    public bool Disponivel => false;
+
+    public void Exportar(string planilha, string pdf) =>
+        throw new InvalidOperationException("O Excel não foi encontrado neste computador; o PDF não pôde ser gerado.");
+}
+
+/// <summary>
+/// Cadastro central do logo e cache de miniaturas, dentro da pasta de dados do app
+/// (fora de Downloads e do OneDrive). O logo nunca vai para o instalador nem para o repositorio.
+/// </summary>
+public sealed class ServicoModelos(string pastaDados)
+{
+    private string PastaModelos => Path.Combine(pastaDados, "modelos");
+    private string PastaMiniaturas => Path.Combine(pastaDados, "cache", "miniaturas");
+
+    /// <summary>Caminho do logo cadastrado, ou null se ainda nao houver.</summary>
+    public string? Logo =>
+        Directory.Exists(PastaModelos)
+            ? Directory.EnumerateFiles(PastaModelos, "logo.*").FirstOrDefault(Fotos.Suportada)
+            : null;
+
+    /// <summary>Guarda uma copia do logo escolhido. Vale para os documentos gerados dali em diante.</summary>
+    public void DefinirLogo(string origem)
+    {
+        _ = Fotos.Ler(origem); // recusa o que nao for imagem valida, com mensagem
+        Directory.CreateDirectory(PastaModelos);
+        RemoverLogo();
+        File.Copy(origem, Path.Combine(PastaModelos, "logo" + Path.GetExtension(origem).ToLowerInvariant()));
+    }
+
+    /// <summary>Tira o logo do cadastro (apaga so a copia interna do app, nunca o arquivo do usuario).</summary>
+    public void RemoverLogo()
+    {
+        if (!Directory.Exists(PastaModelos))
+        {
+            return;
+        }
+
+        foreach (string antigo in Directory.EnumerateFiles(PastaModelos, "logo.*"))
+        {
+            File.Delete(antigo);
+        }
+    }
+
+    /// <summary>
+    /// Miniatura da foto (gerada uma vez e guardada). O nome depende do caminho, do tamanho, da data e da
+    /// rotacao: se a foto mudar, a miniatura e refeita.
+    /// </summary>
+    public string Miniatura(string foto, int rotacao = 0)
+    {
+        var info = new FileInfo(foto);
+        string chave = $"{foto}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{rotacao}";
+        string nome = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(chave)))[..32] + ".jpg";
+        string caminho = Path.Combine(PastaMiniaturas, nome);
+        if (!File.Exists(caminho))
+        {
+            Directory.CreateDirectory(PastaMiniaturas);
+            string temporario = caminho + "." + Guid.NewGuid().ToString("N")[..6] + ".tmp";
+            File.WriteAllBytes(temporario, Fotos.Miniatura(foto, 360, rotacao));
+            try
+            {
+                File.Move(temporario, caminho, overwrite: false);
+            }
+            catch (IOException)
+            {
+                File.Delete(temporario); // outra thread acabou de gerar a mesma miniatura
+            }
+        }
+
+        return caminho;
+    }
+}
