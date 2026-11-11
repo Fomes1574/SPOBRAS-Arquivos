@@ -61,17 +61,23 @@ public partial class MainWindow : Window
     {
         bool estreita = ActualWidth < LarguraEstreita;
         BotaoMenu.Visibility = estreita ? Visibility.Visible : Visibility.Collapsed;
-        ColunaMenu.Width = new GridLength(estreita ? 0 : LarguraMenu);
+        MostrarMenu(!estreita);
     }
 
-    private void AoClicarMenu(object sender, RoutedEventArgs e) =>
-        ColunaMenu.Width = new GridLength(ColunaMenu.Width.Value > 0 ? 0 : LarguraMenu);
+    private void AoClicarMenu(object sender, RoutedEventArgs e) => MostrarMenu(Menu.Visibility != Visibility.Visible);
 
     private void RecolherSeEstreita()
     {
         if (ActualWidth < LarguraEstreita)
         {
-            ColunaMenu.Width = new GridLength(0);
+            MostrarMenu(false);
         }
+    }
+
+    private void MostrarMenu(bool mostrar)
+    {
+        // Recolhido, o menu sai tambem da ordem do Tab e dos leitores de tela.
+        Menu.Visibility = mostrar ? Visibility.Visible : Visibility.Collapsed;
+        ColunaMenu.Width = new GridLength(mostrar ? LarguraMenu : 0);
     }
 }

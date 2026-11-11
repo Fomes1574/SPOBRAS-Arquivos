@@ -186,10 +186,15 @@ public class TelasDeVerdadeTests
             janela.Close();
             Bombear();
 
-            Relatorio.AppendLine().AppendLine($"Problemas de layout: {Problemas.Count}");
-            foreach (string problema in Problemas)
+            // O mesmo problema em varias telas aparece uma vez so, com a lista das telas.
+            var agrupados = Problemas
+                .Select(p => (Tela: p[..p.IndexOf(": ", StringComparison.Ordinal)], Texto: p[(p.IndexOf(": ", StringComparison.Ordinal) + 2)..]))
+                .GroupBy(p => p.Texto[..p.Texto.LastIndexOf(" em ", StringComparison.Ordinal)])
+                .ToList();
+            Relatorio.AppendLine().AppendLine($"Problemas de layout: {agrupados.Count}");
+            foreach (var grupo in agrupados.Take(60))
             {
-                Relatorio.AppendLine("  " + problema);
+                Relatorio.AppendLine($"  {grupo.Key} [{string.Join(",", grupo.Select(g => g.Tela[..2]).Distinct())}] ex.: {grupo.First().Texto[(grupo.Key.Length + 4)..]}");
             }
 
             Relatorio.AppendLine($"Erros de ligação: {errosDeLigacao.Mensagens.Distinct().Count()}");
