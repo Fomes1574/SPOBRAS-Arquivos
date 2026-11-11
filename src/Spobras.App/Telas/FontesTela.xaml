@@ -100,7 +100,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding Texto}" VerticalAlignment="Center" TextWrapping="Wrap" />
                                     <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource Secundario}" />
-                                    <ComboBox Grid.Column="2" ItemsSource="{Binding DataContext.PortariasDaBase, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    <ComboBox Grid.Column="2" ItemTemplate="{StaticResource OpcaoTexto}" ItemsSource="{Binding DataContext.PortariasDaBase, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                               SelectedItem="{Binding Portaria}" AutomationProperties.Name="Portaria da base correspondente" />
                                 </Grid>
                             </DataTemplate>

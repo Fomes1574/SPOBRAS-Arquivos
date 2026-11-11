@@ -218,6 +218,11 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
 
+    <!-- Opcao de lista suspensa: texto longo ganha reticencias (e dica com o texto inteiro) em vez de ser cortado -->
+    <DataTemplate x:Key="OpcaoTexto">
+        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip="{Binding}" />
+    </DataTemplate>
+
     <!-- Lista sem realce de selecao: cada linha e so conteudo com uma divisoria -->
     <Style x:Key="LinhaSimples" TargetType="ListBoxItem">
         <Setter Property="Focusable" Value="False" />
