@@ -90,7 +90,21 @@ public abstract class ComApp : IDisposable
     public void Dispose()
     {
         Novidades.Dispose();
-        Directory.Delete(Raiz, recursive: true);
+        _fontes?.Dispose();
+        // Pode haver trabalho em segundo plano terminando de gravar (miniaturas): tenta de novo antes de desistir.
+        for (int tentativa = 0; ; tentativa++)
+        {
+            try
+            {
+                Directory.Delete(Raiz, recursive: true);
+                break;
+            }
+            catch (IOException) when (tentativa < 20)
+            {
+                Thread.Sleep(50);
+            }
+        }
+
         GC.SuppressFinalize(this);
     }
 
@@ -125,6 +139,7 @@ public abstract class ComApp : IDisposable
     protected ServicoFontes Fontes => _fontes ??= new ServicoFontes(Base, c => new Spobras.Documentos.Planilhas.LeitorXlsx(c), Relogio, Operacoes.Fila, Preferencias)
     {
         Quieto = TimeSpan.FromSeconds(4),
+        UsarEventos = false,
     };
 
     protected string GravarMestra(Spobras.Testes.PlanilhaFalsa? planilha = null, string pasta = "Base")

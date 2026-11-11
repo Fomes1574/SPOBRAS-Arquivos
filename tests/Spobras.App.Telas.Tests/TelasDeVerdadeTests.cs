@@ -84,7 +84,7 @@ public class TelasDeVerdadeTests
             var app = new Spobras.App.App();
             app.InitializeComponent();
 
-            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste")
+            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste", eventosDasFontes: false)
             {
                 VigiarFontes = false,
             };

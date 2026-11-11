@@ -12,7 +12,7 @@ public sealed class Composicao : IDisposable
 {
     public Composicao(
         string pastaDados, string pastaTrabalhoPadrao, IDialogos dialogos, IInterface @interface, string versao,
-        IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null)
+        IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null, bool eventosDasFontes = true)
     {
         PastaDados = pastaDados;
         var arquivos = new ArquivosDisco();
@@ -24,7 +24,10 @@ public sealed class Composicao : IDisposable
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);
         Base = new Spobras.Dados.Base.BaseRepositorio(banco);
-        Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias);
+        Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias)
+        {
+            UsarEventos = eventosDasFontes,
+        };
 
         // So entram no menu os modulos que ja funcionam (especificacao 9.1).
         Modulos =

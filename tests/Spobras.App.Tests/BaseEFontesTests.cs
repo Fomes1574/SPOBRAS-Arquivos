@@ -139,6 +139,10 @@ public class FontesTests : ComApp
         await Fontes.DefinirAsync(Spobras.Core.Base.Fontes.Mestra, caminho);
         File.Move(caminho, Em("Antiga", "renomeada.xlsx"));
 
+        // Sumir por um instante (o Excel salvando) nao conta; so depois do tempo de espera.
+        Fontes.ConferirMudancas();
+        Assert.Equal(EstadoFonte.Atualizada, Mestra.Estado);
+        Relogio.Agora = Relogio.Agora.AddSeconds(5);
         Fontes.ConferirMudancas();
 
         Assert.Equal(EstadoFonte.ArquivoNaoEncontrado, Mestra.Estado);

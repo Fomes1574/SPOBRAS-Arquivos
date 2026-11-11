@@ -24,6 +24,7 @@ public sealed class ServicoFontes : IDisposable
     private readonly Dictionary<string, (DateTime Modificado, long Tamanho, DateTimeOffset VistoEm)> _observado = [];
     private readonly Dictionary<string, (DateTime Modificado, long Tamanho, DateTimeOffset Em)> _falhou = [];
     private readonly HashSet<string> _lendo = [];
+    private readonly Dictionary<string, DateTimeOffset> _ausenteDesde = [];
     private readonly List<FileSystemWatcher> _vigias = [];
     private Timer? _relogioInterno;
 
@@ -42,6 +43,9 @@ public sealed class ServicoFontes : IDisposable
 
     /// <summary>Depois de uma falha com o mesmo arquivo, espera isto antes de tentar de novo (sem insistir em laco).</summary>
     public TimeSpan EsperaAposFalha { get; init; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>Usar os eventos do sistema alem da conferencia periodica. False nos testes, que mandam conferir.</summary>
+    public bool UsarEventos { get; init; } = true;
 
     /// <summary>Uma fonte foi lida, falhou ou mudou de cadastro. Disparado fora da thread da tela.</summary>
     public event Action? Mudou;
@@ -150,7 +154,20 @@ public sealed class ServicoFontes : IDisposable
                 info = new FileInfo(fonte.Caminho);
                 if (!info.Exists)
                 {
-                    if (fonte.Estado != EstadoFonte.ArquivoNaoEncontrado)
+                    // Ao salvar, o Excel troca o arquivo e ele some por um instante: so vale como
+                    // "nao encontrado" se continuar ausente pelo tempo de espera.
+                    bool ausenteDeVerdade;
+                    lock (_trava)
+                    {
+                        if (!_ausenteDesde.TryGetValue(fonte.Id, out var desde))
+                        {
+                            _ausenteDesde[fonte.Id] = desde = agora;
+                        }
+
+                        ausenteDeVerdade = agora - desde >= Quieto;
+                    }
+
+                    if (ausenteDeVerdade && fonte.Estado != EstadoFonte.ArquivoNaoEncontrado)
                     {
                         string? candidato = Procurar(fonte.Id);
                         _base.GravarFonte(fonte with
@@ -164,6 +181,11 @@ public sealed class ServicoFontes : IDisposable
                     }
 
                     continue;
+                }
+
+                lock (_trava)
+                {
+                    _ausenteDesde.Remove(fonte.Id);
                 }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
@@ -320,6 +342,11 @@ public sealed class ServicoFontes : IDisposable
         }
 
         _vigias.Clear();
+        if (!UsarEventos)
+        {
+            return;
+        }
+
         foreach (var fonte in Fontes().Where(f => f.Caminho.Length > 0))
         {
             try
