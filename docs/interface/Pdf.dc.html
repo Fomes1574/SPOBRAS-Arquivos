@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Arquivos SPOBRAS: PDF</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F5FA8}a:hover{color:#17467C}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 960px; background: #F3F3F1; font-family: Inter, system-ui, sans-serif; color: #231F20; font-size: 15px; line-height: 1.45">
+<div style="flex: 1 1 232px; background: #231F20">
+<dc-import name="Menu" ativo="pdf" hint-size="232px,960px"></dc-import>
+</div>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<h1 style="margin: 0; font-size: 30px; font-weight: 700">PDF</h1>
+<p style="margin: 4px 0 0; color: #5A5A5F">Escolha a ferramenta, solte os arquivos e confirme.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px">
+<button type="button" aria-pressed="true" style="min-height: 88px; padding: 14px; border-radius: 10px; border: 2px solid #231F20; background: #231F20; color: #FFFFFF; font: 600 15px Inter, system-ui, sans-serif; text-align: left; cursor: pointer">Juntar vários PDFs num só</button>
+<button type="button" style="min-height: 88px; padding: 14px; border-radius: 10px; border: 1px solid #8A8A8E; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; text-align: left; cursor: pointer">Separar um PDF em páginas</button>
+<button type="button" style="min-height: 88px; padding: 14px; border-radius: 10px; border: 1px solid #8A8A8E; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; text-align: left; cursor: pointer">Transformar fotos em PDF</button>
+<button type="button" style="min-height: 88px; padding: 14px; border-radius: 10px; border: 1px solid #8A8A8E; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; text-align: left; cursor: pointer">Reduzir o tamanho do PDF</button>
+<button type="button" style="min-height: 88px; padding: 14px; border-radius: 10px; border: 1px solid #8A8A8E; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; text-align: left; cursor: pointer">Levar tabela do PDF para o Excel</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<section style="flex: 2 1 420px; min-width: 0; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 4px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px">
+<h2 style="margin: 0; font-size: 18px">Juntar: 4 arquivos, nesta ordem</h2>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #231F20; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Adicionar PDFs</button>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #E6E6E3"><span style="font-weight: 700; min-width: 24px">1</span><span style="flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere">Relatório 01.pdf</span><span style="color: #5A5A5F; font-size: 13px">arraste para mudar a ordem</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #E6E6E3"><span style="font-weight: 700; min-width: 24px">2</span><span style="flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere">Relatório 02.pdf</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #E6E6E3"><span style="font-weight: 700; min-width: 24px">3</span><span style="flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere">Relatório 03.pdf</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #E6E6E3"><span style="font-weight: 700; min-width: 24px">4</span><span style="flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere">Relatório 04.pdf</span></div>
+<div style="margin-top: 12px; padding: 16px; border: 1px dashed #8A8A8E; border-radius: 8px; color: #5A5A5F; text-align: center">Arraste PDFs para cá</div>
+</section>
+
+<section style="flex: 1 1 320px; min-width: 0; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-size: 18px">Tabela do PDF para o Excel</h2>
+<span style="color: #5A5A5F">O app já conhece estes dois relatórios e entrega as colunas prontas:</span>
+<div style="padding: 12px; border: 1px solid #D6D6D2; border-radius: 8px"><div style="font-weight: 700">Relatório de Restos a Pagar</div><div style="color: #5A5A5F; font-size: 13px">Data, NE, ano, processo SEI, valor a liquidar e dotação</div></div>
+<div style="padding: 12px; border: 1px solid #D6D6D2; border-radius: 8px"><div style="font-weight: 700">Anexo I - Tabela SME</div><div style="color: #5A5A5F; font-size: 13px">Unidade, DRE e orçamento</div></div>
+<span style="color: #5A5A5F; font-size: 13px">A dotação sai convertida para o formato da Base de dados. Leitura de PDF digitalizado (foto de documento) fica para uma fase posterior.</span>
+</section>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 14px 18px">
+<div style="flex: 1 1 320px; min-width: 0">
+<div style="font-size: 13px; color: #5A5A5F">Salvar em</div>
+<div style="font-weight: 600; overflow-wrap: anywhere">C:\Users\<usuario>\Downloads\Relatórios juntos.pdf</div>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #231F20; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Escolher outra pasta</button>
+<button type="button" style="height: 44px; padding: 0 22px; border-radius: 8px; border: 0; background: #C8102E; color: #FFFFFF; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Juntar 4 PDFs</button>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":960}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

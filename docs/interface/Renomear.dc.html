@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Arquivos SPOBRAS: Renomear em lote</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#1F5FA8}a:hover{color:#17467C}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 960px; background: #F3F3F1; font-family: Inter, system-ui, sans-serif; color: #231F20; font-size: 15px; line-height: 1.45">
+<div style="flex: 1 1 232px; background: #231F20">
+<dc-import name="Menu" ativo="renomear" hint-size="232px,960px"></dc-import>
+</div>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 32px 40px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<h1 style="margin: 0; font-size: 30px; font-weight: 700">Renomear em lote</h1>
+<p style="margin: 4px 0 0; color: #5A5A5F">Digite o nome e o app numera todos em sequência. Funciona com PDF e com qualquer outro tipo de arquivo.</p>
+</div>
+
+<section style="background: #FFFFFF; border: 1px dashed #8A8A8E; border-radius: 10px; padding: 18px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+<div style="flex: 1 1 320px; min-width: 0">
+<div style="font-weight: 700">6 arquivos escolhidos</div>
+<div style="color: #5A5A5F; overflow-wrap: anywhere">De: C:\Users\<usuario>\Downloads · arraste arquivos ou uma pasta para cá</div>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #231F20; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Escolher arquivos</button>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #231F20; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Escolher pasta</button>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+<section style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<h2 style="margin: 0; font-size: 18px">Como renomear</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">Nome
+<input type="text" value="{{base}}" onChange="{{mudaBase}}" style="height: 44px; box-sizing: border-box; width: 100%; padding: 0 12px; border: 1px solid #8A8A8E; border-radius: 8px; font: 400 15px Inter, system-ui, sans-serif; color: #231F20; background: #FFFFFF">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">Começar no número
+<input type="number" min="1" value="{{inicio}}" onChange="{{mudaInicio}}" style="height: 44px; box-sizing: border-box; width: 100%; padding: 0 12px; border: 1px solid #8A8A8E; border-radius: 8px; font: 400 15px Inter, system-ui, sans-serif; color: #231F20; background: #FFFFFF">
+</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 500">
+<input type="checkbox" checked="{{zero}}" onChange="{{mudaZero}}" style="width: 20px; height: 20px">
+Número com zero na frente (01, 02, 03)
+</label>
+<label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 500">
+<input type="checkbox" checked="{{continuar}}" onChange="{{mudaContinuar}}" style="width: 20px; height: 20px">
+Continuar de onde a pasta parou
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600">Ordem da numeração
+<select style="height: 44px; box-sizing: border-box; width: 100%; padding: 0 12px; border: 1px solid #8A8A8E; border-radius: 8px; font: 400 15px Inter, system-ui, sans-serif; color: #231F20; background: #FFFFFF">
+<option>Pelo nome atual (2 antes de 10)</option>
+<option>Pela data do arquivo</option>
+<option>Na ordem em que eu arrastar</option>
+</select>
+</label>
+<div style="color: #5A5A5F; font-size: 13px">Outras opções: colocar a data no nome, trocar um trecho por outro, tirar espaços ou acentos.</div>
+</section>
+
+<section style="flex: 2 1 420px; min-width: 0; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0 0 8px; font-size: 18px">Prévia: nada muda até você confirmar</h2>
+<div style="overflow-x: auto">
+<div style="min-width: 460px">
+<div style="display: grid; grid-template-columns: 1fr 28px 1fr; gap: 12px; padding: 10px 0; font-size: 13px; font-weight: 700; color: #5A5A5F; border-bottom: 1px solid #D6D6D2">
+<span>Nome de hoje</span><span></span><span>Nome novo</span>
+</div>
+<sc-for list="{{linhas}}" as="l" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 1fr 28px 1fr; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #E6E6E3">
+<span style="color: #5A5A5F; overflow-wrap: anywhere">{{l.antigo}}</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5A5A5F" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+<span style="font-weight: 700; overflow-wrap: anywhere">{{l.novo}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{continuar}}" hint-placeholder-val="{{false}}">
+<p style="margin: 12px 0 0; color: #1F5FA8; font-weight: 600">A pasta já tem do 01 ao 20, então os novos começam no 21.</p>
+</sc-if>
+</section>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; background: #FFFFFF; border: 1px solid #D6D6D2; border-radius: 10px; padding: 14px 18px">
+<div style="flex: 1 1 320px; min-width: 0">
+<div style="font-size: 13px; color: #5A5A5F">Os arquivos ficam na mesma pasta. Para desfazer, use o botão ao lado ou o histórico.</div>
+</div>
+<button type="button" style="height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid #231F20; background: #FFFFFF; color: #231F20; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Desfazer a última</button>
+<button type="button" style="height: 44px; padding: 0 22px; border-radius: 8px; border: 0; background: #C8102E; color: #FFFFFF; font: 600 15px Inter, system-ui, sans-serif; cursor: pointer">Renomear 6 arquivos</button>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":960}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { base: 'Relatório', inicio: 1, zero: true, continuar: false };
+}
+renderVals() {
+var self = this;
+var s = this.state;
+var antigos = ['scan_0012.pdf', 'Doc 10-11.pdf', 'IMG-20261110-WA0007.pdf', 'medição final (2).pdf', 'arquivo.pdf', 'Novo documento 3.pdf'];
+var primeiro = s.continuar ? 21 : (parseInt(s.inicio, 10) || 1);
+var linhas = antigos.map(function (nome, i) {
+var n = String(primeiro + i);
+if (s.zero && n.length < 2) { n = '0' + n; }
+return { antigo: nome, novo: (s.base || '') + ' ' + n + '.pdf' };
+});
+return {
+base: s.base, inicio: s.inicio, zero: s.zero, continuar: s.continuar, linhas: linhas,
+mudaBase: function (e) { self.setState({ base: e.target.value }); },
+mudaInicio: function (e) { self.setState({ inicio: e.target.value }); },
+mudaZero: function (e) { self.setState({ zero: e.target.checked }); },
+mudaContinuar: function (e) { self.setState({ continuar: e.target.checked }); }
+};
+}
+}
+</script>
+</body>
+</html>

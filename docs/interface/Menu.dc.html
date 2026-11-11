@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Arquivos SPOBRAS: menu lateral</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<nav aria-label="Módulos do app" style="box-sizing: border-box; padding: 20px 14px; display: flex; flex-direction: column; gap: 6px; font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.4; color: #FFFFFF; background: #231F20">
+<div style="background: #FFFFFF; border-radius: 10px; padding: 10px; display: flex; justify-content: center">
+<img src="/_blob/0295963c69c5e6f46c7698962f7eb6cb" alt="SPObras" style="width: 124px; height: 88px; object-fit: contain">
+</div>
+<div style="font-weight: 700; font-size: 17px; padding: 10px 12px 12px">Arquivos SPOBRAS</div>
+<a href="Main.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.inicio}}">Início</a>
+<a href="Organizar.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.organizar}}">Organizar arquivos</a>
+<a href="Renomear.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.renomear}}">Renomear em lote</a>
+<a href="Compactar.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.compactar}}">Compactar</a>
+<a href="Relatorio.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.relatorio}}">Relatório fotográfico</a>
+<a href="Cronograma.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.cronograma}}">Cronograma padrão</a>
+<a href="Modelos.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.modelos}}">Modelos Excel</a>
+<a href="Pdf.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.pdf}}">PDF</a>
+<a href="Base.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500; background: {{bg.base}}">Base de dados</a>
+<div style="margin-top: 20px; padding: 12px; border: 1px solid #5A5A5F; border-radius: 8px; display: flex; flex-direction: column; gap: 4px">
+<span style="font-weight: 600">Modo automático: ligado</span>
+<span style="font-size: 13px; color: #D6D6D2">Vigiando a pasta Downloads</span>
+</div>
+<a href="#" style="display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 8px; color: #FFFFFF; text-decoration: none; font-weight: 500">Configurações</a>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"ativo":{"editor":"enum","options":["inicio","organizar","renomear","compactar","relatorio","cronograma","modelos","pdf","base"],"default":"inicio"},"$preview":{"width":232,"height":960}}'>
+class Component extends DCLogic {
+renderVals() {
+var a = this.props.ativo || 'inicio';
+var nomes = ['inicio','organizar','renomear','compactar','relatorio','cronograma','modelos','pdf','base'];
+var bg = {};
+nomes.forEach(function (n) { bg[n] = n === a ? '#C8102E' : 'transparent'; });
+return { bg: bg };
+}
+}
+</script>
+</body>
+</html>
