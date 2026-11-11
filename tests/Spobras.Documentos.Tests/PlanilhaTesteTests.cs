@@ -19,7 +19,7 @@ public class PlanilhaTesteTests : IDisposable
 
         using (var doc = SpreadsheetDocument.Open(caminho, false))
         {
-            var erros = new OpenXmlValidator().Validate(doc, TestContext.Current.CancellationToken).Select(e => e.Description).ToList();
+            var erros = new OpenXmlValidator().Validate(doc).Select(e => e.Description).ToList();
             Assert.Empty(erros);
         }
 

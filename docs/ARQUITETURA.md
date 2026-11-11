@@ -93,7 +93,7 @@ Somente leitura, sempre. Atualizada pelo próprio Excel (Power Query). Ler por *
 
 A lista acima veio de uma busca por palavras-chave, não é o esquema completo. **Primeira tarefa do importador:** listar todas as tabelas e colunas do arquivo real e gravar em `docs/FONTES.md`.
 
-**Pendência com o usuário:** há três colunas de início (`INÍCIO EXECUÇÃO`, `INICIO`, `DATA DE INÍCIO`) e uma coluna `OS`. Perguntar qual é a data oficial da Ordem de Serviço antes de ligar o preenchimento automático do início do cronograma.
+**Decidido pelo usuário (11/11/2026):** a data oficial da Ordem de Serviço é a coluna `INÍCIO EXECUÇÃO` da tabela `contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS`. As tabelas e colunas reais estão em `docs/FONTES.md` (a aba `STATUS` não tem coluna `OS`).
 
 ### 5.3 Fonte B: `Dotações Completas.xlsx` (base de portarias e dotações)
 
