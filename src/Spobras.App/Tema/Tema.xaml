@@ -131,7 +131,7 @@
     <Style x:Key="BotaoLinha" TargetType="Button" BasedOn="{StaticResource BotaoBase}">
         <Setter Property="MinHeight" Value="34" />
         <Setter Property="MinWidth" Value="34" />
-        <Setter Property="Padding" Value="10,0" />
+        <Setter Property="Padding" Value="8,0" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Background" Value="{StaticResource Branco}" />
         <Setter Property="BorderBrush" Value="{StaticResource Borda}" />

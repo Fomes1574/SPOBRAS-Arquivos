@@ -7,7 +7,7 @@ namespace Spobras.App;
 public partial class MainWindow : Window
 {
     private const double LarguraMenu = 232;
-    private const double LarguraEstreita = 1000;
+    private const double LarguraEstreita = 1180;
     private readonly PrincipalVm _vm;
 
     public MainWindow(PrincipalVm vm)

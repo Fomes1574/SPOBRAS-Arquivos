@@ -52,11 +52,14 @@ public class TelasDeVerdadeTests
         Problemas.Clear();
         // Erro fora da thread da tela derruba o processo: deixa o motivo gravado para o CI mostrar.
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            File.WriteAllText(Path.Combine(saida, "relatorio.txt"), Relatorio + "\nERRO NAO TRATADO:\n" + e.ExceptionObject);
+            File.WriteAllText(Path.Combine(saida, "resumo.txt"), "ERRO NAO TRATADO:\n" + e.ExceptionObject);
         var errosDeLigacao = new ColetorDeErros();
         PresentationTraceSources.Refresh();
         PresentationTraceSources.DataBindingSource.Listeners.Add(errosDeLigacao);
         PresentationTraceSources.DataBindingSource.Switch.Level = SourceLevels.Warning;
+
+        // Como no app de verdade: o que vem depois de um "await" volta para a thread da tela.
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
 
         try
         {
@@ -196,6 +199,8 @@ public class TelasDeVerdadeTests
             }
 
             File.WriteAllText(Path.Combine(saida, "relatorio.txt"), Relatorio.ToString());
+            File.WriteAllText(Path.Combine(saida, "resumo.txt"),
+                $"Telas fotografadas: {Directory.GetFiles(saida, "*.png").Length}\n" + Relatorio.ToString()[Relatorio.ToString().LastIndexOf("Problemas de layout", StringComparison.Ordinal)..]);
 
             Assert.True(Problemas.Count == 0, "Elementos cortados ou fora da janela:\n" + string.Join("\n", Problemas.Take(30)));
             Assert.True(errosDeLigacao.Mensagens.Count == 0,

@@ -33,7 +33,7 @@
 
         <Grid Grid.Row="2" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="340" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
@@ -133,13 +133,13 @@
                     <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
                     <Grid DockPanel.Dock="Top" Margin="0,0,0,6" Visibility="{Binding TemLinhas, Converter={StaticResource Visivel}}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="28" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="3*" />
+                            <ColumnDefinition Width="152" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Nome de hoje" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="2" Text="Nome novo (pode editar)" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Text="Nome de hoje" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="Nome novo (pode editar)" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
                     </Grid>
                     <Grid>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding TemLinhas, Converter={StaticResource VisivelSeNao}}">
@@ -152,15 +152,15 @@
                                     <StackPanel>
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="2*" />
                                                 <ColumnDefinition Width="28" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="170" />
+                                                <ColumnDefinition Width="3*" />
+                                                <ColumnDefinition Width="152" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="{Binding NomeAtual}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding NomeAtual}" />
                                             <TextBlock Grid.Column="1" Text="→" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{StaticResource Secundario}" />
                                             <DockPanel Grid.Column="2">
-                                                <TextBox DockPanel.Dock="Right" Width="150" Margin="8,0,0,0" Text="{Binding Complemento}"
+                                                <TextBox DockPanel.Dock="Right" Width="120" Margin="8,0,0,0" Text="{Binding Complemento}"
                                                          AutomationProperties.Name="Complemento" ToolTip="Complemento deste arquivo"
                                                          Visibility="{Binding DataContext.ModoComplemento, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visivel}}" />
                                                 <TextBox x:Name="CampoNovo" Text="{Binding NomeNovo}" FontWeight="SemiBold" AutomationProperties.Name="Nome novo" KeyDown="AoTeclarNoNome" />

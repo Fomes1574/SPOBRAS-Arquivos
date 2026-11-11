@@ -27,7 +27,7 @@ jobs:
       - name: Relatorio das telas
         if: always()
         shell: pwsh
-        run: if (Test-Path artifacts/telas/relatorio.txt) { Get-Content artifacts/telas/relatorio.txt -Encoding utf8 } else { "sem relatorio" }
+        run: if (Test-Path artifacts/telas/resumo.txt) { Get-Content artifacts/telas/resumo.txt -Encoding utf8 } else { "sem resumo" }
 
       - name: Guardar as imagens das telas
         if: always()
