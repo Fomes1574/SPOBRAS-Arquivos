@@ -140,8 +140,15 @@ public sealed class FilaTarefas
     {
         tarefa.Estado = estado;
         tarefa.Mensagem = mensagem;
-        Mudou?.Invoke(tarefa);
-        tarefa.Terminou.TrySetResult();
+        try
+        {
+            Mudou?.Invoke(tarefa);
+        }
+        finally
+        {
+            // Quem espera a tarefa e sempre liberado, mesmo se um ouvinte da tela falhar.
+            tarefa.Terminou.TrySetResult();
+        }
     }
 
     /// <summary>Progresso entregue na hora, na thread do trabalho (sem depender de contexto de tela).</summary>

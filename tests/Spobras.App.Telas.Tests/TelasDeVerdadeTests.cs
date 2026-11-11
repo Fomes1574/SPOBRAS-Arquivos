@@ -48,6 +48,11 @@ public class TelasDeVerdadeTests
         string raiz = Directory.CreateTempSubdirectory("spobras-telas-").FullName;
         string saida = PastaDeSaida();
         Directory.CreateDirectory(saida);
+        Relatorio.Clear();
+        Problemas.Clear();
+        // Erro fora da thread da tela derruba o processo: deixa o motivo gravado para o CI mostrar.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            File.WriteAllText(Path.Combine(saida, "relatorio.txt"), Relatorio + "\nERRO NAO TRATADO:\n" + e.ExceptionObject);
         var errosDeLigacao = new ColetorDeErros();
         PresentationTraceSources.Refresh();
         PresentationTraceSources.DataBindingSource.Listeners.Add(errosDeLigacao);
@@ -76,7 +81,7 @@ public class TelasDeVerdadeTests
             var app = new Spobras.App.App();
             app.InitializeComponent();
 
-            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new InterfaceDireta(), "0.0.0-teste");
+            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste");
             composicao.Preferencias.Alterar(p => p with { ModoAutomatico = false });
             composicao.Novidades.GravarRegras(
             [
@@ -178,6 +183,21 @@ public class TelasDeVerdadeTests
             janela.Close();
             Bombear();
 
+            Relatorio.AppendLine().AppendLine($"Problemas de layout: {Problemas.Count}");
+            foreach (string problema in Problemas)
+            {
+                Relatorio.AppendLine("  " + problema);
+            }
+
+            Relatorio.AppendLine($"Erros de ligação: {errosDeLigacao.Mensagens.Distinct().Count()}");
+            foreach (string mensagem in errosDeLigacao.Mensagens.Distinct().Take(30))
+            {
+                Relatorio.AppendLine("  " + mensagem);
+            }
+
+            File.WriteAllText(Path.Combine(saida, "relatorio.txt"), Relatorio.ToString());
+
+            Assert.True(Problemas.Count == 0, "Elementos cortados ou fora da janela:\n" + string.Join("\n", Problemas.Take(30)));
             Assert.True(errosDeLigacao.Mensagens.Count == 0,
                 "Erros de ligação de dados nas telas:\n" + string.Join("\n", errosDeLigacao.Mensagens.Distinct().Take(20)));
             Assert.True(Directory.GetFiles(saida, "*.png").Length >= 20);
@@ -216,8 +236,76 @@ public class TelasDeVerdadeTests
         imagem.Render(fundo);
         var png = new PngBitmapEncoder();
         png.Frames.Add(BitmapFrame.Create(imagem));
-        using var arquivo = File.Create(Path.Combine(pasta, nome + ".png"));
-        png.Save(arquivo);
+        using (var arquivo = File.Create(Path.Combine(pasta, nome + ".png")))
+        {
+            png.Save(arquivo);
+        }
+
+        Conferir(conteudo, nome);
+    }
+
+    private static readonly System.Text.StringBuilder Relatorio = new();
+    private static readonly List<string> Problemas = [];
+
+    /// <summary>
+    /// Confere o layout sem depender de olho: nada cortado pelo espaco disponivel e nenhum botao ou
+    /// texto fora da janela. Tambem escreve um esboco da tela (textos e posicoes) no relatorio.
+    /// </summary>
+    private static void Conferir(FrameworkElement raiz, string nome)
+    {
+        var limite = new Rect(0, 0, raiz.ActualWidth + 0.5, raiz.ActualHeight + 0.5);
+        Relatorio.AppendLine().AppendLine($"== {nome} ({raiz.ActualWidth:0} x {raiz.ActualHeight:0})");
+        int linhasDoEsboco = 0;
+
+        void Andar(DependencyObject pai, bool rolavel)
+        {
+            int filhos = VisualTreeHelper.GetChildrenCount(pai);
+            for (int i = 0; i < filhos; i++)
+            {
+                var filho = VisualTreeHelper.GetChild(pai, i);
+                if (filho is not FrameworkElement fe || !fe.IsVisible)
+                {
+                    continue;
+                }
+
+                bool filhoRolavel = rolavel || (fe is System.Windows.Controls.ScrollViewer sv && (sv.ScrollableHeight > 0 || sv.ScrollableWidth > 0));
+                bool interessa = fe is System.Windows.Controls.TextBlock or System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.TextBox;
+                if (interessa && fe.ActualWidth > 0 && fe.ActualHeight > 0)
+                {
+                    var area = fe.TransformToAncestor(raiz).TransformBounds(new Rect(0, 0, fe.ActualWidth, fe.ActualHeight));
+                    string texto = fe switch
+                    {
+                        System.Windows.Controls.TextBlock tb => tb.Text.Length > 0 ? tb.Text : string.Concat(tb.Inlines.OfType<System.Windows.Documents.Run>().Select(r => r.Text)),
+                        System.Windows.Controls.TextBox cx => "[campo] " + cx.Text,
+                        System.Windows.Controls.ContentControl cc => "[botão] " + (cc.Content as string ?? ""),
+                        _ => "",
+                    };
+                    texto = texto.Length > 70 ? texto[..70] + "…" : texto;
+
+                    if (!rolavel)
+                    {
+                        if (System.Windows.Controls.Primitives.LayoutInformation.GetLayoutClip(fe) is not null)
+                        {
+                            Problemas.Add($"{nome}: cortado pelo espaço disponível: \"{texto}\" em {area.X:0},{area.Y:0} ({area.Width:0}x{area.Height:0})");
+                        }
+                        else if (!limite.Contains(area))
+                        {
+                            Problemas.Add($"{nome}: fora da janela: \"{texto}\" em {area.X:0},{area.Y:0} ({area.Width:0}x{area.Height:0})");
+                        }
+                    }
+
+                    if (fe is System.Windows.Controls.TextBlock && texto.Length > 0 && linhasDoEsboco < 45)
+                    {
+                        linhasDoEsboco++;
+                        Relatorio.AppendLine($"  {area.X,5:0},{area.Y,4:0} {area.Width,5:0}x{area.Height,-3:0} {texto}");
+                    }
+                }
+
+                Andar(filho, filhoRolavel);
+            }
+        }
+
+        Andar(raiz, false);
     }
 
     /// <summary>Deixa a tela processar ligacoes, layout e desenho pendentes.</summary>

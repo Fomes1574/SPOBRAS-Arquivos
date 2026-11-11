@@ -24,6 +24,11 @@ jobs:
       - name: Testar
         run: dotnet test -c Release --no-build
 
+      - name: Relatorio das telas
+        if: always()
+        shell: pwsh
+        run: if (Test-Path artifacts/telas/relatorio.txt) { Get-Content artifacts/telas/relatorio.txt -Encoding utf8 } else { "sem relatorio" }
+
       - name: Guardar as imagens das telas
         if: always()
         uses: actions/upload-artifact@v4
