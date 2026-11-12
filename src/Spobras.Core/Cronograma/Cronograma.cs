@@ -33,6 +33,9 @@ public sealed record ObraCronograma
     /// <summary>Data da OS que a base tem para esta obra, se a linha veio da base (para mostrar divergencia).</summary>
     public DateOnly? DataOsDaBase { get; init; }
 
+    /// <summary>Distribuicao so desta obra; null segue a do cronograma.</summary>
+    public Distribuicao? Distribuicao { get; init; }
+
     public bool Vazia =>
         Portaria.Length == 0 && Lote.Length == 0 && Dotacao.Length == 0 && Nome.Length == 0 && Escopo.Length == 0
         && Valor is null && Inicio is null && Fim is null;

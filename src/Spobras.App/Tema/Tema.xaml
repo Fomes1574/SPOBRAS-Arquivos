@@ -166,6 +166,8 @@
 
     <!-- Campos de texto -->
     <Style TargetType="TextBox">
+        <!-- Passando o mouse, o texto inteiro aparece (campos estreitos cortam o que foi escrito) -->
+        <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
         <Setter Property="MinHeight" Value="44" />
         <Setter Property="Padding" Value="10,0" />
         <Setter Property="FontSize" Value="15" />
@@ -194,6 +196,11 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="Text" Value="">
+                <Setter Property="ToolTip" Value="{x:Null}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style TargetType="CheckBox">

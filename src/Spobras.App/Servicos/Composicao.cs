@@ -83,6 +83,9 @@ public sealed class Composicao : IDisposable
         var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
         relatorio.ObrasDoContrato = ObrasDoContrato;
         relatorio.ObrasDaEscola = ObrasDaEscola;
+        var cronograma = (CronogramaVm)telas[CronogramaVm.Modulo];
+        cronograma.ObrasDaEscola = ObrasDaEscola;
+        cronograma.ObrasDoLote = ObrasDoLote;
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
         {
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
@@ -187,6 +190,25 @@ public sealed class Composicao : IDisposable
         var exatas = escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e.Trim()) == alvo).ToList();
         var achadas = exatas.Count > 0 ? exatas : escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal)).Take(10).ToList();
         return [.. achadas.SelectMany(e => Base.Buscar(new Spobras.Core.Base.FiltroObras { Escola = e }, 100).Obras).Take(20)];
+    }
+
+    /// <summary>Obras de um lote: "216", "lote 216" e "LOTE 216" sao o mesmo lote.</summary>
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoLote(string digitado)
+    {
+        static string Chave(string lote)
+        {
+            string digitos = new([.. lote.Where(char.IsDigit)]);
+            return digitos.Length > 0 ? digitos.TrimStart('0') : Spobras.Core.Base.Normalizacao.Busca(lote.Trim());
+        }
+
+        string alvo = Chave(digitado);
+        if (alvo.Length == 0)
+        {
+            return [];
+        }
+
+        var lotes = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Lotes.Where(l => Chave(l) == alvo).ToList();
+        return [.. lotes.SelectMany(l => Base.Buscar(new Spobras.Core.Base.FiltroObras { Lote = l }, 200).Obras)];
     }
 
     public ServicoPreferencias Preferencias { get; }

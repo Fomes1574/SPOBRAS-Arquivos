@@ -16,20 +16,36 @@ using Spobras.Documentos.Planilhas;
 namespace Spobras.App.ViewModels;
 
 public sealed record LinhaRascunho(
-    string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs);
+    string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs,
+    int Distribuicao = 0);
 
 public sealed record AjusteRascunho(string Mes, bool EmReais, string Quantia, int Para);
 
 public sealed record RascunhoCronograma(
-    List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "", string Remuneracao = "10", List<AjusteRascunho>? Ajustes = null);
+    List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "", string Remuneracao = "10", List<AjusteRascunho>? Ajustes = null,
+    int Distribuicao = 0);
 
 /// <summary>Um valor ou percentual fixado num mes; os outros meses dividem o resto.</summary>
 public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObject
 {
     private int _para;
-
-    [ObservableProperty]
     private string _mes = "";
+
+    /// <summary>Mes escolhido na lista dos meses do cronograma ("nov/26"). A lista e refeita quando as obras mudam: null e ignorado.</summary>
+    public string Mes
+    {
+        get => _mes;
+        set
+        {
+            if (value is not null && SetProperty(ref _mes, value))
+            {
+                aoMudar();
+                OnPropertyChanged(nameof(EmReais));
+            }
+        }
+    }
+
+    public bool EmReais => Tipo == 1;
 
     /// <summary>0 = percentual do total da obra; 1 = valor em reais.</summary>
     [ObservableProperty]
@@ -54,13 +70,19 @@ public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObjec
         }
     }
 
-    partial void OnMesChanged(string value) => aoMudar();
-
-    partial void OnTipoChanged(int value) => aoMudar();
+    partial void OnTipoChanged(int value)
+    {
+        OnPropertyChanged(nameof(EmReais));
+        aoMudar();
+    }
 
     partial void OnQuantiaChanged(string value) => aoMudar();
 
-    public void Avisar() => OnPropertyChanged(nameof(Para));
+    public void Avisar()
+    {
+        OnPropertyChanged(nameof(Para));
+        OnPropertyChanged(nameof(Mes));
+    }
 
     /// <summary>O ajuste como o calculo entende, ou o motivo de nao valer.</summary>
     public (AjusteMensal? Ajuste, string Problema) Ler()
@@ -72,7 +94,7 @@ public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObjec
 
         if (ColagemCronograma.MesDe(Mes) is not { } mes)
         {
-            return (null, "Mês não entendido. Use nov/26 ou 11/2026.");
+            return (null, "Escolha o mês na lista.");
         }
 
         decimal? quantia = Tipo == 1
@@ -80,7 +102,7 @@ public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObjec
             : decimal.TryParse(Quantia.Replace("%", "").Trim(), System.Globalization.NumberStyles.Number, Formato.PtBr, out decimal p) ? p : null;
         if (quantia is not { } q || q < 0 || (Tipo == 0 && q > 100))
         {
-            return (null, Tipo == 1 ? "Valor não entendido. Use o formato 1.000,00." : "Percentual de 0 a 100, como 5 ou 7,5.");
+            return (null, Tipo == 1 ? "Valor não entendido. Digite só os números, como 50000." : "Percentual de 0 a 100, como 5 ou 7,5.");
         }
 
         return (new AjusteMensal(mes, Tipo == 1 ? TipoAjuste.Valor : TipoAjuste.Percentual, q, Para == 0 ? null : Para - 1), "");
@@ -131,14 +153,42 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     [ObservableProperty]
     private string _calculo = "";
 
+    /// <summary>0 = como o cronograma; 1 = linear; 2 = curva S (so nesta obra).</summary>
+    [ObservableProperty]
+    private int _distribuicao;
+
+    /// <summary>Obras da base que combinam com o nome digitado (cada contrato com portaria, lote e dotacao).</summary>
+    public ObservableCollection<OpcaoDeContrato> Sugestoes { get; } = [];
+
+    public bool TemSugestoes => Sugestoes.Count > 0;
+
+    public void MostrarSugestoes(IEnumerable<ObraLida> obras)
+    {
+        Sugestoes.Clear();
+        foreach (var o in obras)
+        {
+            Sugestoes.Add(new OpcaoDeContrato(o));
+        }
+
+        OnPropertyChanged(nameof(TemSugestoes));
+    }
+
+    /// <summary>Chamado quando o usuario digita o nome (nao quando a linha e carregada).</summary>
+    public Action<LinhaCronogramaVm>? AoDigitarNome { get; set; }
+
     public OrigemInicio Origem { get; set; }
     public DateOnly? DataOsDaBase { get; set; }
 
     protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero) or nameof(Calculo)))
+        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero) or nameof(Calculo) or nameof(TemSugestoes)))
         {
+            if (e.PropertyName == nameof(Nome))
+            {
+                AoDigitarNome?.Invoke(this);
+            }
+
             if (e.PropertyName == nameof(Inicio) && Origem == OrigemInicio.OrdemDeServico)
             {
                 Origem = OrigemInicio.Informado; // o usuario trocou a data que veio da OS
@@ -172,6 +222,7 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
         Fim = ColagemCronograma.MesDe(Fim),
         OrigemDoInicio = Origem,
         DataOsDaBase = DataOsDaBase,
+        Distribuicao = Distribuicao switch { 1 => Core.Cronograma.Distribuicao.Linear, 2 => Core.Cronograma.Distribuicao.CurvaS, _ => null },
     };
 }
 
@@ -229,6 +280,32 @@ public sealed partial class CronogramaVm : TelaVm
 
     public IReadOnlyList<string> TiposDeAjuste { get; } = ["% do total", "R$"];
 
+    public IReadOnlyList<string> TiposDeDistribuicao { get; } = ["Linear (partes iguais)", "Curva S"];
+
+    public IReadOnlyList<string> DistribuicoesDaObra { get; } = ["Como o cronograma", "Linear", "Curva S"];
+
+    /// <summary>Meses do cronograma ("out/26"), para escolher o mes de um ajuste sem digitar.</summary>
+    public ObservableCollection<string> MesesDoCronograma { get; } = [];
+
+    /// <summary>Escolas do mesmo lote das obras ja incluidas, que ainda nao estao no cronograma.</summary>
+    public ObservableCollection<OpcaoDeContrato> SugestoesDoLote { get; } = [];
+
+    public bool TemSugestoesDoLote => SugestoesDoLote.Count > 0;
+
+    /// <summary>Obras da base pelo nome da escola (varios contratos possiveis).</summary>
+    public Func<string, IReadOnlyList<ObraLida>>? ObrasDaEscola { get; set; }
+
+    /// <summary>Obras da base de um lote ("216" ou "LOTE 216").</summary>
+    public Func<string, IReadOnlyList<ObraLida>>? ObrasDoLote { get; set; }
+
+    private readonly Dictionary<string, IReadOnlyList<ObraLida>> _lotes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>0 = linear; 1 = curva S. Vale para todas as obras, menos as que escolheram outra na linha.</summary>
+    [ObservableProperty]
+    private int _distribuicao;
+
+    partial void OnDistribuicaoChanged(int value) => Conferir();
+
     [ObservableProperty]
     private bool _gerarPdf;
 
@@ -273,12 +350,53 @@ public sealed partial class CronogramaVm : TelaVm
 
     public override void AoEntrar() => Conferir();
 
+    private LinhaCronogramaVm CriarLinha() => new(Conferir) { AoDigitarNome = BuscarPeloNome };
+
     [RelayCommand]
     private void NovaLinha()
     {
-        Linhas.Add(new LinhaCronogramaVm(Conferir));
+        Linhas.Add(CriarLinha());
         Conferir();
     }
+
+    /// <summary>Nome digitado: mostra os contratos da base com esse nome (cada um com portaria, lote e dotacao).</summary>
+    private void BuscarPeloNome(LinhaCronogramaVm linha)
+    {
+        if (ObrasDaEscola is null || linha.Nome.Trim().Length < 4)
+        {
+            linha.MostrarSugestoes([]);
+            return;
+        }
+
+        linha.MostrarSugestoes(ObrasDaEscola(linha.Nome.Trim()).Take(12));
+    }
+
+    /// <summary>Contrato escolhido nas sugestoes do nome: a linha recebe portaria, lote, dotacao, escopo e inicio da base.</summary>
+    [RelayCommand]
+    private void EscolherSugestao(OpcaoDeContrato opcao)
+    {
+        var linha = Linhas.FirstOrDefault(l => l.Sugestoes.Contains(opcao));
+        if (linha is null)
+        {
+            return;
+        }
+
+        var o = DaBase(opcao.Obra);
+        string valor = linha.Valor, fim = linha.Fim;
+        Carregar(linha, o);
+        linha.Carregar(() =>
+        {
+            linha.Valor = valor; // o valor e o fim que o usuario ja tinha digitado ficam
+            linha.Fim = fim;
+        });
+        linha.MostrarSugestoes([]);
+        Conferir();
+        Orientar($"{opcao.Obra.Empreendimento} ({opcao.Obra.Contrato}) entrou com portaria, lote e dotação da base. Confira o valor e o fim.");
+    }
+
+    /// <summary>Escola do mesmo lote sugerida: entra como uma obra nova.</summary>
+    [RelayCommand]
+    private void AdicionarDoLote(OpcaoDeContrato opcao) => AdicionarDaBase(opcao.Obra);
 
     [RelayCommand]
     private void RemoverLinha(LinhaCronogramaVm linha)
@@ -395,13 +513,19 @@ public sealed partial class CronogramaVm : TelaVm
     /// </summary>
     public void AdicionarDaBase(ObraLida obra)
     {
-        string portaria = ColagemCronograma.Portaria(obra.Portaria ?? "");
+        Adicionar(DaBase(obra));
+        Conferir();
+        Orientar($"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.");
+    }
+
+    /// <summary>Obra da base no formato do cronograma: portaria "Nº 03 (2021)", lote sem a palavra LOTE, inicio no mes da OS.</summary>
+    private static ObraCronograma DaBase(ObraLida obra)
+    {
         string lote = obra.Lote ?? "";
         lote = lote.StartsWith("LOTE ", StringComparison.OrdinalIgnoreCase) ? lote["LOTE ".Length..] : lote;
-
-        Adicionar(new ObraCronograma
+        return new ObraCronograma
         {
-            Portaria = portaria,
+            Portaria = ColagemCronograma.Portaria(obra.Portaria ?? ""),
             Lote = lote,
             Dotacao = obra.Atividade ?? "",
             Nome = obra.Empreendimento,
@@ -409,9 +533,7 @@ public sealed partial class CronogramaVm : TelaVm
             Inicio = obra.DataOs is { } os ? new DateOnly(os.Year, os.Month, 1) : null,
             OrigemDoInicio = obra.DataOs is null ? OrigemInicio.Previsto : OrigemInicio.OrdemDeServico,
             DataOsDaBase = obra.DataOs,
-        });
-        Conferir();
-        Orientar($"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.");
+        };
     }
 
     [RelayCommand]
@@ -512,7 +634,15 @@ public sealed partial class CronogramaVm : TelaVm
 
     private void Adicionar(ObraCronograma o)
     {
-        var linha = new LinhaCronogramaVm(Conferir) { Origem = o.OrigemDoInicio, DataOsDaBase = o.DataOsDaBase };
+        var linha = CriarLinha();
+        Carregar(linha, o);
+        Linhas.Add(linha);
+    }
+
+    private static void Carregar(LinhaCronogramaVm linha, ObraCronograma o)
+    {
+        linha.Origem = o.OrigemDoInicio;
+        linha.DataOsDaBase = o.DataOsDaBase;
         linha.Carregar(() =>
         {
             linha.Portaria = ColagemCronograma.Portaria(o.Portaria);
@@ -520,11 +650,10 @@ public sealed partial class CronogramaVm : TelaVm
             linha.Dotacao = o.Dotacao;
             linha.Nome = o.Nome;
             linha.Escopo = o.Escopo;
-            linha.Valor = o.Valor?.ToString("N2", Formato.PtBr) ?? "";
+            linha.Valor = o.Valor is { } v ? FormatoBase.Reais(v) : "";
             linha.Inicio = o.Inicio is { } i ? ColagemCronograma.Mes(i) : "";
             linha.Fim = o.Fim is { } f ? ColagemCronograma.Mes(f) : "";
         });
-        Linhas.Add(linha);
     }
 
     private void Conferir()
@@ -550,7 +679,9 @@ public sealed partial class CronogramaVm : TelaVm
 
         var vinculos = _vinculos();
         _calculo = CalculoCronograma.Calcular(obras, PercentualRemuneracao ?? CalculoCronograma.PadraoRemuneracao, ajustes,
-            o => CalculoCronograma.Resolver(o, vinculos));
+            o => CalculoCronograma.Resolver(o, vinculos), Distribuicao == 1 ? Core.Cronograma.Distribuicao.CurvaS : Core.Cronograma.Distribuicao.Linear);
+        AtualizarMeses();
+        AtualizarSugestoesDoLote();
 
         int k = 0;
         for (int i = 0; i < Linhas.Count; i++)
@@ -603,9 +734,9 @@ public sealed partial class CronogramaVm : TelaVm
         MostrarCalculo(ajustes);
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
-            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase))],
+            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase, l.Distribuicao))],
             true, GerarPdf, NomeCronograma, Remuneracao,
-            [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))]), _relogio.Agora);
+            [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))], Distribuicao), _relogio.Agora);
     }
 
     /// <summary>O que vai para a planilha: total de cada mes e de cada ano e a tabela por dotacao.</summary>
@@ -645,6 +776,65 @@ public sealed partial class CronogramaVm : TelaVm
         Totais = $"Obras {FormatoBase.Reais(c.TotalObra)} + remuneração {FormatoBase.Reais(c.TotalRemuneracao)} = {FormatoBase.Reais(c.Total)}";
     }
 
+    /// <summary>Meses de todas as obras, para a lista do ajuste. Refeita so quando muda; cada ajuste reapresenta o seu mes.</summary>
+    private void AtualizarMeses()
+    {
+        var novos = new List<string>();
+        var obras = Linhas.Select(l => l.ParaObra()).Where(o => o.Inicio is not null && o.Fim is not null && o.Fim >= o.Inicio).ToList();
+        if (obras.Count > 0)
+        {
+            novos.AddRange(CalculoCronograma.MesesEntre(obras.Min(o => o.Inicio!.Value), obras.Max(o => o.Fim!.Value)).Select(ColagemCronograma.Mes));
+        }
+
+        if (novos.SequenceEqual(MesesDoCronograma))
+        {
+            return;
+        }
+
+        MesesDoCronograma.Clear();
+        foreach (string m in novos)
+        {
+            MesesDoCronograma.Add(m);
+        }
+
+        foreach (var a in Ajustes)
+        {
+            a.Avisar();
+        }
+    }
+
+    /// <summary>Escolas da base nos lotes das obras ja incluidas que ainda nao estao no cronograma.</summary>
+    private void AtualizarSugestoesDoLote()
+    {
+        var novas = new List<OpcaoDeContrato>();
+        if (ObrasDoLote is not null)
+        {
+            var nomes = Linhas.Select(l => Normalizacao.Busca(l.Nome.Trim())).Where(n => n.Length > 0).ToHashSet();
+            foreach (string lote in Linhas.Select(l => l.Lote.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!_lotes.TryGetValue(lote, out var obras))
+                {
+                    obras = _lotes[lote] = ObrasDoLote(lote);
+                }
+
+                novas.AddRange(obras.Where(o => !nomes.Contains(Normalizacao.Busca(o.Empreendimento.Trim()))).Select(o => new OpcaoDeContrato(o)));
+            }
+        }
+
+        if (novas.Select(n => n.Obra.Id).SequenceEqual(SugestoesDoLote.Select(n => n.Obra.Id)))
+        {
+            return;
+        }
+
+        SugestoesDoLote.Clear();
+        foreach (var o in novas.Take(20))
+        {
+            SugestoesDoLote.Add(o);
+        }
+
+        OnPropertyChanged(nameof(TemSugestoesDoLote));
+    }
+
     /// <summary>Refaz a lista "Todas as obras, 1 - Escola..." so quando ela muda, e devolve a escolha de cada ajuste.</summary>
     private void AtualizarOpcoesDeObra()
     {
@@ -678,11 +868,15 @@ public sealed partial class CronogramaVm : TelaVm
         GerarPdf = r.GerarPdf;
         Remuneracao = string.IsNullOrWhiteSpace(r.Remuneracao) ? "10" : r.Remuneracao;
         NomeCronograma = r.NomeCronograma ?? "";
+        Distribuicao = r.Distribuicao;
         foreach (var l in r.Linhas)
         {
-            var linha = new LinhaCronogramaVm(Conferir) { Origem = l.Origem, DataOsDaBase = l.DataOs };
+            var linha = CriarLinha();
+            linha.Origem = l.Origem;
+            linha.DataOsDaBase = l.DataOs;
             linha.Carregar(() =>
             {
+                linha.Distribuicao = l.Distribuicao;
                 linha.Portaria = l.Portaria;
                 linha.Lote = l.Lote;
                 linha.Dotacao = l.Dotacao;

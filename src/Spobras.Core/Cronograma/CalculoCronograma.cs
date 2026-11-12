@@ -3,6 +3,15 @@ using Spobras.Core.Base;
 
 namespace Spobras.Core.Cronograma;
 
+public enum Distribuicao
+{
+    /// <summary>Partes iguais em todos os meses.</summary>
+    Linear,
+
+    /// <summary>Comeca baixo, sobe ate o meio do prazo e desce de novo (pico sempre no meio).</summary>
+    CurvaS,
+}
+
 public enum TipoAjuste
 {
     /// <summary>Percentual do valor total da obra (obra + remuneracao) no mes.</summary>
@@ -89,11 +98,19 @@ public static partial class CalculoCronograma
         return meses;
     }
 
+    /// <summary>
+    /// Peso de cada mes na curva S: 0,3 + seno de 0 a 180 graus, medido no meio de cada mes. Simetrico, com o
+    /// primeiro e o ultimo mes menores (cerca de 10% cada em 6 meses) e o pico no meio. Linear: todos 1.
+    /// </summary>
+    public static IReadOnlyList<double> Pesos(int meses, Distribuicao distribuicao) =>
+        [.. Enumerable.Range(0, meses).Select(i => distribuicao == Distribuicao.CurvaS ? 0.3 + Math.Sin(Math.PI * (i + 0.5) / meses) : 1.0)];
+
     public static CronogramaCalculado Calcular(
         IReadOnlyList<ObraCronograma> obras,
         decimal percentual,
         IReadOnlyList<AjusteMensal> ajustes,
-        Func<ObraCronograma, (DotacoesDaObra? Dotacoes, string? Aviso)>? dotacoes = null)
+        Func<ObraCronograma, (DotacoesDaObra? Dotacoes, string? Aviso)>? dotacoes = null,
+        Distribuicao distribuicao = Distribuicao.Linear)
     {
         var avisosDasObras = new List<AvisoDeLinha>();
         var avisos = new List<Aviso>();
@@ -212,7 +229,7 @@ public static partial class CalculoCronograma
                 fixos[a.Mes] = quantia;
             }
 
-            var distribuicao = new Dictionary<DateOnly, decimal>();
+            var porMes = new Dictionary<DateOnly, decimal>();
             decimal fixado = fixos.Values.Sum();
             var livres = meses.Where(m => !fixos.ContainsKey(m)).ToList();
             void Impede(string texto) => avisosDasObras.Add(new AvisoDeLinha(linha, Aviso.Impede(texto)));
@@ -225,7 +242,7 @@ public static partial class CalculoCronograma
             {
                 if (fixos.TryGetValue(m, out decimal v))
                 {
-                    distribuicao[m] = v;
+                    porMes[m] = v;
                 }
             }
 
@@ -235,30 +252,33 @@ public static partial class CalculoCronograma
                 if (resto != 0 && fixado <= total)
                 {
                     // Todos os meses fixados: a diferenca fica no ultimo mes, para o total fechar.
-                    distribuicao[meses[^1]] += resto;
+                    porMes[meses[^1]] += resto;
                     avisosDasObras.Add(new AvisoDeLinha(linha, Aviso.Conferir(
                         $"Todos os meses têm ajuste; a diferença de {FormatoValor(resto)} foi para {ColagemCronograma.Mes(meses[^1])} para fechar o total.")));
                 }
             }
             else if (resto >= 0)
             {
-                decimal parte = ParaCima(resto / livres.Count);
-                decimal ultimo = resto - parte * (livres.Count - 1);
-                if (ultimo < 0)
+                // O que nao foi fixado divide-se pelos meses livres conforme a distribuicao (linear: partes iguais;
+                // curva S: o peso de cada mes na curva da obra inteira). Para cima no centavo; a sobra fica no ultimo.
+                var pesos = Pesos(meses.Count, o.Distribuicao ?? distribuicao);
+                var dosLivres = livres.Select(m => (decimal)pesos[meses.ToList().IndexOf(m)]).ToList();
+                decimal soma = dosLivres.Sum();
+                var partes = dosLivres.Select(p => ParaCima(resto * p / soma)).ToList();
+                if (resto - partes.Take(livres.Count - 1).Sum() < 0)
                 {
                     // Valor muito pequeno para tantos meses: arredondar para cima esgotaria o total antes do fim.
-                    parte = Math.Floor(resto / livres.Count * 100m) / 100m;
-                    ultimo = resto - parte * (livres.Count - 1);
+                    partes = [.. dosLivres.Select(p => Math.Floor(resto * p / soma * 100m) / 100m)];
                 }
 
                 for (int j = 0; j < livres.Count; j++)
                 {
-                    distribuicao[livres[j]] = j == livres.Count - 1 ? ultimo : parte;
+                    porMes[livres[j]] = j == livres.Count - 1 ? resto - partes.Take(livres.Count - 1).Sum() : partes[j];
                 }
             }
 
             calculadas.Add(new ObraCalculada(o, valor, rem,
-                meses.ToDictionary(m => m, m => distribuicao.GetValueOrDefault(m)), null));
+                meses.ToDictionary(m => m, m => porMes.GetValueOrDefault(m)), null));
         }
 
         // Dotacoes completas e a tabela por dotacao (iguais somadas; obra e remuneracao separadas).

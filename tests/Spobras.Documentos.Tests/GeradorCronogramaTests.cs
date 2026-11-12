@@ -39,7 +39,7 @@ public class GeradorCronogramaTests : IDisposable
 
         using var leitor = new LeitorXlsx(caminho);
         var grade = leitor.LerAba(GeradorCronograma.NomeDaAba);
-        Assert.Equal("Cronograma SPOBRAS - Portaria Nº 06 (2022) / Lote 900 - 2 unidades", grade[1][3]);
+        Assert.Equal("Cronograma SPOBRAS - Lote 900", grade[1][0]);
 
         var titulos = grade[4].Select(v => v?.ToString()).ToList();
         titulos = titulos.Take(titulos.FindLastIndex(t => t is not null) + 1).ToList();
@@ -70,6 +70,15 @@ public class GeradorCronogramaTests : IDisposable
         Assert.Contains("F6+G6", formulas);
         Assert.Contains("SUM(F6:F7)", formulas);
         Assert.Contains("G6+G7", formulas);
+
+        // Estilo do modelo do usuario: cabecalho azul-marinho com letra branca, valores em formato contabil, sem frase extra.
+        using var zip2 = ZipFile.OpenRead(caminho);
+        using var estilos = zip2.GetEntry("xl/styles.xml")!.Open();
+        string css = new StreamReader(estilos).ReadToEnd();
+        Assert.Contains("FF002060", css);
+        Assert.Contains("FFFFFFFF", css);
+        Assert.Contains("&quot;R$&quot;", css);
+        Assert.DoesNotContain(grade.SelectMany(l => l), v => v is string t && t.StartsWith("Remuneração de"));
     }
 
     [Fact]

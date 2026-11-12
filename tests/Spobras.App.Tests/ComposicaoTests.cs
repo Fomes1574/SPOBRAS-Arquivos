@@ -172,6 +172,38 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
+    public async Task Cronograma_busca_pelo_nome_mostra_os_contratos_e_sugere_escolas_do_mesmo_lote()
+    {
+        using var app = await AppComBase();
+        app.Principal.Navegar(CronogramaVm.Modulo);
+        var cronograma = (CronogramaVm)app.Principal.PaginaAtual!;
+        cronograma.NovaLinhaCommand.Execute(null);
+        var linha = cronograma.Linhas[0];
+
+        // EMEF Alfa esta em dois contratos: os dois aparecem, com lote, portaria e dotacao.
+        linha.Valor = "100000";
+        linha.Nome = "emef alfa";
+        Assert.True(linha.TemSugestoes);
+        Assert.Equal(["001/EX/2024", "003/EX/2025"], linha.Sugestoes.Select(o => o.Obra.Contrato).Order());
+        var escolhida = linha.Sugestoes.Single(o => o.Obra.Contrato == "003/EX/2025");
+        Assert.Contains("LOTE 07", escolhida.Texto);
+
+        cronograma.EscolherSugestaoCommand.Execute(escolhida);
+        Assert.False(linha.TemSugestoes);
+        Assert.Equal(("EMEF Alfa", "07", "Nº 03 (2025)", "100000"), (linha.Nome, linha.Lote, linha.Portaria, linha.Valor)); // o valor digitado fica
+
+        // O lote 07 so tem a EMEF Alfa: nada a sugerir. No lote 01 estao as outras escolas.
+        Assert.False(cronograma.TemSugestoesDoLote);
+        linha.Lote = "01";
+        Assert.True(cronograma.TemSugestoesDoLote);
+        Assert.DoesNotContain(cronograma.SugestoesDoLote, o => o.Obra.Empreendimento == "EMEF Alfa"); // ja esta no cronograma
+        var sugerida = cronograma.SugestoesDoLote[0];
+        cronograma.AdicionarDoLoteCommand.Execute(sugerida);
+        Assert.Equal(2, cronograma.Linhas.Count);
+        Assert.Equal(sugerida.Obra.Empreendimento, cronograma.Linhas[1].Nome);
+    }
+
+    [Fact]
     public async Task Inicio_mostra_a_planilha_mestra_e_leva_a_base()
     {
         using var app = await AppComBase();
@@ -229,7 +261,7 @@ public class ComposicaoProtótipoTests : IDisposable
         cronograma.ImportarPlanilhaCommand.Execute(null);
 
         var linha = Assert.Single(cronograma.Linhas);
-        Assert.Equal(("EMEF Alfa", "1.500,50", "nov/26", "Nº 03"), (linha.Nome, linha.Valor, linha.Inicio, linha.Portaria));
+        Assert.Equal(("EMEF Alfa", "R$ 1.500,50", "nov/26", "Nº 03"), (linha.Nome, linha.Valor.Replace('\u00A0', ' '), linha.Inicio, linha.Portaria)); // valor ja em reais
         Assert.StartsWith("De “obras.xlsx”: 1 linha colada", cronograma.Resultado);
     }
 }

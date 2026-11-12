@@ -149,6 +149,7 @@ public sealed record OpcaoDeContrato(Spobras.Core.Base.ObraLida Obra)
         Obra.Empreendimento,
         Obra.Lote,
         Obra.Portaria,
+        string.IsNullOrWhiteSpace(Obra.Atividade) ? null : "Dotação " + Obra.Atividade,
         Obra.Status,
     }.Where(t => !string.IsNullOrWhiteSpace(t)));
 }

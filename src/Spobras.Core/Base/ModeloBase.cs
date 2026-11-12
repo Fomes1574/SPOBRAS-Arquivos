@@ -41,6 +41,7 @@ public sealed record FiltroObras
     public string? Portaria { get; init; }
     public string? Contrato { get; init; }
     public string? Escola { get; init; }
+    public string? Lote { get; init; }
     public string? ContratoReceita { get; init; }
     public string? Dotacao { get; init; }
     public string? Status { get; init; }
@@ -51,7 +52,7 @@ public sealed record FiltroObras
     public IReadOnlyDictionary<CampoValor, FaixaValor> Valores { get; init; } = new Dictionary<CampoValor, FaixaValor>();
 
     public bool Vazio =>
-        Portaria is null && Contrato is null && Escola is null && ContratoReceita is null && Dotacao is null && Status is null
+        Portaria is null && Contrato is null && Escola is null && Lote is null && ContratoReceita is null && Dotacao is null && Status is null
         && string.IsNullOrWhiteSpace(Texto) && OsDe is null && OsAte is null && !SemDataOs && Valores.Values.All(v => v.Vazia);
 }
 
@@ -123,7 +124,11 @@ public sealed record OpcoesFiltro(
     IReadOnlyList<string> Escolas,
     IReadOnlyList<string> ContratosReceita,
     IReadOnlyList<string> Dotacoes,
-    IReadOnlyList<string> Status);
+    IReadOnlyList<string> Status)
+{
+    /// <summary>Lotes que combinam com os outros filtros ("LOTE 216"), em ordem de numero.</summary>
+    public IReadOnlyList<string> Lotes { get; init; } = [];
+}
 
 public sealed record MedicaoLida(
     string Contrato, string? Numero, string? Empreendimento, DateOnly? Inicio, DateOnly? Fim, decimal? ValorProtocolado,

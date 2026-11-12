@@ -5,9 +5,50 @@ using Spobras.Core;
 
 namespace Spobras.App.Telas;
 
-/// <summary>Campos de data: barras automaticas enquanto digita e ano completado ao sair (Mascaras.Data="True").</summary>
+/// <summary>
+/// Campos de data: barras automaticas enquanto digita e ano completado ao sair (Mascaras.Data="True").
+/// Campos de dinheiro: ao sair, 50000 vira R$ 50.000,00 (Mascaras.Dinheiro="True").
+/// </summary>
 public static class Mascaras
 {
+    public static readonly DependencyProperty DinheiroProperty =
+        DependencyProperty.RegisterAttached("Dinheiro", typeof(bool), typeof(Mascaras), new PropertyMetadata(false, AoMudarDinheiro));
+
+    public static bool GetDinheiro(DependencyObject d) => (bool)d.GetValue(DinheiroProperty);
+
+    public static void SetDinheiro(DependencyObject d, bool valor) => d.SetValue(DinheiroProperty, valor);
+
+    private static void AoMudarDinheiro(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not TextBox caixa)
+        {
+            return;
+        }
+
+        caixa.LostFocus -= AoSairDoDinheiro;
+        if (e.NewValue is true)
+        {
+            caixa.LostFocus += AoSairDoDinheiro;
+            AoSairDoDinheiro(caixa, new RoutedEventArgs());
+        }
+    }
+
+    private static void AoSairDoDinheiro(object sender, RoutedEventArgs e)
+    {
+        var caixa = (TextBox)sender;
+        if (GetDinheiro(caixa) && Spobras.Core.Base.Normalizacao.LerReais(caixa.Text) is { } valor)
+        {
+            string formatado = Reais(valor);
+            if (formatado != caixa.Text)
+            {
+                caixa.Text = formatado;
+            }
+        }
+    }
+
+    /// <summary>R$ 50.000,00 (a mesma conta que o app usa para mostrar dinheiro).</summary>
+    public static string Reais(decimal valor) => valor.ToString("C2", Spobras.App.ViewModels.Formato.PtBr);
+
     public static readonly DependencyProperty DataProperty =
         DependencyProperty.RegisterAttached("Data", typeof(bool), typeof(Mascaras), new PropertyMetadata(false, AoMudarData));
 

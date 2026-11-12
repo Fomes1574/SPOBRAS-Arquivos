@@ -96,7 +96,7 @@ public class CronogramaVmTests : ComApp
         Assert.Equal("R$ 140.625,00", vm.Meses[1].Valor.Replace(' ', ' ')); // 1.045.000/8 + 10.000
 
         vm.Ajustes[2 - 1].Mes = "13/26";
-        Assert.Equal("Mês não entendido. Use nov/26 ou 11/2026.", vm.Ajustes[1].Aviso);
+        Assert.Equal("Escolha o mês na lista.", vm.Ajustes[1].Aviso);
         Assert.False(vm.GerarCommand.CanExecute(null));
 
         // Tirar a obra 1 leva o ajuste que era da obra 2 para a nova posicao.
@@ -193,5 +193,36 @@ public class CronogramaVmTests : ComApp
         reaberto.LimparCommand.Execute(null);
         Assert.Empty(NovoCronograma().Linhas);
         Assert.Empty(NovoCronograma().Ajustes);
+    }
+
+    [Fact]
+    public void Meses_do_ajuste_vem_do_cronograma_e_curva_s_vale_para_todas_ou_para_uma_obra()
+    {
+        var vm = NovoCronograma();
+        vm.NovaLinhaCommand.Execute(null);
+        vm.NovaLinhaCommand.Execute(null);
+        Preencher(vm.Linhas[0], "EMEF Um", "50000", "out/26", "mar/27", dotacao: "");
+        Preencher(vm.Linhas[1], "CEI Dois", "R$ 50.000,00", "out/26", "mar/27", dotacao: "");
+        Assert.Equal(["out/26", "nov/26", "dez/26", "jan/27", "fev/27", "mar/27"], vm.MesesDoCronograma);
+
+        vm.Remuneracao = "0";
+        Assert.Equal("R$ 16.666,68", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // linear: 2 x 8.333,34
+
+        vm.Distribuicao = 1; // curva S para todas
+        Assert.Equal("R$ 9.866,68", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // 2 x 4.933,34
+        Assert.Equal("R$ 22.351,56", vm.Meses[2].Valor.Replace('\u00A0', ' ')); // pico no meio
+
+        vm.Linhas[1].Distribuicao = 1; // so a CEI Dois volta a linear
+        Assert.Equal("R$ 13.266,68", vm.Meses[0].Valor.Replace('\u00A0', ' '));
+
+        // Ajuste por cima da curva, escolhendo o mes na lista.
+        vm.NovoAjusteCommand.Execute(null);
+        vm.Ajustes[0].Mes = vm.MesesDoCronograma[0];
+        vm.Ajustes[0].Quantia = "20";
+        vm.Ajustes[0].Para = 1;
+        Assert.Equal("R$ 18.333,34", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // 10.000 + 8.333,34
+
+        var reaberto = NovoCronograma();
+        Assert.Equal((1, 1), (reaberto.Distribuicao, reaberto.Linhas[1].Distribuicao));
     }
 }

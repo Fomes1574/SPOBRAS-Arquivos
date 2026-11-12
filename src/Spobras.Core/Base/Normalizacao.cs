@@ -81,7 +81,7 @@ public static partial class Normalizacao
             return null;
         }
 
-        string limpo = texto.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Trim();
+        string limpo = texto.Replace("R$", "", StringComparison.OrdinalIgnoreCase).Replace(" ", "").Replace("\u00A0", "").Trim();
         return decimal.TryParse(limpo, NumberStyles.Number, CultureInfo.GetCultureInfo("pt-BR"), out decimal valor) ? valor : null;
     }
 

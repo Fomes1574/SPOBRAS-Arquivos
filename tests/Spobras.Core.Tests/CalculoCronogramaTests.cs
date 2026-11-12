@@ -131,4 +131,33 @@ public class CalculoCronogramaTests
         Assert.Equal("16.10.12.365.3010.3366.4490.3900.00", d.Remuneracao);
         Assert.Equal("3366", CalculoCronograma.Resumida(d.Obra));
     }
+
+    [Fact]
+    public void Curva_s_comeca_baixa_sobe_ate_o_meio_desce_e_fecha_o_total()
+    {
+        var obra = Obra("A", 50_000m, Out26, new DateOnly(2027, 3, 1)); // 6 meses
+        var c = CalculoCronograma.Calcular([obra], 0m, [], distribuicao: Distribuicao.CurvaS);
+        var meses = c.Obras[0].Meses.Values.ToList();
+
+        Assert.Equal([4_933.34m, 8_890.89m, 11_175.78m, 11_175.78m, 8_890.89m, 4_933.32m], meses); // 9,9% · 17,8% · 22,4% · 22,4% · 17,8% · 9,9%
+        Assert.Equal(50_000m, meses.Sum());
+        Assert.True(meses[0] < meses[1] && meses[1] < meses[2] && meses[3] > meses[4] && meses[4] > meses[5]);
+
+        // A obra pode seguir outra distribuicao que a do cronograma.
+        var linear = CalculoCronograma.Calcular([obra with { Distribuicao = Distribuicao.Linear }], 0m, [], distribuicao: Distribuicao.CurvaS);
+        Assert.All(linear.Obras[0].Meses.Values.Take(5), v => Assert.Equal(8_333.34m, v));
+    }
+
+    [Fact]
+    public void Ajuste_por_cima_da_curva_s_fixa_o_mes_e_os_outros_seguem_a_curva()
+    {
+        var obra = Obra("A", 50_000m, Out26, new DateOnly(2027, 3, 1));
+        var c = CalculoCronograma.Calcular([obra], 0m, [new(Out26, TipoAjuste.Percentual, 20)], distribuicao: Distribuicao.CurvaS);
+        var meses = c.Obras[0].Meses.Values.ToList();
+
+        Assert.Equal(10_000m, meses[0]);
+        Assert.Equal(50_000m, meses.Sum());
+        Assert.Equal(meses[2], meses[3]); // o meio continua com o pico
+        Assert.True(meses[5] < meses[4]);
+    }
 }

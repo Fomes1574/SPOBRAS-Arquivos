@@ -1,6 +1,7 @@
 <UserControl x:Class="Spobras.App.Telas.CronogramaTela"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:t="clr-namespace:Spobras.App.Telas">
     <Grid Margin="40,32,40,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -48,11 +49,29 @@
                     <TextBlock Grid.Column="4" Text="Escola / obra" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="5" Text="Escopo" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="6" Text="Valor obra (R$)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
-                    <TextBlock Grid.Column="7" Text="Início (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                    <TextBlock Grid.Column="7" Text="Início (mês)" ToolTip="Mês e ano, como nov/26 ou 11/2026" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="8" Text="Fim (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                 </Grid>
 
                 <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" Visibility="{Binding TemSugestoesDoLote, Converter={StaticResource Visivel}}">
+                    <TextBlock Text="Escolas do mesmo lote que ainda não estão no cronograma" Style="{StaticResource Texto2}" FontSize="13" />
+                    <ScrollViewer MaxHeight="76" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding SugestoesDoLote}" Focusable="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource BotaoLink}" Margin="0,2,18,0" ToolTip="{Binding Texto}" AutomationProperties.Name="Incluir esta escola no cronograma"
+                                            Command="{Binding DataContext.AdicionarDoLoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                        <TextBlock><Run Text="+ " /><Run Text="{Binding Obra.Empreendimento, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Obra.Contrato, Mode=OneWay}" /></TextBlock>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
 
                 <Grid>
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSeNao}}">
@@ -81,20 +100,21 @@
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
                                         <TextBlock Text="{Binding Numero}" Style="{StaticResource Texto2}" VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1" Margin="2,0" Text="{Binding Portaria, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Portaria" />
                                         <TextBox Grid.Column="2" Margin="2,0" Text="{Binding Lote, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Lote" />
                                         <TextBox Grid.Column="3" Margin="2,0" Text="{Binding Dotacao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Dotação" />
-                                        <TextBox Grid.Column="4" Margin="2,0" Text="{Binding Nome, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Escola ou obra" />
+                                        <TextBox Grid.Column="4" Margin="2,0" Text="{Binding Nome, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Escola ou obra" />
                                         <TextBox Grid.Column="5" Margin="2,0" Text="{Binding Escopo, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Escopo" />
-                                        <TextBox Grid.Column="6" Margin="2,0" Text="{Binding Valor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Valor em reais" TextAlignment="Right" />
-                                        <TextBox Grid.Column="7" Margin="2,0" Text="{Binding Inicio, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de início" ToolTip="Mês e ano, como nov/26 ou 11/2026" />
-                                        <TextBox Grid.Column="8" Margin="2,0" Text="{Binding Fim, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de fim" ToolTip="Mês e ano, como ago/27 ou 08/2027" />
+                                        <TextBox Grid.Column="6" Margin="2,0" Text="{Binding Valor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Valor em reais" TextAlignment="Right" t:Mascaras.Dinheiro="True" />
+                                        <TextBox Grid.Column="7" Margin="2,0" Text="{Binding Inicio, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de início" />
+                                        <TextBox Grid.Column="8" Margin="2,0" Text="{Binding Fim, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de fim" />
                                         <Button Grid.Column="9" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 AutomationProperties.Name="Tirar esta obra do cronograma"
                                                 Command="{Binding DataContext.RemoverLinhaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="8" Text="{Binding Avisos}" FontSize="13" TextWrapping="Wrap" Margin="4,4,4,0"
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="8" Text="{Binding Avisos}" FontSize="13" TextWrapping="Wrap" Margin="4,4,4,0"
                                                    Visibility="{Binding Avisos, Converter={StaticResource VisivelSe}}">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock" BasedOn="{StaticResource Texto2}">
@@ -107,9 +127,29 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
-                                        <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="8" Text="{Binding Calculo}" Style="{StaticResource Texto2}" FontSize="13"
-                                                   TextTrimming="CharacterEllipsis" Margin="4,2,4,0" ToolTip="{Binding Calculo}"
-                                                   Visibility="{Binding Calculo, Converter={StaticResource VisivelSe}}" />
+                                        <!-- Contratos da base com esse nome: escolher preenche portaria, lote e dotacao -->
+                                        <Border Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="8" Margin="2,4,2,0" Padding="10,6" CornerRadius="8"
+                                                Background="{StaticResource AzulClaro}" Visibility="{Binding TemSugestoes, Converter={StaticResource Visivel}}">
+                                            <StackPanel>
+                                                <TextBlock Text="Na Base de dados (escolha o contrato certo):" Style="{StaticResource Texto2}" FontSize="13" />
+                                                <ItemsControl ItemsSource="{Binding Sugestoes}" Focusable="False">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Button Style="{StaticResource BotaoLink}" Content="{Binding Texto}" HorizontalAlignment="Left" Margin="0,2,0,0"
+                                                                    Command="{Binding DataContext.EscolherSugestaoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                                    AutomationProperties.Name="Usar este contrato" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                        <DockPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="8" Margin="2,4,4,0" LastChildFill="True">
+                                            <ComboBox DockPanel.Dock="Left" Width="190" Margin="0,0,10,0" SelectedIndex="{Binding Distribuicao}" AutomationProperties.Name="Distribuição desta obra"
+                                                      ToolTip="Distribuição dos meses desta obra"
+                                                      ItemsSource="{Binding DataContext.DistribuicoesDaObra, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
+                                            <TextBlock Text="{Binding Calculo}" Style="{StaticResource Texto2}" FontSize="13" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding Calculo}" />
+                                        </DockPanel>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -134,7 +174,7 @@
                         <TextBlock Text="Ajustes por mês" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
                     </DockPanel>
                     <TextBlock DockPanel.Dock="Top" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,8"
-                               Text="Fixe um percentual ou um valor num mês, para todas as obras ou uma só. Os outros meses dividem o restante em partes iguais." />
+                               Text="Fixe um percentual ou um valor num mês, para todas as obras ou uma só. Os outros meses dividem o restante pela distribuição escolhida." />
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <ItemsControl ItemsSource="{Binding Ajustes}" Focusable="False">
                             <ItemsControl.ItemTemplate>
@@ -142,16 +182,18 @@
                                     <StackPanel Margin="0,0,0,6">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="96" />
                                                 <ColumnDefinition Width="112" />
-                                                <ColumnDefinition Width="104" />
+                                                <ColumnDefinition Width="130" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="48" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBox Margin="0,0,4,0" Text="{Binding Mes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês do ajuste" ToolTip="Mês e ano, como nov/26" />
+                                            <ComboBox Margin="0,0,4,0" SelectedItem="{Binding Mes}" AutomationProperties.Name="Mês do ajuste"
+                                                      ItemsSource="{Binding DataContext.MesesDoCronograma, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
                                             <ComboBox Grid.Column="1" Margin="0,0,4,0" SelectedIndex="{Binding Tipo}" AutomationProperties.Name="Tipo do ajuste"
                                                       ItemsSource="{Binding DataContext.TiposDeAjuste, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
-                                            <TextBox Grid.Column="2" Margin="0,0,4,0" Text="{Binding Quantia, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Percentual ou valor do ajuste" />
+                                            <TextBox Grid.Column="2" Margin="0,0,4,0" Text="{Binding Quantia, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Percentual ou valor do ajuste"
+                                                     t:Mascaras.Dinheiro="{Binding EmReais}" />
                                             <ComboBox Grid.Column="3" SelectedIndex="{Binding Para}" AutomationProperties.Name="Obra do ajuste"
                                                       ItemsSource="{Binding DataContext.OpcoesDeObra, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
                                             <Button Grid.Column="4" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -235,6 +277,9 @@
                 <TextBox Text="{Binding Remuneracao, UpdateSourceTrigger=PropertyChanged}" Width="64" TextAlignment="Right" AutomationProperties.Name="Percentual de remuneração"
                          ToolTip="Percentual sobre o valor para obras. O padrão é 10%." />
                 <TextBlock Text="%" VerticalAlignment="Center" Margin="4,0,28,0" />
+                <TextBlock Text="Distribuição" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox SelectedIndex="{Binding Distribuicao}" ItemsSource="{Binding TiposDeDistribuicao}" ItemTemplate="{StaticResource OpcaoTexto}" Width="200" Margin="0,0,28,0"
+                          AutomationProperties.Name="Distribuição dos meses" ToolTip="Linear: partes iguais. Curva S: começa baixo, sobe até o meio do prazo e desce." />
                 <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding PdfDisponivel}" Margin="0,0,28,0" VerticalAlignment="Center" />
                 <TextBlock Text="Nome do arquivo" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Text="{Binding NomeCronograma, UpdateSourceTrigger=PropertyChanged}" Width="280" AutomationProperties.Name="Nome do arquivo do cronograma"

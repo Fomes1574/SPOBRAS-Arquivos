@@ -59,25 +59,18 @@ public static class GeradorCronograma
         }
     }
 
-    /// <summary>"Cronograma SPOBRAS - Portaria Nº 06 (2022) / Lote 239 - 5 unidades" com o que for comum a todas as obras.</summary>
+    /// <summary>"Cronograma SPOBRAS - Lote 216" (lote comum a todas as obras); sem lote comum, a portaria; senao so o nome.</summary>
     public static string TituloSugerido(IReadOnlyList<ObraCronograma> obras)
     {
         var validas = obras.Where(o => !o.Vazia).ToList();
-        var partes = new List<string>();
         string? Comum(Func<ObraCronograma, string> campo) =>
-            validas.Select(o => campo(o).Trim()).Distinct().ToList() is [var unico] && unico.Length > 0 ? unico : null;
-        if (Comum(o => o.Portaria) is { } portaria)
-        {
-            partes.Add("Portaria " + portaria);
-        }
-
+            validas.Select(o => campo(o).Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() is [var unico] && unico.Length > 0 ? unico : null;
         if (Comum(o => o.Lote) is { } lote)
         {
-            partes.Add("Lote " + lote);
+            return "Cronograma SPOBRAS - " + (lote.StartsWith("lote", StringComparison.OrdinalIgnoreCase) ? lote : "Lote " + lote);
         }
 
-        string unidades = validas.Count == 1 ? validas[0].Nome.Trim() : $"{validas.Count} unidades";
-        return "Cronograma SPOBRAS" + (partes.Count > 0 ? " - " + string.Join(" / ", partes) : "") + (unidades.Length > 0 ? " - " + unidades : "");
+        return Comum(o => o.Portaria) is { } portaria ? "Cronograma SPOBRAS - Portaria " + portaria : "Cronograma SPOBRAS";
     }
 
     private static void Escrever(CronogramaCalculado c, string caminho, string titulo, string? logo)
@@ -92,9 +85,8 @@ public static class GeradorCronograma
         int primeira = LinhaDosTitulos + 1, ultima = LinhaDosTitulos + c.Obras.Count, linhaTotal = ultima + 1;
         string pct = (c.Percentual * 100).ToString("0.##", CultureInfo.GetCultureInfo("pt-BR"));
 
-        // ---- Topo ----
-        Por(2, 4, new Celula(ETitulo, titulo));
-        Por(3, 4, new Celula(ESubtitulo, $"Remuneração de {pct}% sobre o valor da obra. Valores mensais arredondados para cima no centavo; a sobra fica no último mês de cada obra."));
+        // ---- Topo: titulo grande no meio do bloco A2:J4, logo a esquerda ----
+        Por(2, 1, new Celula(ETitulo, titulo));
 
         // ---- Titulos ----
         string[] fixos = ["Portaria", "Lote", "Dotação", "Nome da Obra", "Breve escopo", "Valores para Obras", $"Valores de Remuneração ({pct}%)", "Valores Total", "Início", "Fim"];
@@ -124,8 +116,8 @@ public static class GeradorCronograma
             Por(l, 1, new Celula(ECentro, o.Obra.Portaria));
             Por(l, 2, LoteOuNumero(o.Obra.Lote));
             Por(l, 3, LoteOuNumero(resumida));
-            Por(l, 4, new Celula(ETexto, o.Obra.Nome));
-            Por(l, 5, new Celula(ETexto, o.Obra.Escopo));
+            Por(l, 4, new Celula(ECentro, o.Obra.Nome));
+            Por(l, 5, new Celula(ECentro, o.Obra.Escopo));
             Por(l, 6, new Celula(EDinheiro, Numero: o.ValorObra));
             Por(l, 7, new Celula(EDinheiro, Numero: o.Remuneracao));
             Por(l, 8, new Celula(EDinheiro, Numero: o.Total, Formula: $"F{l}+G{l}"));
@@ -174,7 +166,10 @@ public static class GeradorCronograma
 
         // ---- Tabela por dotacao completa ----
         int linha = linhaTotal + 3;
-        Por(linha - 1, 4, new Celula(ESecao, "Resumo por dotação"));
+        int linhaDaSecao = linha - 1;
+        Por(linhaDaSecao, 4, new Celula(ESecao, "Resumo por dotação"));
+        Por(linhaDaSecao, 5, new Celula(ESecao));
+        Por(linhaDaSecao, 6, new Celula(ESecao));
         Por(linha, 4, new Celula(ECabecalho, "Tipo"));
         Por(linha, 5, new Celula(ECabecalho, "Dotação Completa"));
         Por(linha, 6, new Celula(ECabecalho, "Valores"));
@@ -211,19 +206,21 @@ public static class GeradorCronograma
         var xml = new StringBuilder();
         xml.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""");
         xml.Append("""<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>""");
-        xml.Append("""<sheetViews><sheetView showGridLines="0" zoomScale="85" zoomScaleNormal="85" workbookViewId="0"><pane xSplit="10" ySplit="5" topLeftCell="K6" activePane="bottomRight" state="frozen"/><selection pane="bottomRight" activeCell="K6" sqref="K6"/></sheetView></sheetViews>""");
+        xml.Append("""<sheetViews><sheetView showGridLines="0" zoomScale="85" zoomScaleNormal="85" workbookViewId="0"><pane xSplit="10" ySplit="5" topLeftCell="K6" activePane="bottomRight" state="frozen"/><selection activeCell="A1" sqref="A1"/><selection pane="topRight"/><selection pane="bottomLeft"/><selection pane="bottomRight"/></sheetView></sheetViews>""");
         xml.Append("""<sheetFormatPr defaultRowHeight="15"/><cols>""");
-        double[] larguras = [13, 9, 10, 40, 37, 17, 17, 17, 9, 9];
+        double[] larguras = [13, 9, 10, 40, 37, 17, 21, 17, 9, 9];
         for (int i = 0; i < larguras.Length; i++)
         {
             xml.Append(CultureInfo.InvariantCulture, $"""<col min="{i + 1}" max="{i + 1}" width="{larguras[i]}" customWidth="1"/>""");
         }
 
-        xml.Append(CultureInfo.InvariantCulture, $"""<col min="{ColunaDoPrimeiroMes}" max="{colSolicitado}" width="15" customWidth="1"/></cols><sheetData>""");
+        xml.Append(CultureInfo.InvariantCulture, $"""<col min="{ColunaDoPrimeiroMes}" max="{colSolicitado}" width="18" customWidth="1"/></cols><sheetData>""");
+        // Linhas 2 a 4 sempre existem (titulo mesclado); a 3 so tem a altura.
+        celulas.TryAdd((3, 1), new Celula(ETitulo));
         foreach (var grupo in celulas.GroupBy(k => k.Key.Linha))
         {
             int l = grupo.Key;
-            string altura = l is 1 or 2 or 3 ? """ ht="22" customHeight="1" """ : l == LinhaDosTitulos ? """ ht="32" customHeight="1" """ : " ";
+            string altura = l is 2 or 3 ? """ ht="22" customHeight="1" """ : l == LinhaDosTitulos ? """ ht="32" customHeight="1" """ : " ";
             xml.Append(CultureInfo.InvariantCulture, $"""<row r="{l}"{altura.TrimEnd()}>""");
             foreach (var ((_, coluna), celula) in grupo)
             {
@@ -254,6 +251,7 @@ public static class GeradorCronograma
         }
 
         xml.Append("</sheetData>");
+        xml.Append(CultureInfo.InvariantCulture, $"""<mergeCells count="2"><mergeCell ref="A2:J4"/><mergeCell ref="D{linhaDaSecao}:F{linhaDaSecao}"/></mergeCells>""");
         xml.Append("""<printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.6" header="0.3" footer="0.3"/>""");
         xml.Append("""<pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>""");
         xml.Append("""<headerFooter><oddFooter>&amp;C&amp;"Calibri,Regular"&amp;10Página &amp;P de &amp;N</oddFooter></headerFooter>""");
@@ -288,7 +286,7 @@ public static class GeradorCronograma
     {
         const int Emu = 9525;
         var info = Fotos.Ler(logo);
-        double altura = 3 * 22 * 96 / 72.0 - 8;
+        double altura = (15 + 22 + 22 + 15) * 96 / 72.0 - 10;
         double largura = Math.Min(200, altura * info.Largura / Math.Max(1, info.Altura));
         altura = largura * info.Altura / Math.Max(1, info.Largura);
         bool png = Path.GetExtension(logo).Equals(".png", StringComparison.OrdinalIgnoreCase);
@@ -303,33 +301,38 @@ public static class GeradorCronograma
             """).Trim());
     }
 
+    /// <summary>Formato contabil em reais, como o Excel oferece ("R$" a esquerda, valor a direita, zero como traco).</summary>
+    private const string Contabil = """_-&quot;R$&quot;\ * #,##0.00_-;\-&quot;R$&quot;\ * #,##0.00_-;_-&quot;R$&quot;\ * &quot;-&quot;??_-;_-@_-""";
+
     private static string Estilos()
     {
         const string borda = """<border><left style="thin"><color rgb="FF808080"/></left><right style="thin"><color rgb="FF808080"/></right><top style="thin"><color rgb="FF808080"/></top><bottom style="thin"><color rgb="FF808080"/></bottom><diagonal/></border>""";
         string Xf(int fonte, int preenchimento, int bordaId, string alinhamento, int formato = 0) =>
             $"""<xf numFmtId="{formato}" fontId="{fonte}" fillId="{preenchimento}" borderId="{bordaId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"{(formato != 0 ? " applyNumberFormat=\"1\"" : "")}><alignment {alinhamento}/></xf>""";
 
+        // Fontes: 0 normal, 1 titulo 24, 2 negrito, 3 cinza 10, 4 branco negrito 12 (cabecalho azul).
+        // Preenchimentos: 2 azul-marinho do cabecalho, 3 cinza claro dos totais.
         string[] xfs =
         [
             """<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>""",
-            Xf(1, 0, 0, """vertical="center" """),                                          // 1 titulo
-            Xf(2, 2, 1, """horizontal="center" vertical="center" wrapText="1" """),         // 2 cabecalho
-            Xf(2, 2, 1, """horizontal="center" vertical="center" """, 165),                 // 3 cabecalho de mes
+            Xf(1, 0, 0, """horizontal="center" vertical="center" """),                      // 1 titulo
+            Xf(4, 2, 1, """horizontal="center" vertical="center" wrapText="1" """),         // 2 cabecalho
+            Xf(4, 2, 1, """horizontal="center" vertical="center" """, 165),                 // 3 cabecalho de mes
             Xf(0, 0, 1, """vertical="center" wrapText="1" """),                             // 4 texto
-            Xf(0, 0, 1, """vertical="center" """, 4),                                       // 5 dinheiro
+            Xf(0, 0, 1, """vertical="center" """, 166),                                     // 5 dinheiro
             Xf(0, 0, 1, """horizontal="center" vertical="center" """, 165),                 // 6 mes
             Xf(2, 3, 1, """vertical="center" """),                                          // 7 rotulo do total
-            Xf(2, 3, 1, """vertical="center" """, 4),                                       // 8 dinheiro do total
+            Xf(2, 3, 1, """vertical="center" """, 166),                                     // 8 dinheiro do total
             Xf(3, 0, 0, """vertical="center" """),                                          // 9 subtitulo
             Xf(0, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),         // 10 texto centralizado
-            Xf(0, 3, 1, """vertical="center" """, 4),                                       // 11 dinheiro do ano
-            Xf(2, 0, 0, """vertical="center" """),                                          // 12 titulo de secao
+            Xf(0, 3, 1, """vertical="center" """, 166),                                     // 11 dinheiro do ano
+            Xf(2, 0, 1, """horizontal="center" vertical="center" """),                      // 12 titulo de secao
         ];
 
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"""
-               + """<numFmts count="1"><numFmt numFmtId="165" formatCode="[$-416]mmm/yy"/></numFmts>"""
-               + """<fonts count="4"><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="15"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><sz val="10"/><color rgb="FF595959"/><name val="Calibri"/><family val="2"/></font></fonts>"""
-               + """<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills>"""
+               + $"""<numFmts count="2"><numFmt numFmtId="165" formatCode="[$-416]mmm/yy"/><numFmt numFmtId="166" formatCode="{Contabil}"/></numFmts>"""
+               + """<fonts count="5"><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="24"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><sz val="10"/><color rgb="FF595959"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font></fonts>"""
+               + """<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF002060"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills>"""
                + $"""<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>{borda}</borders>"""
                + """<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>"""
                + $"""<cellXfs count="{xfs.Length}">{string.Concat(xfs)}</cellXfs>"""
