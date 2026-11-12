@@ -97,9 +97,16 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Organizar: atalho "Procurar duplicados". Modelos Excel: atalhos para Cronograma e Relatório.
 - Excel para PDF em lote ficou em **Ferramentas** (o protótipo o punha na tela PDF; a especificação o lista entre as funções complementares).
 
+### Depois das respostas do usuário (12/11/2026)
+
+- Cronograma: início e fim só por mês ("nov/26"; sempre dia 1 na planilha, que já mostra "nov-26"); portaria "Nº 03 (2021)" lida da planilha mestra; campo de remuneração (padrão 10%). Como o modelo tem 10% escrito na fórmula (H = G*0,1), outro percentual troca essa fórmula na cópia, só se ela for exatamente a esperada. Conferido no modelo real com 12%: remuneração, total e meses batem.
+- Relatório: conferido contra o exemplo do Jardim Paulistano; as fotos já tinham folga entre si. Um teste agora garante que nunca se encostam (1 a 8 por página).
+- Edição no app: qualquer campo de uma obra (o valor da planilha fica guardado, é reaplicado a cada leitura, há aviso se a planilha mudar o campo editado e "Voltar ao da planilha"); incluir e tirar obra que não está na planilha; incluir, editar e tirar portarias e dotações, com exportação para o Excel. A planilha nunca é alterada.
+- OCR: "PDF para Excel" lê páginas escaneadas e fotos de documento pelo OCR do Windows (Windows.Media.Ocr), local, sem instalar nada. O app passou a exigir Windows 10 versão 1809 ou mais nova (o PC do trabalho é Windows 11).
+
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 270 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 285 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -152,22 +159,16 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 ## Pendências com o usuário
 
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
-- [ ] Confirmar o uso da aba `PORTARIAS` e o layout de `CONTRATADO_LIQUIDADO` na planilha mestra (passo 5; ver `docs/FONTES.md`).
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
-
-- [ ] **Início no meio do mês (cronograma):** o modelo não distribui valor no mês de início quando a data não é dia 1º. O app grava o dia 1º por padrão (e mostra isso na linha). Confirmar se é isso que você quer ou se prefere a data exata (o valor daquele mês fica para o mês seguinte, como o modelo faz hoje).
-- [ ] Algum modelo Excel precisa de macro depois de preenchido? Hoje nenhum modelo recebido tem VBA, então "rodar macro cadastrada" não foi feito.
-- [ ] Cronograma em **aba nova de um arquivo já existente** (especificação T15): confirmar se você usa assim ou se um arquivo novo por cronograma basta.
-- [ ] Editar portarias e dotações dentro do app e "Exportar para o Excel": hoje a Base de dados só lê; dá para dar apelido à portaria. Confirmar se precisa editar no app ou se a planilha de dotações continua sendo o lugar.
-- [ ] Planilhas complementares (arquitetura 5.4, T30): não feitas. Dizer se há alguma outra planilha que deve entrar na base.
-
-- [ ] **Extração de Restos a Pagar e Anexo I Tabela SME** (especificação 4.8, item 5): o conversor geral já funciona, mas a extração com colunas certas (data, NE, ano, SEI, valor a liquidar, dotação; unidade, DRE, orçamento) precisa de um PDF de exemplo de cada. Se puder, envie um de cada (pode ser com valores alterados).
-
-- [ ] **Portaria no cronograma:** o app grava só o número ("3"), como na Base de dotações. O protótipo mostrava "Nº 03 (2021)". Qual forma o seu cronograma usa na coluna Portaria?
-- [ ] **Remuneração no cronograma:** o protótipo tinha um campo "Remuneração". Hoje o app usa o percentual que já está no modelo (aba Parametros). Quer poder mudar esse percentual pelo app?
-- [ ] **Abas Contratos, Escolas e Empenhos com edição** (protótipo da Base): hoje a Base mostra tudo pela ficha da obra e não edita (a planilha mestra é só leitura). Junto com a pergunta de editar portarias e dotações: precisa de edição no app?
+- [ ] **Extração de Restos a Pagar e Anexo I Tabela SME** (o usuário vai mandar exemplos quando estiver no trabalho) (especificação 4.8, item 5): o conversor geral já funciona, mas a extração com colunas certas (data, NE, ano, SEI, valor a liquidar, dotação; unidade, DRE, orçamento) precisa de um PDF de exemplo de cada. Se puder, envie um de cada (pode ser com valores alterados).
 
 ## Decidido pelo usuário
+
+- **Cronograma:** só o mês importa (nada de dia); portaria no formato "Nº 03 (2021)"; remuneração com padrão de 10% e opção de mudar; um arquivo novo por cronograma basta (sem "aba nova em arquivo existente"). As fórmulas do modelo podem até não existir se os valores vierem certos; o app mantém as fórmulas do modelo e confere os totais no Excel.
+- **Edição no app:** qualquer dado pode ser mudado no app; o dado da planilha vem por padrão e o usuário pode mudar.
+- **Macros:** nenhum modelo precisa rodar macro depois de preenchido.
+- **Bases:** a planilha mestra (Escolas_Contratos_Com_Relatorio, com as tabelas do SGCOE e de contratos) e a de Dotações Completas. Nenhuma planilha complementar. O relatório do Jardim Paulistano (fotos que nunca se encostam) e o Cronograma revisado são os modelos de referência.
+- **OCR:** quer converter PDF escaneado em Excel (feito com o OCR do Windows).
 
 - **Data da Ordem de Serviço:** coluna `INÍCIO EXECUÇÃO` da tabela `contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS`.
 - A base fica na pasta sincronizada da rede; quando a planilha for salva lá, o app relê sozinho (arquitetura 5.1, passo 5).
@@ -186,5 +187,5 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
 - Cronograma gerado a partir do `Cronograma_revisado.xlsx` real e recalculado localmente no LibreOffice: remuneração, totais por obra, total geral, meses e totais por ano batem. O bloco "Resumo pedido" (e `Parametros!B20`) usa ORDENAR/ÚNICO/FILTRO/PROCX, que o LibreOffice daqui não calcula: **conferir no Excel do PC do trabalho**. Essa conferência mostrou que a dotação precisava ir como número (a aba `Dotacoes` guarda número); corrigido.
 - Busca, repetidos e organizador por conteúdo em pastas grandes da rede/OneDrive (arquivos só na nuvem são baixados ao ler o conteúdo): medir no PC do trabalho.
-- OCR (PDF digitalizado e fotos): fora desta entrega, como na arquitetura.
+- OCR no PC do trabalho: no CI o teste usa o OCR do Windows Server; no PC, o resultado depende do pacote de idioma português do Windows (sem ele, o app usa o idioma do usuário e avisa qual). Conferir com um PDF escaneado real.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).
