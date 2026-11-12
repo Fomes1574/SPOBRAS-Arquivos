@@ -195,6 +195,8 @@
                                     ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no cronograma" Margin="0,8,0,0" Command="{Binding UsarNoCronogramaCommand}"
                                     ToolTip="Acrescenta esta obra ao cronograma, com o início na Data da OS" />
+                            <Button Style="{StaticResource BotaoSecundario}" Content="Usar em modelo Excel" Margin="0,8,0,0" Command="{Binding UsarEmModeloCommand}"
+                                    ToolTip="Acrescenta esta obra à lista do modelo Excel selecionado, nos campos ligados à Base de dados" />
                         </StackPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                             <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Margin="20,16,20,0" Focusable="False">

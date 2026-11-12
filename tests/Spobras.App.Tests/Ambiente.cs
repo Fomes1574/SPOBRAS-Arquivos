@@ -150,6 +150,8 @@ public abstract class ComApp : IDisposable
         new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
     protected VerificadorFalso Verificador { get; } = new();
+    protected ServicoModelosExcel ModelosExcel => new(Em("dados"), new ConfigRepositorio(Banco));
+    protected ModelosVm NovoModelos() => new(Dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected CronogramaVm NovoCronograma() =>
         new(Dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Verificador, Relogio, () => Base.Apelidos());
 

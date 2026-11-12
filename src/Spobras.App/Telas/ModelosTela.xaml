@@ -1,0 +1,268 @@
+<UserControl x:Class="Spobras.App.Telas.ModelosTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Modelos Excel" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="Cadastre uma planilha modelo uma vez e diga em que célula vai cada informação. Depois é só preencher: cada linha vira um arquivo novo."
+                       Style="{StaticResource Texto2}" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Lista de modelos -->
+            <Border Style="{StaticResource Painel}" IsEnabled="{Binding Editando, Converter={StaticResource Negar}}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Seus modelos" Style="{StaticResource TituloPainel}" Margin="0,0,0,8" />
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                        <Button Style="{StaticResource BotaoSecundario}" Content="Cadastrar modelo" Command="{Binding NovoModeloCommand}" />
+                        <StackPanel Visibility="{Binding TemModelos, Converter={StaticResource Visivel}}">
+                            <Button Style="{StaticResource BotaoLinha}" Content="Editar campos" Margin="0,8,0,0" MinHeight="44" Command="{Binding EditarModeloCommand}" />
+                            <Button Style="{StaticResource BotaoLink}" Content="Tirar da lista" Margin="0,8,0,0" HorizontalAlignment="Center" Command="{Binding RemoverModeloCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <Grid>
+                        <TextBlock Text="Nenhum modelo cadastrado ainda." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                   Visibility="{Binding TemModelos, Converter={StaticResource VisivelSeNao}}" />
+                        <ListBox ItemsSource="{Binding Modelos}" SelectedItem="{Binding Selecionado}" Style="{StaticResource ListaSimples}"
+                                 ItemContainerStyle="{StaticResource LinhaSelecionavel}" AutomationProperties.Name="Modelos cadastrados">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Nome}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Detalhe}" Style="{StaticResource Texto2}" FontSize="13" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- Sem modelos -->
+            <Border Grid.Column="2" Style="{StaticResource Painel}" Visibility="{Binding SemNada, Converter={StaticResource Visivel}}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="560">
+                    <TextBlock Text="Comece cadastrando um modelo" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Style="{StaticResource Texto2}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0"
+                               Text="Escolha a planilha (.xlsx ou .xlsm), dê nome aos campos e informe a célula de cada um, como E3. O app guarda uma cópia: a sua planilha não é alterada. Células com fórmula nunca são preenchidas." />
+                    <Button Style="{StaticResource BotaoPrimario}" Content="Cadastrar modelo" Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding NovoModeloCommand}" />
+                    <TextBlock Text="{Binding Resultado}" Style="{StaticResource Texto2}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"
+                               Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Preencher -->
+            <Grid Grid.Column="2" Visibility="{Binding Usando, Converter={StaticResource Visivel}}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Border Style="{StaticResource Painel}">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Limpar tudo" Margin="8,0,0,0" MinHeight="44" Command="{Binding LimparCommand}"
+                                    Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSe}}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Colar do Excel" Margin="8,0,0,0" Command="{Binding ColarDoExcelCommand}"
+                                    ToolTip="Copie as linhas no Excel, com as colunas na ordem dos campos, e clique aqui" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar linha" Margin="8,0,0,0" Command="{Binding NovaLinhaCommand}" />
+                            <TextBlock Text="{Binding Selecionado.Nome}" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Voltar ao modelo cadastrado" Margin="12,0,0,0" VerticalAlignment="Center"
+                                    Command="{Binding VoltarAoModeloCommand}" Visibility="{Binding UsaOutroArquivo, Converter={StaticResource Visivel}}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Atualizar outro arquivo…" Margin="12,0,0,0" VerticalAlignment="Center"
+                                    Command="{Binding EscolherOutroArquivoCommand}" Visibility="{Binding UsaOutroArquivo, Converter={StaticResource VisivelSeNao}}"
+                                    ToolTip="Parte de um arquivo seu com a mesma estrutura (por exemplo, já preenchido em parte) e gera uma cópia atualizada" />
+                            <TextBlock Text="{Binding TextoArquivoBase}" Style="{StaticResource Texto2}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
+
+                        <Grid DockPanel.Dock="Top" Margin="28,0,60,4" Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSe}}">
+                            <ItemsControl ItemsSource="{Binding Colunas}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+
+                        <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSeNao}}">
+                                <TextBlock Text="Nenhuma linha ainda" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource Texto2}" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="520"
+                                           Text="Adicione uma linha, cole do Excel ou use “Usar em modelo Excel” na Base de dados." />
+                            </StackPanel>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                                <ItemsControl ItemsSource="{Binding Linhas}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="28" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="60" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Text="{Binding Numero}" Style="{StaticResource Texto2}" VerticalAlignment="Center" />
+                                                <ItemsControl Grid.Column="1" ItemsSource="{Binding Celulas}" Focusable="False">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <TextBox Margin="2,0" Text="{Binding Valor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Rotulo}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Button Grid.Column="2" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        AutomationProperties.Name="Tirar esta linha"
+                                                        Command="{Binding DataContext.RemoverLinhaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Avisos}" FontSize="13" TextWrapping="Wrap" Margin="4,4,4,0"
+                                                           Foreground="{StaticResource Vermelho}" FontWeight="SemiBold"
+                                                           Visibility="{Binding Avisos, Converter={StaticResource VisivelSe}}" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </DockPanel>
+                </Border>
+
+                <StackPanel Grid.Row="1" Margin="0,14,0,0">
+                    <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF de cada arquivo" IsEnabled="{Binding ExcelDisponivel}" Margin="0,0,0,10" />
+                    <DockPanel Margin="0,0,0,10" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar na pasta" Margin="12,0,0,0" Command="{Binding AbrirResultadoCommand}"
+                                Visibility="{Binding PodeAbrirResultado, Converter={StaticResource Visivel}}" />
+                        <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </DockPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="{Binding TextoBotao}" Margin="8,0,0,0" Command="{Binding GerarCommand}" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher outra pasta" Margin="12,0,0,0" Command="{Binding EscolherDestinoCommand}" />
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Resumo}" Style="{StaticResource Forte}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Style="{StaticResource Texto2}" FontSize="13" TextTrimming="CharacterEllipsis">
+                                <Run Text="Salvar em: " /><Run Text="{Binding PastaDestino, Mode=OneWay}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </DockPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Cadastro / edicao -->
+            <Border Grid.Column="2" Style="{StaticResource Painel}" Visibility="{Binding Editando, Converter={StaticResource Visivel}}">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding EdTitulo}" Style="{StaticResource TituloPainel}" Margin="0,0,0,10" />
+
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                        <Border CornerRadius="8" Padding="12,8" Margin="0,0,0,10" Background="{StaticResource VermelhoClaro}"
+                                Visibility="{Binding EdProblemas, Converter={StaticResource VisivelSe}}">
+                            <TextBlock TextWrapping="Wrap">
+                                <Run Text="Antes de salvar:  " FontWeight="Bold" Foreground="{StaticResource Vermelho}" /><Run Text="{Binding EdProblemas, Mode=OneWay}" />
+                            </TextBlock>
+                        </Border>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="Salvar modelo" Margin="8,0,0,0" Command="{Binding SalvarModeloCommand}" />
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Cancelar" Command="{Binding CancelarEdicaoCommand}" />
+                            <TextBlock Text="Células com fórmula e células mescladas (fora a primeira) são recusadas." Style="{StaticResource Texto2}" FontSize="13"
+                                       VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <Grid DockPanel.Dock="Top">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Nome do modelo" Style="{StaticResource Rotulo}" />
+                            <TextBox Text="{Binding EdNome, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome do modelo" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Nome dos arquivos gerados" Style="{StaticResource Rotulo}" />
+                            <TextBox Text="{Binding EdPadraoNome, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome dos arquivos gerados"
+                                     ToolTip="Use o nome de um campo entre chaves, como Ficha - {Escola}. Em branco, usa o nome do modelo." />
+                        </StackPanel>
+                    </Grid>
+                    <DockPanel DockPanel.Dock="Top" Margin="0,10,0,12">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Trocar arquivo (nova versão)" MinHeight="44" Margin="12,0,0,0" Command="{Binding TrocarArquivoCommand}" />
+                        <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Style="{StaticResource Texto2}">
+                            <Run Text="Arquivo: " /><Run Text="{Binding EdArquivoTexto, Mode=OneWay}" FontWeight="SemiBold" />
+                        </TextBlock>
+                    </DockPanel>
+
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar campo" Command="{Binding AdicionarCampoCommand}" />
+                        <TextBlock Text="Campos" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="104" />
+                            <ColumnDefinition Width="56" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Nome" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                        <TextBlock Grid.Column="1" Text="Aba" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                        <TextBlock Grid.Column="2" Text="Célula" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                        <TextBlock Grid.Column="3" Text="Tipo" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                        <TextBlock Grid.Column="4" Text="Vem da Base de dados" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" TextTrimming="CharacterEllipsis" />
+                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding EdCampos}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="100" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="104" />
+                                            <ColumnDefinition Width="56" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Margin="2,0" Text="{Binding Nome, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome do campo" />
+                                        <ComboBox Grid.Column="1" Margin="2,0" SelectedItem="{Binding Aba}" ItemTemplate="{StaticResource OpcaoTexto}" AutomationProperties.Name="Aba"
+                                                  ItemsSource="{Binding DataContext.EdAbas, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        <TextBox Grid.Column="2" Margin="2,0" Text="{Binding Celula, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Célula" />
+                                        <ComboBox Grid.Column="3" Margin="2,0" SelectedItem="{Binding Tipo}" ItemTemplate="{StaticResource OpcaoTexto}" AutomationProperties.Name="Tipo"
+                                                  ItemsSource="{Binding DataContext.Tipos, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        <ComboBox Grid.Column="4" Margin="2,0" SelectedItem="{Binding Origem}" ItemTemplate="{StaticResource OpcaoTexto}" AutomationProperties.Name="Vem da Base de dados"
+                                                  ItemsSource="{Binding DataContext.Origens, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        <CheckBox Grid.Column="5" Margin="6,0,0,0" Content="Obrigatório" IsChecked="{Binding Obrigatorio}" VerticalAlignment="Center" />
+                                        <Button Grid.Column="6" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                AutomationProperties.Name="Tirar este campo"
+                                                Command="{Binding DataContext.RemoverCampoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

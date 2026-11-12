@@ -18,11 +18,11 @@ public sealed class EditorXlsx : IDisposable
     private readonly SpreadsheetDocument _doc;
     private readonly WorkbookPart _pasta;
 
-    public EditorXlsx(string caminhoDaCopia)
+    public EditorXlsx(string caminhoDaCopia, bool somenteLeitura = false)
     {
         try
         {
-            _doc = SpreadsheetDocument.Open(caminhoDaCopia, isEditable: true);
+            _doc = SpreadsheetDocument.Open(caminhoDaCopia, isEditable: !somenteLeitura);
             _pasta = _doc.WorkbookPart ?? throw new PlanilhaInvalidaException("O arquivo não tem pasta de trabalho.");
         }
         catch (Exception ex) when (ex is OpenXmlPackageException or InvalidDataException or FileFormatException or IOException)
@@ -34,6 +34,55 @@ public sealed class EditorXlsx : IDisposable
     public IReadOnlyList<string> Abas => [.. _pasta.Workbook!.Sheets!.Elements<Sheet>().Select(s => s.Name!.Value!)];
 
     public void Dispose() => _doc.Dispose();
+
+    /// <summary>Quantas celulas com formula a aba tem (usado para notar mudanca de estrutura).</summary>
+    public int ContarFormulas(string aba) => Parte(aba).Worksheet!.Descendants<Cell>().Count(c => c.CellFormula is not null);
+
+    /// <summary>
+    /// Se a celula esta dentro de um grupo de celulas mescladas e nao e a primeira dele, devolve a primeira
+    /// (so ela guarda o valor). Devolve null quando a celula pode receber o valor diretamente.
+    /// </summary>
+    public string? PrimeiraDaMesclagem(string aba, string celula)
+    {
+        var (coluna, linha) = Posicao(celula);
+        foreach (var m in Parte(aba).Worksheet!.Descendants<MergeCell>())
+        {
+            string[] pontas = (m.Reference?.Value ?? "").Split(':');
+            if (pontas.Length != 2)
+            {
+                continue;
+            }
+
+            var (c1, l1) = Posicao(pontas[0]);
+            var (c2, l2) = Posicao(pontas[1]);
+            if (coluna >= c1 && coluna <= c2 && linha >= l1 && linha <= l2)
+            {
+                return coluna == c1 && linha == l1 ? null : pontas[0].ToUpperInvariant();
+            }
+        }
+
+        return null;
+    }
+
+    private static (int Coluna, int Linha) Posicao(string celula)
+    {
+        celula = celula.Replace("$", "").ToUpperInvariant();
+        int corte = celula.AsSpan().IndexOfAnyInRange('0', '9');
+        int coluna = 0;
+        foreach (char letra in celula[..corte])
+        {
+            coluna = (coluna * 26) + (letra - 'A' + 1);
+        }
+
+        return (coluna, int.Parse(celula.AsSpan(corte), CultureInfo.InvariantCulture));
+    }
+
+    private WorksheetPart Parte(string aba)
+    {
+        var folha = _pasta.Workbook!.Sheets!.Elements<Sheet>().FirstOrDefault(s => string.Equals(s.Name?.Value, aba, StringComparison.OrdinalIgnoreCase))
+                    ?? throw new PlanilhaInvalidaException($"A aba \"{aba}\" não existe no modelo.");
+        return (WorksheetPart)_pasta.GetPartById(folha.Id!.Value!);
+    }
 
     /// <summary>Texto da formula da celula, ou null se ela nao tiver formula.</summary>
     public string? Formula(string aba, string celula) => Achar(aba, celula, criar: false)?.CellFormula?.Text;
@@ -125,9 +174,7 @@ public sealed class EditorXlsx : IDisposable
 
     private Cell? Achar(string aba, string celula, bool criar)
     {
-        var folha = _pasta.Workbook!.Sheets!.Elements<Sheet>().FirstOrDefault(s => string.Equals(s.Name?.Value, aba, StringComparison.OrdinalIgnoreCase))
-                    ?? throw new PlanilhaInvalidaException($"A aba \"{aba}\" não existe no modelo.");
-        var dados = ((WorksheetPart)_pasta.GetPartById(folha.Id!.Value!)).Worksheet!.GetFirstChild<SheetData>()!;
+        var dados = Parte(aba).Worksheet!.GetFirstChild<SheetData>()!;
         uint numeroLinha = uint.Parse(celula.AsSpan(celula.AsSpan().IndexOfAnyInRange('0', '9')), CultureInfo.InvariantCulture);
         string referencia = celula.ToUpperInvariant();
 

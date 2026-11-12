@@ -91,3 +91,11 @@ public sealed class CaminhoParaImagem : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
+
+/// <summary>Inverte um bool (por exemplo, desabilitar a lista enquanto um cadastro esta aberto).</summary>
+public sealed class Negar : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
+}

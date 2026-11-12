@@ -11,6 +11,7 @@
             <t:EnumIgual x:Key="EnumIgual" />
             <t:VisivelSe x:Key="VisivelSe" />
             <t:VisivelSeNao x:Key="VisivelSeNao" />
+            <t:Negar x:Key="Negar" />
             <t:Iguais x:Key="Iguais" />
             <t:CaminhoParaImagem x:Key="Imagem" />
         </ResourceDictionary>

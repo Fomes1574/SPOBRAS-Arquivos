@@ -24,6 +24,7 @@ public sealed class Composicao : IDisposable
         Operacoes = new ServicoOperacoes(arquivos, new HistoricoSqlite(banco), relogio, new FilaTarefas());
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);
+        ModelosExcel = new ServicoModelosExcel(pastaDados, new ConfigRepositorio(banco));
         Base = new Spobras.Dados.Base.BaseRepositorio(banco);
         Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias)
         {
@@ -43,6 +44,8 @@ public sealed class Composicao : IDisposable
                 "M3 6h18v13H3zM3 16l5-5 4 4 3-3 6 5"),
             new ModuloVm(CronogramaVm.Modulo, "Cronograma padrão", "Cronograma novo a partir do modelo, com as fórmulas intactas.",
                 "M3 5h18v15H3zM3 10h18M8 3v4M16 3v4"),
+            new ModuloVm(ModelosVm.Modulo, "Modelos Excel", "Preenche as suas planilhas modelo, uma ou várias de uma vez.",
+                "M4 4h16v16H4zM4 9h16M4 14h16M10 4v16"),
             new ModuloVm(PdfVm.Modulo, "PDF", "Juntar, separar, transformar fotos em PDF e reduzir o tamanho.",
                 "M6 3h9l4 4v14H6zM15 3v4h4"),
             new ModuloVm(BaseVm.Modulo, "Base de dados", "Portarias, dotações, contratos e escolas, sempre atualizados.",
@@ -59,6 +62,8 @@ public sealed class Composicao : IDisposable
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias),
             [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
+            [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),
+                exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos),
@@ -73,6 +78,10 @@ public sealed class Composicao : IDisposable
         {
             ((CronogramaVm)telas[CronogramaVm.Modulo]).AdicionarDaBase(obra);
             Principal!.Navegar(CronogramaVm.Modulo);
+        }, obra =>
+        {
+            ((ModelosVm)telas[ModelosVm.Modulo]).AdicionarDaBase(obra);
+            Principal!.Navegar(ModelosVm.Modulo);
         });
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
@@ -83,6 +92,7 @@ public sealed class Composicao : IDisposable
     public ServicoOperacoes Operacoes { get; }
     public ServicoNovidades Novidades { get; }
     public ServicoModelos Modelos { get; }
+    public ServicoModelosExcel ModelosExcel { get; }
     public Spobras.Dados.Base.BaseRepositorio Base { get; }
     public ServicoFontes Fontes { get; }
     public IReadOnlyList<ModuloVm> Modulos { get; }

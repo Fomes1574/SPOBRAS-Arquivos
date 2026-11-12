@@ -84,7 +84,8 @@ public class TelasDeVerdadeTests
             var app = new Spobras.App.App();
             app.InitializeComponent();
 
-            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, new DialogosMudos(), new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste", eventosDasFontes: false)
+            var dialogos = new DialogosMudos();
+            using var composicao = new Composicao(Path.Combine(raiz, "dados"), trabalho, dialogos, new Spobras.App.Windows.InterfaceWpf(Dispatcher.CurrentDispatcher), "0.0.0-teste", eventosDasFontes: false)
             {
                 VigiarFontes = false,
             };
@@ -240,6 +241,35 @@ public class TelasDeVerdadeTests
             }
 
             Fotografar(janela, saida, "43-cronograma-linhas-e-avisos");
+
+            // Modelos Excel: vazio, cadastro com problema, preenchimento
+            principal.Navegar(ModelosVm.Modulo);
+            var modelosExcel = (ModelosVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "44-modelos-vazio");
+            dialogos.Arquivos.Enqueue([modeloCronograma]);
+            modelosExcel.NovoModeloCommand.Execute(null);
+            modelosExcel.EdNome = "Ficha de vistoria";
+            modelosExcel.EdPadraoNome = "Ficha - {Escola}";
+            var campo = modelosExcel.EdCampos[0];
+            campo.Nome = "Escola";
+            campo.Aba = "Cronograma Dois";
+            campo.Celula = "E3";
+            campo.Origem = "Escola / obra";
+            modelosExcel.AdicionarCampoCommand.Execute(null);
+            modelosExcel.EdCampos[1].Nome = "Total";
+            modelosExcel.EdCampos[1].Celula = "G18";
+            modelosExcel.EdCampos[1].Tipo = "Número";
+            Fotografar(janela, saida, "45-modelos-cadastro-com-problema");
+            modelosExcel.EdCampos[1].Nome = "Valor";
+            modelosExcel.EdCampos[1].Celula = "G3";
+            modelosExcel.SalvarModeloCommand.Execute(null);
+            Assert.False(modelosExcel.Editando, modelosExcel.EdProblemas);
+            modelosExcel.NovaLinhaCommand.Execute(null);
+            modelosExcel.NovaLinhaCommand.Execute(null);
+            modelosExcel.Linhas[0].Celulas[0].Valor = "EMEF Professora Fulana de Tal da Silva Sauro - Unidade II";
+            modelosExcel.Linhas[0].Celulas[1].Valor = "1.250.000,00";
+            modelosExcel.Linhas[1].Celulas[1].Valor = "abc";
+            Fotografar(janela, saida, "46-modelos-preencher");
 
             // Base de dados e Fontes de dados, com planilhas sinteticas de verdade
             string mestra = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoMestra);
@@ -515,7 +545,8 @@ public class TelasDeVerdadeTests
     {
         public string? EscolherPasta(string titulo, string? pastaInicial = null) => null;
         public IReadOnlyList<string> EscolherPastas(string titulo, string? pastaInicial = null) => [];
-        public IReadOnlyList<string> EscolherArquivos(string titulo, string? filtro = null, string? pastaInicial = null) => [];
+        public Queue<IReadOnlyList<string>> Arquivos { get; } = new();
+        public IReadOnlyList<string> EscolherArquivos(string titulo, string? filtro = null, string? pastaInicial = null) => Arquivos.Count > 0 ? Arquivos.Dequeue() : [];
         public bool Confirmar(string titulo, string mensagem, string botaoSim = "Sim", string botaoNao = "Cancelar") => true;
 
         public void Avisar(string titulo, string mensagem)

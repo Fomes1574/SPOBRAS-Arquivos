@@ -104,13 +104,15 @@ public sealed partial class BaseVm : TelaVm
     private readonly Action<string> _navegar;
     private readonly Action<ObraLida>? _usarNoRelatorio;
     private readonly Action<ObraLida>? _usarNoCronograma;
+    private readonly Action<ObraLida>? _usarEmModelo;
     private bool _atualizando;
     private int _mostrando = Pagina;
 
     public BaseVm(
         BaseRepositorio @base, ServicoFontes fontes, IInterface @interface, Action<string> navegar, Action<ObraLida>? usarNoRelatorio = null,
-        Action<ObraLida>? usarNoCronograma = null)
+        Action<ObraLida>? usarNoCronograma = null, Action<ObraLida>? usarEmModelo = null)
     {
+        _usarEmModelo = usarEmModelo;
         _usarNoCronograma = usarNoCronograma;
         _base = @base;
         _fontes = fontes;
@@ -279,6 +281,15 @@ public sealed partial class BaseVm : TelaVm
         if (Selecionada is { } obra)
         {
             _usarNoCronograma?.Invoke(obra.Obra);
+        }
+    }
+
+    [RelayCommand]
+    private void UsarEmModelo()
+    {
+        if (Selecionada is { } obra)
+        {
+            _usarEmModelo?.Invoke(obra.Obra);
         }
     }
 
