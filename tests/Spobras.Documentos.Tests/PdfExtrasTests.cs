@@ -80,20 +80,25 @@ public class PdfExtrasTests : IDisposable
     }
 
     [Fact]
-    public void Para_excel_guarda_origem_e_tipos_e_pdf_sem_texto_e_explicado()
+    public void Para_excel_sem_grade_usa_as_mesmas_colunas_na_pagina_inteira_e_pdf_sem_texto_e_explicado()
     {
-        string pdf = PdfComTexto("anexo.pdf", [(40, "Unidade"), (240, "Orçamento")], [(40, "EMEF Alfa"), (240, "50.000,00")]);
+        string pdf = PdfComTexto("anexo.pdf",
+            [(40, "Unidade"), (240, "Orçamento")],
+            [(40, "EMEF Alfa"), (240, "50.000,00")],
+            [(40, "CEI Beta do Jardim"), (240, "R$ 1.234,56")]);
         string saida = Em("anexo.xlsx");
 
         var lido = TextoPdf.ParaExcel(pdf, saida);
 
-        Assert.Equal(2, lido.Linhas.Count);
+        Assert.Equal(3, lido.Linhas.Count);
+        Assert.Equal([1], lido.Tabela!.PaginasPorAlinhamento);
         using (var leitor = new LeitorXlsx(saida))
         {
-            Assert.Equal(["Texto do PDF", "Sobre"], leitor.NomesDasAbas());
-            var grade = leitor.LerAba("Texto do PDF");
-            Assert.Equal(["Página", "Linha", "Coluna 1", "Coluna 2"], grade[0].Take(4));
-            Assert.Equal(new object?[] { 1m, 2m, "EMEF Alfa", 50000m }, grade[2].Take(4));
+            Assert.Equal([GravadorTabela.NomeDaAba], leitor.NomesDasAbas()); // so a tabela, sem aba "Sobre"
+            var grade = leitor.LerAba(GravadorTabela.NomeDaAba);
+            Assert.Equal(new object?[] { "Unidade", "Orçamento" }, grade[0].Take(2));
+            Assert.Equal(new object?[] { "EMEF Alfa", 50000m }, grade[1].Take(2));
+            Assert.Equal(new object?[] { "CEI Beta do Jardim", 1234.56m }, grade[2].Take(2)); // mesma coluna, nome inteiro
         }
 
         string branco = PdfEmBranco("digitalizado.pdf", 2);
@@ -104,6 +109,118 @@ public class PdfExtrasTests : IDisposable
         Assert.Contains("OCR do Windows não está disponível", erro.Message);
         Assert.False(File.Exists(Em("nada.xlsx")));
         Assert.Throws<PdfInvalidoException>(() => TextoPdf.Extrair(Em("nao-existe.pdf")));
+    }
+
+    /// <summary>
+    /// Tabela como o Excel imprime em PDF: grade de tracos finos, titulo mesclado, cabecalho em negrito repetido
+    /// em cada pagina, numero que o PDF separou ("3 5.000,00"), codigo com zero a esquerda e SEI de 16 digitos.
+    /// </summary>
+    private string PdfComGrade(string nome)
+    {
+        FontesPdf.Garantir();
+        using var doc = new PdfDocument();
+        var normal = new XFont(FontesPdf.Familia, 9);
+        var negrito = new XFont(FontesPdf.Familia, 9, XFontStyleEx.Bold);
+        double[] xs = [40, 110, 170, 300, 400];
+        string[] titulos = ["DATA", "CÓDIGO", "SEI", "VALOR"];
+        int numero = 0;
+        for (int pg = 0; pg < 2; pg++)
+        {
+            var p = doc.AddPage();
+            using var g = XGraphics.FromPdfPage(p);
+            double y = 50;
+            void Traco(double x1, double y1, double x2, double y2) => g.DrawRectangle(XBrushes.Black, x1, y1, Math.Max(0.5, x2 - x1), Math.Max(0.5, y2 - y1));
+            void Linha(string?[] textos, XFont fonte, bool mesclada = false)
+            {
+                Traco(xs[0], y, xs[^1], y);
+                Traco(xs[0], y, xs[0], y + 14);
+                Traco(xs[^1], y, xs[^1], y + 14);
+                if (mesclada)
+                {
+                    g.DrawString(textos[0]!, fonte, XBrushes.Black, new XRect(xs[0], y, xs[^1] - xs[0], 14), XStringFormats.Center);
+                }
+                else
+                {
+                    for (int j = 0; j < 4; j++)
+                    {
+                        Traco(xs[j], y, xs[j], y + 14);
+                        if (textos[j] is { } t)
+                        {
+                            g.DrawString(t, fonte, XBrushes.Black, new XRect(xs[j] + 2, y, xs[j + 1] - xs[j] - 4, 14), j == 3 ? XStringFormats.CenterRight : XStringFormats.CenterLeft);
+                        }
+                    }
+                }
+
+                y += 14;
+                Traco(xs[0], y, xs[^1], y);
+            }
+
+            Linha(["RELATÓRIO DE EXEMPLO"], negrito, mesclada: true);
+            Linha(titulos, negrito);
+            for (int i = 0; i < 3; i++)
+            {
+                numero++;
+                Linha([$"{numero:00}/02/2025", "000123", "6022202200067805", null], normal);
+                // "3 5.000,00": o numero sai em dois pedacos com um vao no meio, como em PDFs do Excel.
+                g.DrawString("3", normal, XBrushes.Black, xs[3] + 40, y - 4);
+                g.DrawString("5.000,00", normal, XBrushes.Black, xs[3] + 50, y - 4);
+            }
+
+            g.DrawString($"Página {pg + 1} de 2", normal, XBrushes.Black, 280, 800);
+        }
+
+        string caminho = Em(nome);
+        doc.Save(caminho);
+        return caminho;
+    }
+
+    [Fact]
+    public void Para_excel_com_grade_copia_a_tabela_fiel_sem_pagina_linha_nem_logo()
+    {
+        string pdf = PdfComGrade("restos.pdf");
+        string saida = Em("restos.xlsx");
+
+        var lido = TextoPdf.ParaExcel(pdf, saida);
+        var tabela = lido.Tabela!;
+
+        Assert.Equal([1, 2], tabela.PaginasPorGrade);
+        Assert.Equal(4, tabela.Larguras.Count);
+        Assert.Equal(8, tabela.Linhas.Count); // titulo + cabecalho (uma vez so) + 6 linhas; "Página 1 de 2" fica de fora
+        Assert.Equal(4, tabela.Linhas[0].Celulas[0]!.Colunas); // titulo mesclado na largura toda
+        Assert.True(tabela.Linhas[1].Celulas[0]!.Negrito);
+        Assert.Equal(AlinhamentoCelula.Direita, tabela.Linhas[2].Celulas[3]!.Alinhamento);
+
+        using (var leitor = new LeitorXlsx(saida))
+        {
+            Assert.Equal([GravadorTabela.NomeDaAba], leitor.NomesDasAbas());
+            var grade = leitor.LerAba(GravadorTabela.NomeDaAba);
+            Assert.Equal("RELATÓRIO DE EXEMPLO", grade[0][0]);
+            Assert.Equal(new object?[] { "DATA", "CÓDIGO", "SEI", "VALOR" }, grade[1].Take(4));
+            Assert.Equal(new DateTime(2025, 2, 1), grade[2][0]);
+            Assert.Equal("000123", grade[2][1]); // codigo continua texto, com o zero
+            Assert.Equal("6022202200067805", grade[2][2]); // SEI nao vira numero (perderia digitos)
+            Assert.Equal(35000m, grade[2][3]); // "3 5.000,00" voltou inteiro
+            Assert.Equal(new DateTime(2025, 2, 6), grade[7][0]);
+            Assert.DoesNotContain(grade.SelectMany(l => l), v => v is string t && (t.StartsWith("Página") || t.StartsWith("Coluna")));
+        }
+
+        using var zip = System.IO.Compression.ZipFile.OpenRead(saida);
+        Assert.DoesNotContain(zip.Entries, e => e.FullName.StartsWith("xl/media/")); // sem logo
+        using (var doc = DocumentFormat.OpenXml.Packaging.SpreadsheetDocument.Open(saida, false))
+        {
+            Assert.Empty(new DocumentFormat.OpenXml.Validation.OpenXmlValidator().Validate(doc).Select(e => e.Description));
+        }
+    }
+
+    [Fact]
+    public void Numero_separado_pelo_pdf_volta_inteiro_e_texto_comum_nao_muda()
+    {
+        Assert.Equal("35.000,00", TabelaPdf.Compactar("3 5.000,00"));
+        Assert.Equal("2.318,59", TabelaPdf.Compactar("2 .318,59"));
+        Assert.Equal("R$ 35.000,00", TabelaPdf.Compactar("R$ 3 5.000,00"));
+        Assert.Equal("22 DE MARCO", TabelaPdf.Compactar("22 DE MARCO"));
+        Assert.Equal("123 456", TabelaPdf.Compactar("123 456")); // dois codigos: nao vira um numero so
+        Assert.Equal("DATA NE", TabelaPdf.Compactar("DATA NE"));
     }
 
     private sealed class OcrFalso : IOcr
@@ -152,8 +269,7 @@ public class PdfExtrasTests : IDisposable
         Assert.Equal(["EMEF Alfa", "50.000,00"], lido.Linhas[1].Colunas);
         using (var leitor = new LeitorXlsx(saida))
         {
-            Assert.Equal(new object?[] { 1m, 2m, "EMEF Alfa", 50000m }, leitor.LerAba("Texto do PDF")[2].Take(4));
-            Assert.Contains(leitor.LerAba("Sobre"), l => "Lidas por OCR".Equals(l[0]) && ((string)l[1]!).Contains("confira com mais atenção"));
+            Assert.Equal(new object?[] { "EMEF Alfa", 50000m }, leitor.LerAba(GravadorTabela.NomeDaAba)[1].Take(2));
         }
 
         // Pagina com texto nao passa pelo OCR

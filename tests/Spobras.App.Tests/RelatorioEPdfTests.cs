@@ -325,7 +325,17 @@ public class PdfVmTests : ComApp
     public async Task Pdf_para_excel_gera_uma_planilha_por_pdf_e_explica_o_digitalizado()
     {
         string comTexto = Em("Downloads", "numerado.pdf");
-        Spobras.Documentos.Pdf.CarimboPdf.Carimbar(CriarPdf("base.pdf", 2), comTexto, new Spobras.Documentos.Pdf.OpcoesCarimbo());
+        Spobras.Documentos.Pdf.FontesPdf.Garantir();
+        using (var doc = new PdfDocument())
+        {
+            var fonte = new PdfSharp.Drawing.XFont(Spobras.Documentos.Pdf.FontesPdf.Familia, 10);
+            using var g = PdfSharp.Drawing.XGraphics.FromPdfPage(doc.AddPage());
+            g.DrawString("Unidade", fonte, PdfSharp.Drawing.XBrushes.Black, 40, 60);
+            g.DrawString("Valor", fonte, PdfSharp.Drawing.XBrushes.Black, 240, 60);
+            g.DrawString("EMEF Alfa", fonte, PdfSharp.Drawing.XBrushes.Black, 40, 80);
+            g.DrawString("1.000,00", fonte, PdfSharp.Drawing.XBrushes.Black, 240, 80);
+            doc.Save(comTexto);
+        }
         string digitalizado = CriarPdf("digitalizado.pdf", 1);
         var vm = NovoPdf();
         vm.Ferramenta = FerramentaPdf.ParaExcel;
@@ -335,7 +345,7 @@ public class PdfVmTests : ComApp
         await vm.ExecutarCommand.ExecuteAsync(null);
 
         Assert.True(vm.ResultadoComFalha);
-        Assert.Contains("numerado.pdf virou “numerado.xlsx” (2 linhas lidas)", vm.Resultado);
+        Assert.Contains("numerado.pdf virou “numerado.xlsx” (2 linhas, 2 colunas)", vm.Resultado);
         Assert.Contains("digitalizado.pdf: \"digitalizado.pdf\" não tem texto", vm.Resultado);
         Assert.True(File.Exists(Em("Downloads", "numerado.xlsx")));
         Assert.False(File.Exists(Em("Downloads", "digitalizado.xlsx")));

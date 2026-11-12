@@ -359,9 +359,11 @@ public sealed partial class PdfVm : TelaVm
                                     else
                                     {
                                         string saida = Livre(Path.GetFileNameWithoutExtension(entradas[i]) + ".xlsx");
-                                        var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento, _ocr, _logo());
+                                        var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento, _ocr);
                                         criados.Add(saida);
-                                        notas.Add($"{original} virou “{Path.GetFileName(saida)}” ({Formato.Plural(lido.Linhas.Count, "linha lida", "linhas lidas")})"
+                                        notas.Add($"{original} virou “{Path.GetFileName(saida)}” ({Formato.Plural(lido.Linhas.Count, "linha", "linhas")}"
+                                                  + (lido.Tabela is { } t && t.Larguras.Count > 0 ? $", {Formato.Plural(t.Larguras.Count, "coluna", "colunas")})" : ")")
+                                                  + (lido.Tabela is { PaginasPorAlinhamento.Count: > 0 } sem ? $"; {Formato.Plural(sem.PaginasPorAlinhamento.Count, "página sem linhas de tabela foi lida", "páginas sem linhas de tabela foram lidas")} pelo alinhamento, confira" : "")
                                                   + (lido.LidasPorOcr.Count > 0 ? $"; {Formato.Plural(lido.LidasPorOcr.Count, "página lida", "páginas lidas")} pelo OCR, confira com atenção" : "")
                                                   + (lido.PaginasSemTexto.Count > 0 ? $"; {Formato.Plural(lido.PaginasSemTexto.Count, "página sem texto ficou", "páginas sem texto ficaram")} de fora" : ""));
                                     }

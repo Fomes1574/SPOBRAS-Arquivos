@@ -13,6 +13,9 @@ public sealed record LinhaPdf(int Pagina, int Numero, IReadOnlyList<string> Colu
 
 public sealed record TextoExtraido(int Paginas, IReadOnlyList<LinhaPdf> Linhas, IReadOnlyList<int> PaginasSemTexto, IReadOnlyList<int>? PaginasPorOcr = null)
 {
+    /// <summary>A tabela gravada na planilha (so no "PDF para Excel").</summary>
+    public TabelaLida? Tabela { get; init; }
+
     public bool SemTextoNenhum => Linhas.Count == 0;
     public IReadOnlyList<int> LidasPorOcr => PaginasPorOcr ?? [];
 }
@@ -231,33 +234,28 @@ public static partial class TextoPdf
     }
 
     /// <summary>
-    /// Grava uma planilha nova com uma linha por linha do PDF: pagina e linha de origem, depois as colunas.
-    /// Valores em reais e datas viram numero e data do Excel; a aba "Sobre" diz o que conferir.
+    /// Passa o PDF (ou a foto de um documento) para uma planilha o mais parecida possivel com ele: so a tabela,
+    /// com as colunas, mesclas, negrito, cores e alinhamento do PDF (ver <see cref="TabelaPdf"/>).
+    /// Devolve as linhas lidas e quais paginas precisaram de OCR ou ficaram sem texto.
     /// </summary>
-    public static TextoExtraido ParaExcel(string pdf, string saida, CancellationToken cancelamento = default, IOcr? ocr = null, string? logo = null)
+    public static TextoExtraido ParaExcel(string pdf, string saida, CancellationToken cancelamento = default, IOcr? ocr = null)
     {
         bool imagem = Path.GetExtension(pdf).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".tif" or ".tiff";
-        var extraido = imagem ? DeImagem(pdf, ocr) : Extrair(pdf, cancelamento, ocr);
-        if (extraido.SemTextoNenhum)
+        if (imagem && ocr is not { Disponivel: true })
+        {
+            throw new PdfInvalidoException($"\"{Path.GetFileName(pdf)}\" é uma imagem e o OCR do Windows não está disponível neste computador.");
+        }
+
+        var tabela = imagem ? TabelaPdf.LerImagem(pdf, ocr!) : TabelaPdf.Ler(pdf, cancelamento, ocr);
+        if (tabela.Linhas.Count == 0)
         {
             throw new PdfInvalidoException(ocr is { Disponivel: true }
                 ? $"\"{Path.GetFileName(pdf)}\": o OCR não encontrou texto. Confira se a imagem está nítida e na posição certa."
                 : $"\"{Path.GetFileName(pdf)}\" não tem texto (parece digitalizado) e o OCR do Windows não está disponível neste computador.");
         }
 
-        int colunas = extraido.Linhas.Max(l => l.Colunas.Count);
-        string[] titulos = ["Página", "Linha", .. Enumerable.Range(1, colunas).Select(c => $"Coluna {c}")];
-        var linhas = extraido.Linhas.Select(l => new object?[] { l.Pagina, l.Numero }.Concat(l.Colunas.Select(c => (object?)Valor(c))).ToArray()).ToList();
-        var sobre = new List<object?[]>
-        {
-            new object?[] { "Arquivo de origem", Path.GetFileName(pdf) },
-            new object?[] { "Páginas", extraido.Paginas },
-            new object?[] { "Linhas lidas", extraido.Linhas.Count },
-            new object?[] { "Páginas sem texto", extraido.PaginasSemTexto.Count == 0 ? "nenhuma" : string.Join(", ", extraido.PaginasSemTexto) + " (ficaram de fora)" },
-            new object?[] { "Lidas por OCR", extraido.LidasPorOcr.Count == 0 ? "nenhuma" : string.Join(", ", extraido.LidasPorOcr) + $" (imagem lida pelo OCR do Windows, {ocr?.Idioma}: confira com mais atenção)" },
-            new object?[] { "Atenção", "Leitura automática. Confira valores, datas, linhas quebradas e subtotais antes de usar." },
-        };
-        GravadorXlsx.Gravar(saida, [new AbaNova("Texto do PDF", titulos, linhas), new AbaNova("Sobre", ["Item", "Valor"], sobre, ComFiltro: false)], logo, $"Texto de {Path.GetFileName(pdf)}");
-        return extraido;
+        GravadorTabela.Gravar(tabela, saida);
+        var linhas = tabela.Linhas.Select((l, i) => new LinhaPdf(l.Pagina, i + 1, [.. l.Textos.Where(t => t.Length > 0)])).ToList();
+        return new TextoExtraido(tabela.Paginas, linhas, tabela.PaginasSemTexto, tabela.PaginasPorOcr) { Tabela = tabela };
     }
 }
