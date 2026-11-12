@@ -237,7 +237,9 @@
                                     ToolTip="Mude qualquer dado desta obra no app. A planilha mestra não é alterada." />
                             <TextBlock Text="{Binding Selecionada.Marca}" Foreground="{StaticResource Azul}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                         </DockPanel>
-                        <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,16">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <StackPanel Margin="20,12,20,12">
+                                <StackPanel Margin="0,0,0,12">
                             <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
                                     ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
@@ -248,8 +250,7 @@
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar em modelo Excel" Margin="0,8,0,0" Command="{Binding UsarEmModeloCommand}"
                                     ToolTip="Acrescenta esta obra à lista do modelo Excel selecionado, nos campos ligados à Base de dados" />
                         </StackPanel>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
-                            <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Margin="20,16,20,0" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Margin="0,0,0,8">
@@ -259,6 +260,7 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
                     </DockPanel>
 
