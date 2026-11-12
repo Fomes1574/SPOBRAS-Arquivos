@@ -87,3 +87,47 @@ public class LeitorXlsxTests : IDisposable
         Assert.Contains("pode estar sendo salvo ou sincronizado", Assert.Throws<PlanilhaInvalidaException>(() => new LeitorXlsx(pelaMetade)).Message);
     }
 }
+
+public class GravadorXlsxTests : IDisposable
+{
+    private readonly string _pasta = Directory.CreateTempSubdirectory("spobras-gravador-").FullName;
+
+    public void Dispose() => Directory.Delete(_pasta, recursive: true);
+
+    [Fact]
+    public void Grava_tipos_do_excel_varias_abas_e_nunca_sobrescreve()
+    {
+        string caminho = Path.Combine(_pasta, "sub", "export.xlsx");
+        GravadorXlsx.Gravar(caminho,
+        [
+            new AbaNova("Obras", ["Contrato", "Valor", "Data da OS", "Qtd"], [["001/EX", 1250.5m, new DateOnly(2026, 11, 10), 3], ["002/EX", null, null, null]]),
+            new AbaNova("Consulta: filtros?", ["Filtro", "Valor"], [["Portaria", "3"]], ComFiltro: false),
+        ]);
+
+        using (var leitor = new Spobras.Documentos.Planilhas.LeitorXlsx(caminho))
+        {
+            Assert.Equal(["Obras", "Consulta- filtros-"], leitor.NomesDasAbas());
+            var grade = leitor.LerAba("Obras");
+            Assert.Equal("Contrato", grade[0][0]);
+            Assert.Equal(1250.5m, grade[1][1]);
+            Assert.Equal(new DateTime(2026, 11, 10), grade[1][2]); // formato de data reconhecido
+            Assert.Equal(3m, grade[1][3]);
+            Assert.Equal("002/EX", grade[2][0]);
+        }
+
+        Assert.Throws<IOException>(() => GravadorXlsx.Gravar(caminho, []));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(caminho)!, "*.spobras-parcial"));
+    }
+
+    [Fact]
+    public void Nome_de_aba_valido_curto_e_sem_repetir()
+    {
+        var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Assert.Equal("a-b", GravadorXlsx.NomeDeAba("a/b", usados));
+        Assert.Equal("A-B (2)", GravadorXlsx.NomeDeAba("A/B", usados));
+        Assert.Equal(31, GravadorXlsx.NomeDeAba(new string('x', 40), usados).Length);
+        Assert.Equal(31, GravadorXlsx.NomeDeAba(new string('x', 40), usados).Length);
+        Assert.Equal("Planilha", GravadorXlsx.NomeDeAba("  ", usados));
+        Assert.Equal(["A", "Z", "AA", "AZ", "BA"], new[] { 0, 25, 26, 51, 52 }.Select(GravadorXlsx.Coluna));
+    }
+}

@@ -82,7 +82,7 @@ public sealed class Composicao : IDisposable
         {
             ((ModelosVm)telas[ModelosVm.Modulo]).AdicionarDaBase(obra);
             Principal!.Navegar(ModelosVm.Modulo);
-        });
+        }, new ApoioConsultas(dialogos, new PerfilRepositorio(banco), Operacoes, Preferencias, relogio));
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
     }

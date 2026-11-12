@@ -3,6 +3,8 @@ using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Spobras.App.Servicos;
+using Spobras.Core.Abstracoes;
+using Spobras.Dados.Configuracao;
 using Spobras.Core;
 using Spobras.Core.Base;
 using Spobras.Dados.Base;
@@ -93,6 +95,29 @@ public sealed record CampoValorVm(CampoValor Campo)
 /// Base de dados (especificacao 4.6): filtros vinculados que se atualizam a cada escolha, sem botao Buscar.
 /// Consulta sempre a base local ja importada; a planilha nao e relida a cada clique.
 /// </summary>
+/// <summary>O que a Base de dados usa para salvar consultas e exportar. Sem ele, essas funcoes ficam escondidas.</summary>
+public sealed record ApoioConsultas(IDialogos Dialogos, PerfilRepositorio Perfis, ServicoOperacoes Operacoes, ServicoPreferencias Preferencias, IRelogio Relogio);
+
+/// <summary>Filtros de uma consulta salva, como o usuario os digitou (reabrir = mesmos filtros sobre a base atual).</summary>
+public sealed record ConsultaSalva
+{
+    public string? Portaria { get; init; }
+    public string? Contrato { get; init; }
+    public string? Escola { get; init; }
+    public string? ContratoReceita { get; init; }
+    public string? Dotacao { get; init; }
+    public string? Status { get; init; }
+    public string Texto { get; init; } = "";
+    public CampoValor CampoValor { get; init; } = CampoValor.SaldoAPagar;
+    public string ValorDe { get; init; } = "";
+    public string ValorAte { get; init; } = "";
+    public bool ValorSemInformacao { get; init; }
+    public string OsDe { get; init; } = "";
+    public string OsAte { get; init; } = "";
+    public bool SemDataOs { get; init; }
+    public OrdemObras Ordem { get; init; } = OrdemObras.Contrato;
+}
+
 public sealed partial class BaseVm : TelaVm
 {
     public const string Modulo = "base";
@@ -105,13 +130,17 @@ public sealed partial class BaseVm : TelaVm
     private readonly Action<ObraLida>? _usarNoRelatorio;
     private readonly Action<ObraLida>? _usarNoCronograma;
     private readonly Action<ObraLida>? _usarEmModelo;
+    private readonly ApoioConsultas? _apoio;
+    private const string ModuloConsultas = "consulta-base";
+    private string? _ultimaExportacao;
     private bool _atualizando;
     private int _mostrando = Pagina;
 
     public BaseVm(
         BaseRepositorio @base, ServicoFontes fontes, IInterface @interface, Action<string> navegar, Action<ObraLida>? usarNoRelatorio = null,
-        Action<ObraLida>? usarNoCronograma = null, Action<ObraLida>? usarEmModelo = null)
+        Action<ObraLida>? usarNoCronograma = null, Action<ObraLida>? usarEmModelo = null, ApoioConsultas? apoio = null)
     {
+        _apoio = apoio;
         _usarEmModelo = usarEmModelo;
         _usarNoCronograma = usarNoCronograma;
         _base = @base;
@@ -122,8 +151,25 @@ public sealed partial class BaseVm : TelaVm
         CamposDeValor = [.. Enum.GetValues<CampoValor>().Select(c => new CampoValorVm(c))];
         _valorFiltrado = CamposDeValor.First(c => c.Campo == CampoValor.SaldoAPagar);
         fontes.Mudou += () => _interface.Executar(Buscar); // a fonte foi relida: reaplica os filtros ativos
+        RecarregarConsultas();
         Buscar();
     }
+
+    public ObservableCollection<PerfilGuardado> Consultas { get; } = [];
+    public bool PodeSalvarConsultas => _apoio is not null;
+    public bool TemConsultas => Consultas.Count > 0;
+
+    [ObservableProperty]
+    private PerfilGuardado? _consultaAberta;
+
+    [ObservableProperty]
+    private string _pendencias = "";
+
+    [ObservableProperty]
+    private bool _temPendencias;
+
+    [ObservableProperty]
+    private bool _podeAbrirExportacao;
 
     public override string Titulo => "Base de dados";
 
@@ -222,6 +268,9 @@ public sealed partial class BaseVm : TelaVm
                 _mostrando = Pagina;
                 Buscar();
                 break;
+            case nameof(ConsultaAberta) when ConsultaAberta is { } consulta:
+                Aplicar(PerfilRepositorio.Abrir<ConsultaSalva>(consulta) ?? new ConsultaSalva());
+                break;
             case nameof(Selecionada):
                 OnPropertyChanged(nameof(PodeUsarNoRelatorio));
                 OnPropertyChanged(nameof(PodeUsarNoCronograma));
@@ -291,6 +340,257 @@ public sealed partial class BaseVm : TelaVm
         {
             _usarEmModelo?.Invoke(obra.Obra);
         }
+    }
+
+    private ConsultaSalva Atual() => new()
+    {
+        Portaria = Portaria, Contrato = Contrato, Escola = Escola, ContratoReceita = ContratoReceita, Dotacao = Dotacao, Status = Status,
+        Texto = Texto, CampoValor = ValorFiltrado.Campo, ValorDe = ValorDe, ValorAte = ValorAte, ValorSemInformacao = ValorSemInformacao,
+        OsDe = OsDe, OsAte = OsAte, SemDataOs = SemDataOs, Ordem = Ordem,
+    };
+
+    private void Aplicar(ConsultaSalva c)
+    {
+        _atualizando = true;
+        Portaria = c.Portaria;
+        Contrato = c.Contrato;
+        Escola = c.Escola;
+        ContratoReceita = c.ContratoReceita;
+        Dotacao = c.Dotacao;
+        Status = c.Status;
+        Texto = c.Texto;
+        ValorFiltrado = CamposDeValor.First(v => v.Campo == c.CampoValor);
+        ValorDe = c.ValorDe;
+        ValorAte = c.ValorAte;
+        ValorSemInformacao = c.ValorSemInformacao;
+        OsDe = c.OsDe;
+        OsAte = c.OsAte;
+        SemDataOs = c.SemDataOs;
+        Ordem = c.Ordem;
+        _atualizando = false;
+        _mostrando = Pagina;
+        Buscar();
+    }
+
+    private void RecarregarConsultas()
+    {
+        Consultas.Clear();
+        foreach (var consulta in _apoio?.Perfis.Listar(ModuloConsultas) ?? [])
+        {
+            Consultas.Add(consulta);
+        }
+
+        OnPropertyChanged(nameof(TemConsultas));
+    }
+
+    /// <summary>Descricao dos filtros em uso, uma linha por filtro (para o nome sugerido e para a exportacao).</summary>
+    public IReadOnlyList<(string Filtro, string Valor)> FiltrosEmUso()
+    {
+        var lista = new List<(string, string)>();
+        void Por(string nome, string? valor)
+        {
+            if (!string.IsNullOrWhiteSpace(valor))
+            {
+                lista.Add((nome, valor.Trim()));
+            }
+        }
+
+        Por("Portaria", Portaria);
+        Por("Contrato", Contrato);
+        Por("Escola", Escola);
+        Por("Contrato de receita", ContratoReceita);
+        Por("Dotação", Dotacao);
+        Por("Status", Status);
+        Por("Texto", Texto);
+        var faixa = Filtro().Valores;
+        if (faixa.TryGetValue(ValorFiltrado.Campo, out var f))
+        {
+            string limites = (f.Minimo, f.Maximo) switch
+            {
+                ({ } a, { } b) => $"de {FormatoBase.Reais(a)} a {FormatoBase.Reais(b)}",
+                ({ } a, null) => $"a partir de {FormatoBase.Reais(a)}",
+                (null, { } b) => $"até {FormatoBase.Reais(b)}",
+                _ => "",
+            };
+            Por(ValorFiltrado.Rotulo, string.Join(" ", new[] { limites, f.SemInformacao ? "(inclui sem informação)" : "" }.Where(t => t.Length > 0)));
+        }
+
+        var de = FormatoBase.LerData(OsDe).Data;
+        var ate = FormatoBase.LerData(OsAte).Data;
+        if (de is not null || ate is not null)
+        {
+            Por("Data da OS", (de, ate) switch
+            {
+                ({ } a, { } b) => $"de {FormatoBase.Data(a)} a {FormatoBase.Data(b)}",
+                ({ } a, null) => $"a partir de {FormatoBase.Data(a)}",
+                _ => $"até {FormatoBase.Data(ate)}",
+            });
+        }
+
+        if (SemDataOs)
+        {
+            lista.Add(("Data da OS", "só obras sem Data da OS"));
+        }
+
+        return lista;
+    }
+
+    [RelayCommand]
+    private void SalvarConsulta()
+    {
+        if (_apoio is null)
+        {
+            return;
+        }
+
+        var filtros = FiltrosEmUso();
+        string sugestao = ConsultaAberta?.Nome ?? (filtros.Count == 0 ? "Todas as obras" : string.Join(" · ", filtros.Take(2).Select(f => f.Valor)));
+        string? nome = _apoio.Dialogos.PedirTexto("Salvar consulta", "Nome da consulta (se já existir uma com esse nome, ela é atualizada):", sugestao);
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            return;
+        }
+
+        var salva = _apoio.Perfis.Salvar(ModuloConsultas, nome, Atual());
+        _atualizando = true;
+        RecarregarConsultas();
+        ConsultaAberta = Consultas.FirstOrDefault(c => c.Id == salva.Id);
+        _atualizando = false;
+        Resultado = $"Consulta “{salva.Nome}” salva. Ao abrir, ela usa os dados mais recentes da base.";
+        ResultadoComFalha = false;
+    }
+
+    [RelayCommand]
+    private void RemoverConsulta()
+    {
+        if (_apoio is null || ConsultaAberta is not { } consulta
+            || !_apoio.Dialogos.Confirmar("Tirar consulta", $"Tirar a consulta “{consulta.Nome}” da lista? Os filtros na tela continuam como estão.", "Tirar"))
+        {
+            return;
+        }
+
+        _apoio.Perfis.Remover(consulta.Id);
+        _atualizando = true;
+        ConsultaAberta = null;
+        RecarregarConsultas();
+        _atualizando = false;
+        Resultado = $"Consulta “{consulta.Nome}” tirada da lista.";
+        ResultadoComFalha = false;
+    }
+
+    [RelayCommand]
+    private void VerObrasSemOs()
+    {
+        LimparFiltros();
+        SemDataOs = true;
+    }
+
+    /// <summary>
+    /// Exporta todas as obras do filtro atual (nao so as da tela) para uma planilha nova, com uma aba
+    /// dizendo os filtros, a data da consulta e de qual leitura das fontes os dados vieram.
+    /// </summary>
+    [RelayCommand]
+    private void Exportar()
+    {
+        if (_apoio is null)
+        {
+            return;
+        }
+
+        var resultado = _base.Buscar(Filtro(), int.MaxValue, 0, Ordem, decrescente: Ordem == OrdemObras.SaldoAPagar);
+        if (resultado.Total == 0)
+        {
+            Resultado = "Nenhuma obra com esses filtros: nada para exportar.";
+            ResultadoComFalha = true;
+            return;
+        }
+
+        string pasta = _apoio.Preferencias.DestinoDe(Modulo);
+        string baseNome = Spobras.Core.Nomes.NomeArquivo.Corrigir("Consulta - " + (ConsultaAberta?.Nome ?? "Base de dados") + " - "
+                                                                   + _apoio.Relogio.Agora.ToString("yyyy-MM-dd", Formato.PtBr));
+        string caminho = Path.Combine(pasta, Spobras.Core.Nomes.NomeArquivo.Livre(baseNome + ".xlsx", n => File.Exists(Path.Combine(pasta, n))));
+
+        string[] titulos =
+        [
+            "Contrato", "Escola / empreendimento", "Contratada", "Portaria", "Contrato de receita", "Dotação", "Atividade", "Lote",
+            "Modalidade", "Tipo", "Tipo de obra", "Processo SEI", "Status", "Status do contrato", "Situação", "Escopo",
+            "Data de assinatura", "Data da OS (INÍCIO EXECUÇÃO)", "Término",
+            .. Enum.GetValues<CampoValor>().Select(CamposValor.Rotulo),
+        ];
+        var linhas = resultado.Obras.Select(o => new object?[]
+        {
+            o.Contrato, o.Empreendimento, o.Contratada, o.Portaria, o.ContratoReceita, o.Dotacao, o.Atividade, o.Lote,
+            o.Modalidade, o.Tipo, o.TipoDeObra, o.ProcessoSei, o.Status, o.StatusContrato, o.Situacao, o.Escopo,
+            o.DataAssinatura, o.DataOs, o.Termino,
+        }.Concat(Enum.GetValues<CampoValor>().Select(c => (object?)o.Valor(c))).ToArray()).ToList();
+
+        var sobre = new List<object?[]> { new object?[] { "Data da consulta", _apoio.Relogio.Agora.ToString("dd/MM/yyyy HH:mm", Formato.PtBr) } };
+        sobre.Add(["Obras exportadas", resultado.Total]);
+        var filtros = FiltrosEmUso();
+        sobre.AddRange(filtros.Count == 0 ? [["Filtros", "nenhum (todas as obras)"]] : filtros.Select(f => new object?[] { "Filtro: " + f.Filtro, f.Valor }));
+        if (ConsultaAberta is { } c)
+        {
+            sobre.Add(["Consulta salva", c.Nome]);
+        }
+
+        foreach (var fonte in _fontes.Fontes())
+        {
+            string quando = fonte.UltimaLeitura is { } u ? Formato.DataHora(u) : "nunca lida";
+            sobre.Add([$"Fonte: {fonte.Nome}", $"{Path.GetFileName(fonte.Caminho)} · lida em {quando}" + (fonte.Estado == EstadoFonte.Atualizada ? "" : $" · ATENÇÃO: {fonte.Mensagem}")]);
+        }
+
+        sobre.Add(["Observação", "Os valores são os da planilha mestra, por obra (contrato + escola). Medições e pagamentos são do contrato inteiro."]);
+
+        try
+        {
+            Spobras.Documentos.Planilhas.GravadorXlsx.Gravar(caminho,
+            [
+                new Spobras.Documentos.Planilhas.AbaNova("Obras", titulos, linhas),
+                new Spobras.Documentos.Planilhas.AbaNova("Sobre esta consulta", ["Item", "Valor"], sobre, ComFiltro: false),
+            ]);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Resultado = $"A planilha não foi gerada: {ex.Message}";
+            ResultadoComFalha = true;
+            return;
+        }
+
+        _apoio.Operacoes.RegistrarCriados($"Exportou {Formato.Plural(resultado.Total, "obra", "obras")} da Base de dados", [caminho]);
+        _ultimaExportacao = caminho;
+        PodeAbrirExportacao = true;
+        Resultado = $"“{Path.GetFileName(caminho)}” gerado com {Formato.Plural(resultado.Total, "obra", "obras")}" + (TemMais ? " (todas, não só as da tela)." : ".");
+        ResultadoComFalha = false;
+    }
+
+    [RelayCommand]
+    private void AbrirExportacao()
+    {
+        if (_ultimaExportacao is not null)
+        {
+            _apoio?.Dialogos.MostrarNaPasta(_ultimaExportacao);
+        }
+    }
+
+    private void AtualizarPendencias()
+    {
+        var partes = new List<string>();
+        if (TemBase)
+        {
+            int semOs = _base.Buscar(new FiltroObras { SemDataOs = true }, 1).Total;
+            if (semOs > 0)
+            {
+                partes.Add(Formato.Plural(semOs, "obra sem Data da OS", "obras sem Data da OS"));
+            }
+        }
+
+        foreach (var fonte in _fontes.Fontes().Where(f => f.Caminho.Length > 0 && f.Estado != EstadoFonte.Atualizada))
+        {
+            partes.Add($"{fonte.Nome}: {fonte.Mensagem}");
+        }
+
+        TemPendencias = partes.Count > 0;
+        Pendencias = string.Join(" · ", partes);
     }
 
     private FiltroObras Filtro()
@@ -375,6 +675,7 @@ public sealed partial class BaseVm : TelaVm
         OnPropertyChanged(nameof(PodeUsarNoCronograma));
         OnPropertyChanged(nameof(TemFiltro));
         AtualizarMedicoes();
+        AtualizarPendencias();
     }
 
     /// <summary>

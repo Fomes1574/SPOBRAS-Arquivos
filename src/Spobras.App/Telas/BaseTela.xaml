@@ -25,12 +25,31 @@
             <StackPanel>
                 <TextBlock Text="Base de dados" Style="{StaticResource TituloPagina}" />
                 <TextBlock Text="{Binding EstadoDaBase}" Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+                <Border CornerRadius="8" Padding="12,6" Margin="0,8,0,0" Background="{StaticResource LaranjaClaro}" HorizontalAlignment="Left"
+                        Visibility="{Binding TemPendencias, Converter={StaticResource Visivel}}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Ver obras sem Data da OS" Margin="12,0,0,0" VerticalAlignment="Center"
+                                Command="{Binding VerObrasSemOsCommand}" />
+                        <TextBlock TextWrapping="Wrap" VerticalAlignment="Center">
+                            <Run Text="Pendências:  " FontWeight="Bold" Foreground="{StaticResource Laranja}" /><Run Text="{Binding Pendencias, Mode=OneWay}" />
+                        </TextBlock>
+                    </DockPanel>
+                </Border>
             </StackPanel>
         </DockPanel>
 
         <!-- Filtros: cada escolha atualiza o resultado e as opcoes dos outros campos -->
         <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
             <StackPanel>
+                <DockPanel Margin="0,0,0,12" Visibility="{Binding PodeSalvarConsultas, Converter={StaticResource Visivel}}">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Tirar da lista" Margin="12,0,0,0" VerticalAlignment="Center"
+                            Command="{Binding RemoverConsultaCommand}" Visibility="{Binding ConsultaAberta, Converter={StaticResource VisivelSe}}" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Salvar consulta" Margin="12,0,0,0" Command="{Binding SalvarConsultaCommand}"
+                            ToolTip="Guarda estes filtros com um nome. Ao reabrir, a consulta usa os dados mais recentes." />
+                    <TextBlock DockPanel.Dock="Left" Text="Consulta salva" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+                    <ComboBox ItemsSource="{Binding Consultas}" SelectedItem="{Binding ConsultaAberta}" DisplayMemberPath="Nome" MaxWidth="420" HorizontalAlignment="Left" MinWidth="260"
+                              AutomationProperties.Name="Consulta salva" IsEnabled="{Binding TemConsultas}" ToolTip="Escolha uma consulta salva para aplicar os filtros dela" />
+                </DockPanel>
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Limpar filtros" Margin="12,0,0,0" Command="{Binding LimparFiltrosCommand}" />
                     <TextBlock DockPanel.Dock="Left" Text="Procurar" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
@@ -217,9 +236,17 @@
 
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Exportar para Excel" Margin="12,0,0,0" Command="{Binding ExportarCommand}"
+                        Visibility="{Binding PodeSalvarConsultas, Converter={StaticResource Visivel}}"
+                        ToolTip="Planilha nova com todas as obras deste filtro e uma aba com os filtros e a data da consulta" />
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar mais" Margin="12,0,0,0" Command="{Binding MostrarMaisCommand}"
                         Visibility="{Binding TemMais, Converter={StaticResource Visivel}}" />
                 <TextBlock Text="{Binding Resumo}" Style="{StaticResource Forte}" VerticalAlignment="Center" />
+            </DockPanel>
+            <DockPanel Margin="0,8,0,0" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Mostrar na pasta" Margin="12,0,0,0" VerticalAlignment="Center"
+                        Command="{Binding AbrirExportacaoCommand}" Visibility="{Binding PodeAbrirExportacao, Converter={StaticResource Visivel}}" />
+                <TextBlock Text="{Binding Resultado}" TextWrapping="Wrap" VerticalAlignment="Center" />
             </DockPanel>
             <ItemsControl ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
         </StackPanel>
