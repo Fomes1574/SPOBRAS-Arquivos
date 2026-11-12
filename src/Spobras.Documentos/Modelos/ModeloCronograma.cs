@@ -117,7 +117,8 @@ public static class ModeloCronograma
     /// Gera um cronograma novo a partir do modelo: copia, preenche as entradas de ate 15 obras e limpa as
     /// linhas que sobrarem. O modelo original nao e alterado e nada e sobrescrito.
     /// </summary>
-    public static CronogramaGerado Gerar(string modelo, string aba, IReadOnlyList<ObraCronograma> obras, string saida)
+    /// <param name="remuneracao">Percentual de remuneracao (0,10 = 10%, o do modelo).</param>
+    public static CronogramaGerado Gerar(string modelo, string aba, IReadOnlyList<ObraCronograma> obras, string saida, decimal remuneracao = PadraoRemuneracao)
     {
         if (obras.Count > ValidadorCronograma.ObrasPorAba)
         {
@@ -156,6 +157,11 @@ public static class ModeloCronograma
                     editor.Escrever(aba, "K" + linha, o?.Fim);
                 }
 
+                if (remuneracao != PadraoRemuneracao)
+                {
+                    AjustarRemuneracao(editor, aba, remuneracao);
+                }
+
                 editor.MarcarRecalculo();
                 editor.Salvar();
             }
@@ -167,6 +173,40 @@ public static class ModeloCronograma
         {
             File.Delete(parcial);
             throw;
+        }
+    }
+
+    public const decimal PadraoRemuneracao = 0.10m;
+
+    /// <summary>
+    /// O modelo calcula a remuneracao com 10% escrito na formula (H = G*0,1). Para outro percentual, a
+    /// formula de cada linha e trocada na copia, mas so se for exatamente a esperada; se o modelo mudou,
+    /// nada e trocado e a geracao para com a explicacao.
+    /// </summary>
+    private static void AjustarRemuneracao(EditorXlsx editor, string aba, decimal percentual)
+    {
+        string fator = percentual.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture);
+        for (int i = 0; i < ValidadorCronograma.ObrasPorAba; i++)
+        {
+            int l = PrimeiraLinha + i;
+            string esperada = $"IF($G{l}=\"\",\"\",$G{l}*0.1)";
+            if (editor.Formula(aba, "H" + l) != esperada)
+            {
+                throw new PlanilhaInvalidaException(
+                    $"A fórmula de remuneração da linha {l} não é a esperada ({esperada}). O percentual não foi aplicado; gere com 10% ou confira o modelo.");
+            }
+        }
+
+        for (int i = 0; i < ValidadorCronograma.ObrasPorAba; i++)
+        {
+            int l = PrimeiraLinha + i;
+            editor.TrocarFormula(aba, "H" + l, $"IF($G{l}=\"\",\"\",$G{l}*{fator})");
+        }
+
+        // O percentual da aba Parametros acompanha, para quem abrir o arquivo ver o mesmo valor.
+        if (editor.Abas.Contains("Parametros") && !editor.TemFormula("Parametros", "B2"))
+        {
+            editor.Escrever("Parametros", "B2", percentual);
         }
     }
 

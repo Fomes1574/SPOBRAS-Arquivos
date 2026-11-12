@@ -82,7 +82,7 @@ public class CronogramaVmTests : ComApp
         vm.GerarPdf = true;
         await vm.GerarCommand.ExecuteAsync(null);
 
-        string xlsx = Em("Downloads", "Cronograma - Portaria 3 - Lote 12.xlsx");
+        string xlsx = Em("Downloads", "Cronograma - Portaria Nº 03 - Lote 12.xlsx");
         Assert.True(File.Exists(xlsx));
         Assert.True(File.Exists(Path.ChangeExtension(xlsx, ".pdf")));
         Assert.False(vm.ResultadoComFalha);
@@ -95,7 +95,7 @@ public class CronogramaVmTests : ComApp
             Assert.Equal(50000.55m, grade[3][6]);
         }
 
-        Assert.StartsWith("Gerou “Cronograma - Portaria 3 - Lote 12.xlsx”", Operacoes.Ultimos()[0].Descricao);
+        Assert.StartsWith("Gerou “Cronograma - Portaria Nº 03 - Lote 12.xlsx”", Operacoes.Ultimos()[0].Descricao);
     }
 
     [Fact]
@@ -126,7 +126,6 @@ public class CronogramaVmTests : ComApp
     public void T32_inicio_vem_da_os_da_base_previsto_fica_identificado_e_divergencia_e_mostrada()
     {
         var vm = ComModelo();
-        Base.GravarApelido(BaseSintetica.P3De2021, "Portaria 3");
         var comOs = new ObraLida { Contrato = "001/EX/2024", Empreendimento = "EMEF Alfa", Portaria = BaseSintetica.P3De2021, Lote = "LOTE 05", Atividade = "3362", DataOs = new DateOnly(2026, 11, 10), Escopo = "Reforma" };
         var semOs = new ObraLida { Contrato = "002/EX/2024", Empreendimento = "EMEI Gama", Portaria = "PORTARIA EXEMPLO Nº 06 (2022)", Lote = "LOTE 07" };
 
@@ -134,22 +133,52 @@ public class CronogramaVmTests : ComApp
         vm.AdicionarDaBase(semOs);
 
         var a = vm.Linhas[0];
-        Assert.Equal(("3", "05", "3362", "EMEF Alfa", "10/11/2026", ""), (a.Portaria, a.Lote, a.Dotacao, a.Nome, a.Inicio, a.Valor)); // apelido do usuario; valor em branco
-        Assert.Contains("Início = Data da OS da base", a.Avisos);
-        Assert.Contains("vai para a planilha como 01/11/2026", a.Avisos); // ajuste visivel
-        Assert.Equal("6", vm.Linhas[1].Portaria); // sem apelido: so o numero lido do texto
+        Assert.Equal(("Nº 03 (2021)", "05", "3362", "EMEF Alfa", "nov/26", ""), (a.Portaria, a.Lote, a.Dotacao, a.Nome, a.Inicio, a.Valor)); // so o mes; valor em branco
+        Assert.Contains("Início = mês da Data da OS da base", a.Avisos);
+        Assert.Equal("Nº 06 (2022)", vm.Linhas[1].Portaria);
         Assert.Contains("sem Data da OS", vm.Resultado);
 
         vm.Linhas[1].Inicio = "02/2027";
-        vm.Linhas[1].Fim = "05/2027";
+        vm.Linhas[1].Fim = "mai/27";
         Assert.Contains("Início previsto", vm.Linhas[1].Avisos);
 
-        // O usuario troca a data que veio da OS: a divergencia aparece e a base nao muda.
-        a.Inicio = "20/12/2026";
-        Assert.Contains("é diferente da Data da OS da base", a.Avisos);
+        // Outro dia do mesmo mes nao muda nada (so o mes importa)
+        a.Inicio = "20/11/2026";
+        Assert.DoesNotContain("diferente", a.Avisos);
 
-        vm.AjustarInicio = false;
-        Assert.Contains("o modelo não distribui valor em 12/2026", a.Avisos);
+        // O usuario troca o mes que veio da OS: a divergencia aparece e a base nao muda.
+        a.Inicio = "dez/26";
+        Assert.Contains("O início (dez/26) é diferente do mês da Data da OS da base (nov/26)", a.Avisos);
+    }
+
+    [Fact]
+    public async Task Remuneracao_padrao_10_e_outro_percentual_vai_para_a_formula_da_copia()
+    {
+        var vm = ComModelo();
+        Assert.Equal("10", vm.Remuneracao);
+        vm.NovaLinhaCommand.Execute(null);
+        Preencher(vm.Linhas[0], "EMEF Um", "1.000,00");
+
+        vm.Remuneracao = "abc";
+        Assert.Contains(vm.Avisos, x => x.Impede && x.Texto.StartsWith("Remuneração:"));
+        Assert.False(vm.GerarCommand.CanExecute(null));
+
+        vm.Remuneracao = "12,5";
+        Assert.Contains(vm.Avisos, x => x.Texto.StartsWith("Remuneração de 12,5%"));
+        Verificador.Disponivel = false;
+        await vm.GerarCommand.ExecuteAsync(null);
+
+        string arquivo = Em("Downloads", "Cronograma - EMEF Um.xlsx");
+        using (var editor = new Spobras.Documentos.Modelos.EditorXlsx(arquivo, somenteLeitura: true))
+        {
+            Assert.Equal("IF($G3=\"\",\"\",$G3*0.125)", editor.Formula("Cronograma Dois", "H3"));
+            Assert.Equal("IF($G17=\"\",\"\",$G17*0.125)", editor.Formula("Cronograma Dois", "H17"));
+            Assert.Equal("IF($G3=\"\",\"\",$G3*0.1)", editor.Formula("Cronograma Um", "H3")); // outra aba nao muda
+        }
+
+        using var leitor = new LeitorXlsx(arquivo);
+        Assert.Equal(0.125m, leitor.LerAba("Parametros")[1][1]);
+        Assert.Equal("12,5", NovoCronograma().Remuneracao); // fica no rascunho
     }
 
     [Fact]
@@ -167,8 +196,8 @@ public class CronogramaVmTests : ComApp
         Verificador.Disponivel = false;
         await vm.GerarCommand.ExecuteAsync(null);
 
-        Assert.Equal(["Cronograma - Portaria 3 - Lote 12 - parte 1 de 2.xlsx", "Cronograma - Portaria 3 - Lote 12 - parte 2 de 2.xlsx"], Nomes("Downloads"));
-        using var leitor = new LeitorXlsx(Em("Downloads", "Cronograma - Portaria 3 - Lote 12 - parte 2 de 2.xlsx"));
+        Assert.Equal(["Cronograma - Portaria Nº 03 - Lote 12 - parte 1 de 2.xlsx", "Cronograma - Portaria Nº 03 - Lote 12 - parte 2 de 2.xlsx"], Nomes("Downloads"));
+        using var leitor = new LeitorXlsx(Em("Downloads", "Cronograma - Portaria Nº 03 - Lote 12 - parte 2 de 2.xlsx"));
         Assert.Equal("Escola 16", leitor.LerAba("Cronograma Dois")[2][4]);
         Assert.Equal("Gerou 2 arquivos de cronograma em Downloads", Operacoes.Ultimos()[0].Descricao);
 
@@ -184,11 +213,9 @@ public class CronogramaVmTests : ComApp
         var vm = ComModelo();
         vm.NovaLinhaCommand.Execute(null);
         Preencher(vm.Linhas[0], "EMEF Um", "1.000,00");
-        vm.AjustarInicio = false;
 
         var reaberto = NovoCronograma();
         Assert.Equal(("EMEF Um", "1.000,00", "01/11/2026"), (reaberto.Linhas[0].Nome, reaberto.Linhas[0].Valor, reaberto.Linhas[0].Inicio));
-        Assert.False(reaberto.AjustarInicio);
 
         Dialogos.Confirmacoes.Enqueue(false);
         reaberto.LimparCommand.Execute(null);

@@ -79,8 +79,8 @@
                     <TextBlock Grid.Column="4" Text="Escola / obra" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="5" Text="Escopo" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="6" Text="Valor (R$)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
-                    <TextBlock Grid.Column="7" Text="Início" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
-                    <TextBlock Grid.Column="8" Text="Fim" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                    <TextBlock Grid.Column="7" Text="Início (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                    <TextBlock Grid.Column="8" Text="Fim (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                 </Grid>
 
                 <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
@@ -119,8 +119,8 @@
                                         <TextBox Grid.Column="4" Margin="2,0" Text="{Binding Nome, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Escola ou obra" />
                                         <TextBox Grid.Column="5" Margin="2,0" Text="{Binding Escopo, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Escopo" />
                                         <TextBox Grid.Column="6" Margin="2,0" Text="{Binding Valor, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Valor em reais" TextAlignment="Right" />
-                                        <TextBox Grid.Column="7" Margin="2,0" Text="{Binding Inicio, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Início" ToolTip="Dia/mês/ano ou mês/ano" />
-                                        <TextBox Grid.Column="8" Margin="2,0" Text="{Binding Fim, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fim" ToolTip="Dia/mês/ano ou mês/ano" />
+                                        <TextBox Grid.Column="7" Margin="2,0" Text="{Binding Inicio, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de início" ToolTip="Mês e ano, como nov/26 ou 11/2026" />
+                                        <TextBox Grid.Column="8" Margin="2,0" Text="{Binding Fim, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês de fim" ToolTip="Mês e ano, como ago/27 ou 08/2027" />
                                         <Button Grid.Column="9" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 AutomationProperties.Name="Tirar esta obra do cronograma"
                                                 Command="{Binding DataContext.RemoverLinhaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
@@ -149,9 +149,10 @@
         <!-- Rodape -->
         <StackPanel Grid.Row="3" Margin="0,14,0,0">
             <WrapPanel Margin="0,0,0,10">
-                <CheckBox IsChecked="{Binding AjustarInicio}" Margin="0,0,28,0"
-                          Content="Começar a contar no dia 1º do mês de início"
-                          ToolTip="O modelo só distribui valor no mês de início quando a data é o dia 1º. A data que vai para a planilha aparece em cada linha." />
+                <TextBlock Text="Remuneração" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Text="{Binding Remuneracao, UpdateSourceTrigger=PropertyChanged}" Width="64" TextAlignment="Right" AutomationProperties.Name="Percentual de remuneração"
+                         ToolTip="Percentual sobre o valor para obras. O padrão é 10%." />
+                <TextBlock Text="%" VerticalAlignment="Center" Margin="4,0,28,0" />
                 <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding ExcelDisponivel}" Margin="0,0,28,0" />
                 <TextBlock Text="Nome do arquivo" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Text="{Binding NomeCronograma, UpdateSourceTrigger=PropertyChanged}" Width="280" AutomationProperties.Name="Nome do arquivo do cronograma"

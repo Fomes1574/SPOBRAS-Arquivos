@@ -135,6 +135,22 @@ public sealed class EditorXlsx : IDisposable
     }
 
     /// <summary>
+    /// Troca a formula de uma celula que JA tem formula (uso restrito: ajuste conhecido do modelo, como o
+    /// percentual de remuneracao). Celula sem formula e recusada.
+    /// </summary>
+    public void TrocarFormula(string aba, string celula, string formula)
+    {
+        var c = Achar(aba, celula, criar: false);
+        if (c?.CellFormula is null)
+        {
+            throw new EscritaBloqueadaException($"A célula {celula} da aba \"{aba}\" não tem fórmula para ajustar.");
+        }
+
+        c.CellFormula = new CellFormula(formula);
+        c.CellValue = null;
+    }
+
+    /// <summary>
     /// Os resultados guardados das formulas deixam de valer depois da edicao: sao removidos e o arquivo e
     /// marcado para o Excel calcular tudo ao abrir.
     /// </summary>

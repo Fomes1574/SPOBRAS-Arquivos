@@ -155,7 +155,7 @@ public class CronogramaTests : IDisposable
             Obra(5, dotacao: "9999"),
             Obra(6, valor: 0m, dotacao: ""),
             Obra(7) with { Fim = new DateOnly(2028, 12, 1) },
-            Obra(8) with { Inicio = new DateOnly(2026, 11, 20), DataOsDaBase = new DateOnly(2026, 11, 10) },
+            Obra(8) with { Inicio = new DateOnly(2026, 12, 1), DataOsDaBase = new DateOnly(2026, 11, 10) },
             Obra(9) with { OrigemDoInicio = OrigemInicio.Previsto },
         };
 
@@ -171,11 +171,27 @@ public class CronogramaTests : IDisposable
         Assert.Contains("PrecisaConferir: Valor zero ou negativo", Da(6));
         Assert.Contains("PrecisaConferir: Sem dotação", Da(6));
         Assert.Contains("ImpedeGerar: O fim passa dos 20 meses", Da(7));
-        Assert.Contains("PrecisaConferir: O início (20/11/2026) é diferente da Data da OS da base (10/11/2026)", Da(8));
+        Assert.Contains("PrecisaConferir: O início (dez/26) é diferente do mês da Data da OS da base (nov/26)", Da(8));
         Assert.Contains("Informacao: Início previsto", Da(9));
 
         Assert.True(ValidadorCronograma.Validar([Obra(1)], ["3362"]).PodeGerar);
         Assert.False(ValidadorCronograma.Validar([new ObraCronograma()], []).PodeGerar);
+    }
+
+    [Fact]
+    public void Portaria_e_mes_no_formato_do_cronograma()
+    {
+        Assert.Equal("Nº 03 (2021)", ColagemCronograma.Portaria("PORTARIA CONJUNTA SME/SIURB Nº 03 (2021)"));
+        Assert.Equal("Nº 03 (2025)", ColagemCronograma.Portaria("3 (2025)"));
+        Assert.Equal("Nº 03", ColagemCronograma.Portaria("Nº 3"));
+        Assert.Equal("Nº 06", ColagemCronograma.Portaria("6"));
+        Assert.Equal("Nº 03 (Construção Nova)", ColagemCronograma.Portaria("Portaria 3 (Construção Nova)"));
+        Assert.Equal("SEM PORTARIA - 96 Quadras", ColagemCronograma.Portaria("SEM PORTARIA - 96 Quadras"));
+        Assert.Equal("", ColagemCronograma.Portaria("  "));
+        Assert.Equal("nov/26", ColagemCronograma.Mes(new DateOnly(2026, 11, 10)));
+        Assert.Equal(new DateOnly(2026, 11, 1), ColagemCronograma.MesDe("10/11/2026"));
+        Assert.Equal(new DateOnly(2027, 2, 1), ColagemCronograma.MesDe("fev/27"));
+        Assert.Equal(new DateOnly(2026, 11, 10), ColagemCronograma.Data("10/11/2026")); // data completa continua para os Modelos Excel
     }
 
     [Fact]
@@ -190,8 +206,8 @@ public class CronogramaTests : IDisposable
         var lida = ColagemCronograma.Ler(texto);
 
         Assert.Equal(2, lida.Obras.Count);
-        Assert.Equal(("3", "12", "3362", "EMEF Um", "Reforma", 1234.56m), (lida.Obras[0].Portaria, lida.Obras[0].Lote, lida.Obras[0].Dotacao, lida.Obras[0].Nome, lida.Obras[0].Escopo, lida.Obras[0].Valor));
-        Assert.Equal((new DateOnly(2026, 11, 10), new DateOnly(2027, 2, 1)), (lida.Obras[0].Inicio, lida.Obras[0].Fim));
+        Assert.Equal(("Nº 03", "12", "3362", "EMEF Um", "Reforma", 1234.56m), (lida.Obras[0].Portaria, lida.Obras[0].Lote, lida.Obras[0].Dotacao, lida.Obras[0].Nome, lida.Obras[0].Escopo, lida.Obras[0].Valor));
+        Assert.Equal((new DateOnly(2026, 11, 1), new DateOnly(2027, 2, 1)), (lida.Obras[0].Inicio, lida.Obras[0].Fim)); // so o mes
         Assert.Equal(new DateOnly(2026, 11, 1), lida.Obras[1].Inicio);
         Assert.Null(lida.Obras[1].Valor);
         Assert.Null(lida.Obras[1].Fim);

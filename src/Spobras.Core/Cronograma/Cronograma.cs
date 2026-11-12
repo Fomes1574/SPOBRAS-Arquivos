@@ -106,7 +106,7 @@ public static class ValidadorCronograma
             }
             else if (Meses(primeiroInicio, o.Fim.Value) > MesesDoModelo)
             {
-                Impede($"O fim passa dos {MesesDoModelo} meses que o modelo mostra a partir do primeiro início ({primeiroInicio:MM/yyyy}).");
+                Impede($"O fim passa dos {MesesDoModelo} meses que o modelo mostra a partir do primeiro início ({ColagemCronograma.Mes(primeiroInicio)}).");
             }
 
             if (string.IsNullOrWhiteSpace(o.Dotacao))
@@ -118,19 +118,20 @@ public static class ValidadorCronograma
                 Impede($"A dotação {o.Dotacao.Trim()} não existe na aba Dotacoes do modelo.");
             }
 
+            var mesDaOs = o.DataOsDaBase is { } os ? new DateOnly(os.Year, os.Month, 1) : (DateOnly?)null;
             switch (o.OrigemDoInicio)
             {
-                case OrigemInicio.OrdemDeServico when o.DataOsDaBase is not null && o.Inicio == o.DataOsDaBase:
-                    Info("Início = Data da OS da base.");
+                case OrigemInicio.OrdemDeServico when mesDaOs is not null && o.Inicio == mesDaOs:
+                    Info("Início = mês da Data da OS da base.");
                     break;
                 case OrigemInicio.Previsto:
                     Info("Início previsto (a obra não tem Data da OS na base).");
                     break;
             }
 
-            if (o.DataOsDaBase is { } os && o.Inicio is { } inicio && inicio != os)
+            if (mesDaOs is { } mes && o.Inicio is { } inicio && inicio != mes)
             {
-                Conferir($"O início ({inicio:dd/MM/yyyy}) é diferente da Data da OS da base ({os:dd/MM/yyyy}). A base não é alterada.");
+                Conferir($"O início ({ColagemCronograma.Mes(inicio)}) é diferente do mês da Data da OS da base ({ColagemCronograma.Mes(mes)}). A base não é alterada.");
             }
         }
 
@@ -201,8 +202,8 @@ public static class ColagemCronograma
                 avisos.Add($"Linha {numero}: o valor \"{Col(5)}\" não foi entendido e ficou em branco.");
             }
 
-            var inicio = Data(Col(6));
-            var fim = Data(Col(7));
+            var inicio = MesDe(Col(6));
+            var fim = MesDe(Col(7));
             if (Col(6).Length > 0 && inicio is null)
             {
                 avisos.Add($"Linha {numero}: o início \"{Col(6)}\" não foi entendido e ficou em branco.");
@@ -215,14 +216,42 @@ public static class ColagemCronograma
 
             obras.Add(new ObraCronograma
             {
-                Portaria = Col(0), Lote = Col(1), Dotacao = Col(2), Nome = Col(3), Escopo = Col(4), Valor = valor, Inicio = inicio, Fim = fim,
+                Portaria = Portaria(Col(0)), Lote = Col(1), Dotacao = Col(2), Nome = Col(3), Escopo = Col(4), Valor = valor, Inicio = inicio, Fim = fim,
             });
         }
 
         return new ColagemLida(obras, avisos);
     }
 
-    /// <summary>Aceita 10/11/2026, 11/2026 e nov/26 (como o modelo mostra): mes e ano viram o dia 1.</summary>
+    /// <summary>"nov/26", como o modelo mostra (o dia nao aparece: no cronograma so o mes importa).</summary>
+    public static string Mes(DateOnly data) => $"{Meses[data.Month - 1]}/{data:yy}";
+
+    /// <summary>Portaria como o cronograma mostra: "Nº 03 (2021)". O que nao der para ler fica como veio.</summary>
+    public static string Portaria(string texto)
+    {
+        texto = texto.Trim();
+        if (texto.Length == 0)
+        {
+            return "";
+        }
+
+        string paraLer = System.Text.RegularExpressions.Regex.IsMatch(texto, @"^(n[ºo°.]?\s*)?\d{1,3}(\s*\(.*\))?$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            ? "Portaria " + System.Text.RegularExpressions.Regex.Replace(texto, @"^n[ºo°.]?\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+            : texto;
+        var lida = Normalizacao.Portaria(paraLer);
+        if (lida.Numero is not { } numero)
+        {
+            return texto;
+        }
+
+        string extra = lida.Ano is { } ano ? $" ({ano})" : lida.Complemento is { } c ? $" ({c})" : "";
+        return $"Nº {numero:00}{extra}";
+    }
+
+    /// <summary>Mes do cronograma: nov/26, 11/2026 ou 10/11/2026 viram o dia 1 do mes (o modelo distribui por mes inteiro).</summary>
+    public static DateOnly? MesDe(string texto) => Data(texto) is { } d ? new DateOnly(d.Year, d.Month, 1) : null;
+
+    /// <summary>Aceita 10/11/2026, 11/2026 e nov/26 (mes e ano sem dia viram o dia 1).</summary>
     public static DateOnly? Data(string texto)
     {
         texto = texto.Trim();

@@ -162,7 +162,7 @@ public class ComposicaoProtótipoTests : IDisposable
         cronograma.ImportarPlanilhaCommand.Execute(null);
 
         var linha = Assert.Single(cronograma.Linhas);
-        Assert.Equal(("EMEF Alfa", "1.500,50", "01/11/2026", "3"), (linha.Nome, linha.Valor, linha.Inicio, linha.Portaria));
+        Assert.Equal(("EMEF Alfa", "1.500,50", "nov/26", "Nº 03"), (linha.Nome, linha.Valor, linha.Inicio, linha.Portaria));
         Assert.StartsWith("De “obras.xlsx”: 1 linha colada", cronograma.Resultado);
     }
 }

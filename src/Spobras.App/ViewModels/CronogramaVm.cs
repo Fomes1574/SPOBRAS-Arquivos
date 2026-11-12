@@ -17,7 +17,7 @@ namespace Spobras.App.ViewModels;
 public sealed record LinhaRascunho(
     string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs);
 
-public sealed record RascunhoCronograma(List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "");
+public sealed record RascunhoCronograma(List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "", string Remuneracao = "10");
 
 public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
 {
@@ -81,27 +81,23 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     }
 
     public bool ValorInvalido => Valor.Trim().Length > 0 && Normalizacao.LerReais(Valor) is null;
-    public bool InicioInvalido => Inicio.Trim().Length > 0 && ColagemCronograma.Data(Inicio) is null;
-    public bool FimInvalido => Fim.Trim().Length > 0 && ColagemCronograma.Data(Fim) is null;
+    public bool InicioInvalido => Inicio.Trim().Length > 0 && ColagemCronograma.MesDe(Inicio) is null;
+    public bool FimInvalido => Fim.Trim().Length > 0 && ColagemCronograma.MesDe(Fim) is null;
 
-    public ObraCronograma ParaObra(bool ajustarInicio)
+    /// <summary>So o mes importa: inicio e fim vao para a planilha como dia 1 do mes (o modelo mostra "nov-26").</summary>
+    public ObraCronograma ParaObra() => new()
     {
-        var inicio = ColagemCronograma.Data(Inicio);
-        return new ObraCronograma
-        {
-            Portaria = Portaria.Trim(),
-            Lote = Lote.Trim(),
-            Dotacao = Dotacao.Trim(),
-            Nome = Nome.Trim(),
-            Escopo = Escopo.Trim(),
-            Valor = Normalizacao.LerReais(Valor),
-            // O modelo distribui por mes inteiro: com o ajuste, o inicio vai como dia 1 do mesmo mes.
-            Inicio = inicio is { } i && ajustarInicio ? new DateOnly(i.Year, i.Month, 1) : inicio,
-            Fim = ColagemCronograma.Data(Fim),
-            OrigemDoInicio = Origem,
-            DataOsDaBase = ajustarInicio && DataOsDaBase is { } os ? new DateOnly(os.Year, os.Month, 1) : DataOsDaBase,
-        };
-    }
+        Portaria = ColagemCronograma.Portaria(Portaria),
+        Lote = Lote.Trim(),
+        Dotacao = Dotacao.Trim(),
+        Nome = Nome.Trim(),
+        Escopo = Escopo.Trim(),
+        Valor = Normalizacao.LerReais(Valor),
+        Inicio = ColagemCronograma.MesDe(Inicio),
+        Fim = ColagemCronograma.MesDe(Fim),
+        OrigemDoInicio = Origem,
+        DataOsDaBase = DataOsDaBase,
+    };
 }
 
 /// <summary>Cronograma padrao: linhas de obras, conferencia e geracao a partir do modelo oficial.</summary>
@@ -156,8 +152,6 @@ public sealed partial class CronogramaVm : TelaVm
     [ObservableProperty]
     private string? _aba;
 
-    [ObservableProperty]
-    private bool _ajustarInicio = true;
 
     [ObservableProperty]
     private bool _gerarPdf;
@@ -165,6 +159,18 @@ public sealed partial class CronogramaVm : TelaVm
     /// <summary>Nome do arquivo escolhido pelo usuario; vazio = nome sugerido por portaria e lote.</summary>
     [ObservableProperty]
     private string _nomeCronograma = "";
+
+    /// <summary>Percentual de remuneracao. Padrao 10%, o do modelo.</summary>
+    [ObservableProperty]
+    private string _remuneracao = "10";
+
+    partial void OnRemuneracaoChanged(string value) => Conferir();
+
+    /// <summary>0,10 para "10"; null se o texto nao for um percentual valido (0 a 100).</summary>
+    public decimal? PercentualRemuneracao =>
+        decimal.TryParse(Remuneracao.Replace("%", "").Trim(), System.Globalization.NumberStyles.Number, Formato.PtBr, out decimal p) && p >= 0 && p <= 100
+            ? Math.Round(p / 100m, 4)
+            : null;
 
     partial void OnNomeCronogramaChanged(string value) => Conferir();
 
@@ -189,7 +195,6 @@ public sealed partial class CronogramaVm : TelaVm
         Conferir();
     }
 
-    partial void OnAjustarInicioChanged(bool value) => Conferir();
 
     partial void OnGerarPdfChanged(bool value) => Conferir();
 
@@ -308,17 +313,8 @@ public sealed partial class CronogramaVm : TelaVm
     /// </summary>
     public void AdicionarDaBase(ObraLida obra)
     {
-        string portaria = obra.Portaria ?? "";
-        if (_apelidos().TryGetValue(portaria, out string? apelido))
-        {
-            portaria = apelido;
-        }
-        else if (Normalizacao.Portaria(portaria).Numero is { } numero)
-        {
-            portaria = numero.ToString();
-        }
-
-        portaria = portaria.StartsWith("Portaria ", StringComparison.OrdinalIgnoreCase) ? portaria["Portaria ".Length..] : portaria;
+        // Portaria como a planilha mestra identifica (com o ano), no formato do cronograma: "Nº 03 (2021)".
+        string portaria = ColagemCronograma.Portaria(obra.Portaria ?? "");
         string lote = obra.Lote ?? "";
         lote = lote.StartsWith("LOTE ", StringComparison.OrdinalIgnoreCase) ? lote["LOTE ".Length..] : lote;
 
@@ -329,12 +325,12 @@ public sealed partial class CronogramaVm : TelaVm
             Dotacao = obra.Atividade ?? "",
             Nome = obra.Empreendimento,
             Escopo = obra.Escopo ?? "",
-            Inicio = obra.DataOs,
+            Inicio = obra.DataOs is { } os ? new DateOnly(os.Year, os.Month, 1) : null,
             OrigemDoInicio = obra.DataOs is null ? OrigemInicio.Previsto : OrigemInicio.OrdemDeServico,
             DataOsDaBase = obra.DataOs,
         });
         Conferir();
-        Resultado = $"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início na Data da OS.") + " Informe o valor e o fim.";
+        Resultado = $"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.";
         ResultadoComFalha = false;
     }
 
@@ -348,7 +344,7 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
-    private bool PodeGerar() => _modelo is not null && Aba is not null && !Ocupado && Validar().PodeGerar && !Linhas.Any(l => l.ValorInvalido || l.InicioInvalido || l.FimInvalido);
+    private bool PodeGerar() => _modelo is not null && Aba is not null && !Ocupado && PercentualRemuneracao is not null && Validar().PodeGerar && !Linhas.Any(l => l.ValorInvalido || l.InicioInvalido || l.FimInvalido);
 
     [RelayCommand(CanExecute = nameof(PodeGerar))]
     private async Task GerarAsync()
@@ -360,6 +356,7 @@ public sealed partial class CronogramaVm : TelaVm
         var grupos = ValidadorCronograma.Dividir(Obras());
         bool pdf = GerarPdf && _verificador.Disponivel;
         string nomeEscolhido = NomeArquivo.Corrigir(NomeCronograma.Trim()).Trim();
+        decimal percentual = PercentualRemuneracao ?? ModeloCronograma.PadraoRemuneracao;
         var criados = new List<string>();
         var notas = new List<string>();
         bool falha = false;
@@ -379,7 +376,7 @@ public sealed partial class CronogramaVm : TelaVm
                     string saida = Path.Combine(destino, NomeArquivo.Livre(nome + extensao, n => File.Exists(Path.Combine(destino, n))));
                     try
                     {
-                        ModeloCronograma.Gerar(modelo, aba, grupos[g], saida);
+                        ModeloCronograma.Gerar(modelo, aba, grupos[g], saida, percentual);
                         criados.Add(saida);
                         notas.Add(ConferirNoExcel(saida, aba, grupos[g], pdf, criados, ref falha));
                     }
@@ -486,19 +483,19 @@ public sealed partial class CronogramaVm : TelaVm
         var linha = new LinhaCronogramaVm(Conferir) { Origem = o.OrigemDoInicio, DataOsDaBase = o.DataOsDaBase };
         linha.Carregar(() =>
         {
-            linha.Portaria = o.Portaria;
+            linha.Portaria = ColagemCronograma.Portaria(o.Portaria);
             linha.Lote = o.Lote;
             linha.Dotacao = o.Dotacao;
             linha.Nome = o.Nome;
             linha.Escopo = o.Escopo;
             linha.Valor = o.Valor?.ToString("N2", Formato.PtBr) ?? "";
-            linha.Inicio = o.Inicio?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "";
-            linha.Fim = o.Fim?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "";
+            linha.Inicio = o.Inicio is { } i ? ColagemCronograma.Mes(i) : "";
+            linha.Fim = o.Fim is { } f ? ColagemCronograma.Mes(f) : "";
         });
         Linhas.Add(linha);
     }
 
-    private List<ObraCronograma> Obras() => [.. Linhas.Select(l => l.ParaObra(AjustarInicio))];
+    private List<ObraCronograma> Obras() => [.. Linhas.Select(l => l.ParaObra())];
 
     private CronogramaValidado Validar() => ValidadorCronograma.Validar(Obras(), [.. Dotacoes]);
 
@@ -564,17 +561,7 @@ public sealed partial class CronogramaVm : TelaVm
 
             if (linha.InicioInvalido || linha.FimInvalido)
             {
-                textos.Insert(0, "Data não entendida. Use dia/mês/ano (10/11/2026) ou mês/ano (11/2026).");
-            }
-
-            var digitado = ColagemCronograma.Data(linha.Inicio);
-            if (AjustarInicio && digitado is { Day: > 1 } d)
-            {
-                textos.Add($"O início vai para a planilha como 01/{d:MM/yyyy}: o modelo distribui por mês inteiro e deixaria {d:MM/yyyy} de fora se o início fosse no dia {d.Day}.");
-            }
-            else if (!AjustarInicio && digitado is { Day: > 1 } semAjuste)
-            {
-                textos.Add($"Atenção: com início no dia {semAjuste.Day}, o modelo não distribui valor em {semAjuste:MM/yyyy}.");
+                textos.Insert(0, "Mês não entendido. Use nov/26 ou 11/2026.");
             }
 
             linha.Numero = (i + 1).ToString();
@@ -585,6 +572,15 @@ public sealed partial class CronogramaVm : TelaVm
         foreach (var aviso in validado.Gerais.Where(a => Linhas.Count > 0 || a.Gravidade != Gravidade.ImpedeGerar))
         {
             Avisos.Add(new AvisoVm(aviso));
+        }
+
+        if (PercentualRemuneracao is not { } pct)
+        {
+            Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, "Remuneração: use um percentual de 0 a 100, como 10 ou 12,5."));
+        }
+        else if (pct != ModeloCronograma.PadraoRemuneracao)
+        {
+            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"Remuneração de {(pct * 100).ToString("0.##", Formato.PtBr)}% (o padrão é 10%). O cronograma gerado usa esse percentual."));
         }
 
         if (GerarPdf && !_verificador.Disponivel)
@@ -602,7 +598,7 @@ public sealed partial class CronogramaVm : TelaVm
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
             [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase))],
-            AjustarInicio, GerarPdf, NomeCronograma), _relogio.Agora);
+            true, GerarPdf, NomeCronograma, Remuneracao), _relogio.Agora);
     }
 
     private void Restaurar()
@@ -613,8 +609,8 @@ public sealed partial class CronogramaVm : TelaVm
         }
 
         _restaurando = true;
-        AjustarInicio = r.AjustarInicio;
         GerarPdf = r.GerarPdf;
+        Remuneracao = string.IsNullOrWhiteSpace(r.Remuneracao) ? "10" : r.Remuneracao;
         NomeCronograma = r.NomeCronograma ?? "";
         foreach (var l in r.Linhas)
         {
