@@ -90,7 +90,18 @@
                     <TextBlock Text="Todos os campos são opcionais. O que ficar em branco não aparece no relatório." Style="{StaticResource Texto2}" Margin="0,4,0,12" />
 
                     <TextBlock Text="Unidade educacional (escola)" Style="{StaticResource Rotulo}" />
-                    <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Unidade educacional" />
+                    <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged, Delay=500}" AutomationProperties.Name="Unidade educacional"
+                             ToolTip="Digite o nome da escola: se ela estiver na Base, o app completa o resto (ou pede para escolher o contrato)" />
+                    <ItemsControl ItemsSource="{Binding ContratosDaEscola}" Focusable="False" Margin="0,6,0,0"
+                                  Visibility="{Binding TemContratosParaEscolher, Converter={StaticResource Visivel}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource BotaoLink}" Content="{Binding Texto}" HorizontalAlignment="Left" Margin="0,2,0,0"
+                                        Command="{Binding DataContext.EscolherObraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Obra}"
+                                        AutomationProperties.Name="Escolher este contrato" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
 
                     <Grid Margin="0,12,0,0">
                         <Grid.ColumnDefinitions>

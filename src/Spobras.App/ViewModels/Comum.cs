@@ -139,3 +139,16 @@ public abstract partial class TelaVm : ObservableObject
     {
     }
 }
+
+/// <summary>Um contrato da escola digitada, para escolher: "001/EX/2024 · Lote 05 · Portaria 3".</summary>
+public sealed record OpcaoDeContrato(Spobras.Core.Base.ObraLida Obra)
+{
+    public string Texto => string.Join(" · ", new[]
+    {
+        Obra.Contrato,
+        Obra.Empreendimento,
+        Obra.Lote,
+        Obra.Portaria,
+        Obra.Status,
+    }.Where(t => !string.IsNullOrWhiteSpace(t)));
+}

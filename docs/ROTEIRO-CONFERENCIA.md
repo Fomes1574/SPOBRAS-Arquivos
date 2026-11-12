@@ -28,7 +28,8 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 
 ### Relatório fotográfico
 
-- [ ] Digite um número de contrato na etapa Dados (pode usar hífen no lugar da barra): o resto se completa. Se o contrato tiver várias escolas, o app pede para escolher.
+- [ ] Digite um número de contrato na etapa Dados (pode usar hífen no lugar da barra): o resto se completa. Se o contrato tiver várias escolas, o app pede para escolher (se você já digitou a escola e ela é uma delas, usa essa).
+- [ ] Comece pela escola: se ela estiver em mais de um contrato, o app lista os contratos para escolher. Escola e contrato que não combinam na Base geram aviso, sem trocar nada.
 - [ ] Na Base, escolha uma obra e clique **Usar no relatório**: os dados entram na etapa Dados.
 - [ ] Adicione fotos de celular (em pé e deitadas), escreva algumas legendas, gere em Excel e em PDF.
 - [ ] Abra o Excel gerado: ele já abre mostrando as folhas A4. Fotos inteiras, todas do mesmo tamanho e sem encostar uma na outra; cabeçalho em grade em todas as páginas; "Página X de Y".

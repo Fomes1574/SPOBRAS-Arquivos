@@ -105,6 +105,43 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
+    public async Task Relatorio_pela_escola_pede_o_contrato_quando_ha_varios_e_avisa_quando_nao_combinam()
+    {
+        using var app = await AppComBase();
+        app.Principal.Navegar(RelatorioVm.Modulo);
+        var relatorio = (RelatorioVm)app.Principal.PaginaAtual!;
+
+        // Escola com um contrato so: completa tudo.
+        relatorio.Unidade = "ceu delta";
+        Assert.Equal(("CEU Delta", "004/EX/2025"), (relatorio.Unidade, relatorio.Contrato));
+
+        // Escola em dois contratos: lista os contratos para escolher, sem chutar.
+        relatorio.Contrato = "";
+        relatorio.Unidade = "EMEF Alfa";
+        Assert.True(relatorio.TemContratosParaEscolher);
+        Assert.Equal(["001/EX/2024", "003/EX/2025"], relatorio.ContratosDaEscola.Select(o => o.Obra.Contrato).Order());
+        Assert.Contains("está em 2 contratos", relatorio.Resultado);
+        relatorio.EscolherObraCommand.Execute(relatorio.ContratosDaEscola.Single(o => o.Obra.Contrato == "003/EX/2025").Obra);
+        Assert.Equal(("EMEF Alfa", "003/EX/2025", "LOTE 07"), (relatorio.Unidade, relatorio.Contrato, relatorio.Lote));
+        Assert.False(relatorio.TemContratosParaEscolher);
+
+        // Contrato com duas escolas e a escola ja digitada e uma delas: usa essa, sem perguntar.
+        relatorio.Contrato = "001/EX/2024";
+        Assert.False(relatorio.TemEscolasParaEscolher);
+        Assert.Equal(("EMEF Alfa", "001/EX/2024"), (relatorio.Unidade, relatorio.Contrato));
+
+        // Escola que existe, mas nao neste contrato: avisa e nao troca nada.
+        relatorio.Unidade = "EMEI Gama";
+        Assert.True(relatorio.ResultadoComFalha);
+        Assert.Contains("O contrato 001/EX/2024 não tem a escola “EMEI Gama”", relatorio.Resultado);
+        Assert.Equal("001/EX/2024", relatorio.Contrato);
+
+        relatorio.Contrato = "004/EX/2025";
+        Assert.Contains("A escola “EMEI Gama” não aparece no contrato 004/EX/2025", relatorio.Resultado);
+        Assert.Equal("EMEI Gama", relatorio.Unidade);
+    }
+
+    [Fact]
     public async Task Inicio_mostra_a_planilha_mestra_e_leva_a_base()
     {
         using var app = await AppComBase();

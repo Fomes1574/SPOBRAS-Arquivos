@@ -82,6 +82,7 @@ public sealed class Composicao : IDisposable
         };
         var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
         relatorio.ObrasDoContrato = ObrasDoContrato;
+        relatorio.ObrasDaEscola = ObrasDaEscola;
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
         {
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
@@ -169,6 +170,25 @@ public sealed class Composicao : IDisposable
             .FirstOrDefault(c => string.Equals(c.Trim(), alvo, StringComparison.OrdinalIgnoreCase));
         return contrato is null ? [] : Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = contrato }, 100).Obras;
     }
+
+    /// <summary>
+    /// Obras da escola digitada: primeiro o nome exato (sem acento e caixa); se nao houver, as escolas que
+    /// contem o texto. Uma escola pode estar em varios contratos.
+    /// </summary>
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDaEscola(string digitado)
+    {
+        string alvo = Spobras.Core.Base.Normalizacao.Busca(digitado.Trim());
+        if (alvo.Length < 4)
+        {
+            return [];
+        }
+
+        var escolas = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Escolas;
+        var exatas = escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e.Trim()) == alvo).ToList();
+        var achadas = exatas.Count > 0 ? exatas : escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal)).Take(10).ToList();
+        return [.. achadas.SelectMany(e => Base.Buscar(new Spobras.Core.Base.FiltroObras { Escola = e }, 100).Obras).Take(20)];
+    }
+
     public ServicoPreferencias Preferencias { get; }
     public ServicoOperacoes Operacoes { get; }
     public ServicoNovidades Novidades { get; }

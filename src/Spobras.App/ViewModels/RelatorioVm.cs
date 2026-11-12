@@ -167,42 +167,139 @@ public sealed partial class RelatorioVm : TelaVm
     /// <summary>Obras da Base com o contrato digitado (vazio se a base nao tiver). Null = sem base ligada.</summary>
     public Func<string, IReadOnlyList<Spobras.Core.Base.ObraLida>>? ObrasDoContrato { get; set; }
 
+    /// <summary>Obras da escola digitada (uma escola pode estar em varios contratos).</summary>
+    public Func<string, IReadOnlyList<Spobras.Core.Base.ObraLida>>? ObrasDaEscola { get; set; }
+
     /// <summary>Escolas do contrato digitado, quando ele tem mais de uma: o usuario escolhe qual.</summary>
     public ObservableCollection<Spobras.Core.Base.ObraLida> EscolasDoContrato { get; } = [];
 
+    /// <summary>Contratos da escola digitada, quando ela esta em mais de um: o usuario escolhe qual.</summary>
+    public ObservableCollection<OpcaoDeContrato> ContratosDaEscola { get; } = [];
+
     public bool TemEscolasParaEscolher => EscolasDoContrato.Count > 0;
+    public bool TemContratosParaEscolher => ContratosDaEscola.Count > 0;
 
     [RelayCommand]
     private void EscolherObra(Spobras.Core.Base.ObraLida obra)
     {
-        EscolasDoContrato.Clear();
-        OnPropertyChanged(nameof(TemEscolasParaEscolher));
+        LimparEscolhas();
         PreencherDaObra(obra);
     }
 
-    /// <summary>Contrato digitado: se a base conhece, completa o resto (ou pede para escolher a escola).</summary>
-    private void CompletarPeloContrato()
+    private void LimparEscolhas()
     {
         EscolasDoContrato.Clear();
-        if (ObrasDoContrato is not null && Contrato.Trim().Length >= 5)
-        {
-            var obras = ObrasDoContrato(Contrato.Trim());
-            if (obras.Count == 1)
-            {
-                PreencherDaObra(obras[0]);
-            }
-            else if (obras.Count > 1 && !obras.Any(o => string.Equals(o.Empreendimento, Unidade.Trim(), StringComparison.OrdinalIgnoreCase)))
-            {
-                foreach (var obra in obras)
-                {
-                    EscolasDoContrato.Add(obra);
-                }
+        ContratosDaEscola.Clear();
+        OnPropertyChanged(nameof(TemEscolasParaEscolher));
+        OnPropertyChanged(nameof(TemContratosParaEscolher));
+    }
 
-                Orientar($"O contrato {obras[0].Contrato} tem {obras.Count} escolas na Base de dados. Escolha qual é a deste relatório.");
+    private static bool MesmaEscola(string a, string b) =>
+        Spobras.Core.Base.Normalizacao.Busca(a.Trim()) == Spobras.Core.Base.Normalizacao.Busca(b.Trim());
+
+    private static bool MesmoContrato(string a, string b) =>
+        string.Equals(a.Trim().Replace('-', '/'), b.Trim().Replace('-', '/'), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Contrato digitado: se a base conhece, completa o resto. Com varias escolas no contrato, usa a escola ja
+    /// digitada se ela for uma delas; senao lista as escolas para escolher.
+    /// </summary>
+    private void CompletarPeloContrato()
+    {
+        LimparEscolhas();
+        if (ObrasDoContrato is null || Contrato.Trim().Length < 5)
+        {
+            return;
+        }
+
+        var obras = ObrasDoContrato(Contrato.Trim());
+        if (obras.Count == 0)
+        {
+            return;
+        }
+
+        var daEscola = Unidade.Trim().Length > 0 ? obras.Where(o => MesmaEscola(o.Empreendimento, Unidade)).ToList() : [];
+        if (obras.Count == 1 || daEscola.Count == 1)
+        {
+            var obra = daEscola.Count == 1 ? daEscola[0] : obras[0];
+            if (obras.Count == 1 && Unidade.Trim().Length > 0 && !MesmaEscola(obra.Empreendimento, Unidade) && ObrasDaEscola?.Invoke(Unidade).Count > 0)
+            {
+                // A escola digitada existe na base, mas em outro contrato: nao troca nada sem o usuario ver.
+                Avisar($"A escola “{Unidade.Trim()}” não aparece no contrato {obra.Contrato} na Base de dados (lá ele é de {obra.Empreendimento}). Confira o contrato ou a escola.");
+                return;
             }
+
+            PreencherDaObra(obra);
+            return;
+        }
+
+        foreach (var obra in obras)
+        {
+            EscolasDoContrato.Add(obra);
         }
 
         OnPropertyChanged(nameof(TemEscolasParaEscolher));
+        Orientar($"O contrato {obras[0].Contrato} tem {obras.Count} escolas na Base de dados. Escolha qual é a deste relatório.");
+    }
+
+    /// <summary>
+    /// Escola digitada: com um contrato so, completa o resto; em varios contratos, lista os contratos para escolher.
+    /// Se o contrato ja digitado for um deles, usa esse.
+    /// </summary>
+    private void CompletarPelaEscola()
+    {
+        if (ObrasDaEscola is null || Unidade.Trim().Length < 4)
+        {
+            ContratosDaEscola.Clear();
+            OnPropertyChanged(nameof(TemContratosParaEscolher));
+            return;
+        }
+
+        var obras = ObrasDaEscola(Unidade.Trim());
+        LimparEscolhas();
+        if (obras.Count == 0)
+        {
+            return;
+        }
+
+        var doContrato = Contrato.Trim().Length > 0 ? obras.Where(o => MesmoContrato(o.Contrato, Contrato)).ToList() : [];
+        if (doContrato.Count == 1)
+        {
+            if (!MesmaEscola(doContrato[0].Empreendimento, Unidade) || Lote.Length == 0)
+            {
+                PreencherDaObra(doContrato[0]);
+            }
+
+            return;
+        }
+
+        if (Contrato.Trim().Length > 0 && ObrasDoContrato?.Invoke(Contrato.Trim()).Count > 0)
+        {
+            Avisar($"O contrato {Contrato.Trim()} não tem a escola “{Unidade.Trim()}” na Base de dados. Confira o contrato ou a escola.");
+            return;
+        }
+
+        if (obras.Count == 1)
+        {
+            PreencherDaObra(obras[0]);
+            return;
+        }
+
+        foreach (var obra in obras)
+        {
+            ContratosDaEscola.Add(new OpcaoDeContrato(obra));
+        }
+
+        OnPropertyChanged(nameof(TemContratosParaEscolher));
+        Orientar(obras.Select(o => o.Empreendimento).Distinct().Count() == 1
+            ? $"{obras[0].Empreendimento} está em {obras.Count} contratos na Base de dados. Escolha qual é o deste relatório."
+            : $"{obras.Count} obras combinam com “{Unidade.Trim()}” na Base de dados. Escolha a deste relatório.");
+    }
+
+    private void Avisar(string texto)
+    {
+        Resultado = texto;
+        ResultadoComFalha = true;
     }
 
     public ObservableCollection<FotoVm> Fotos { get; } = [];
@@ -327,7 +424,11 @@ public sealed partial class RelatorioVm : TelaVm
                 CompletarPeloContrato();
                 Replanejar();
                 break;
-            case nameof(Unidade) or nameof(Contratada) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
+            case nameof(Unidade):
+                CompletarPelaEscola();
+                Replanejar();
+                break;
+            case nameof(Contratada) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
                 or nameof(Objeto) or nameof(Responsavel) or nameof(DataTexto) or nameof(DataOsTexto) or nameof(FotosPorPagina)
                 or nameof(Assinaturas) or nameof(AssinaturaFiscal) or nameof(AssinaturaContratada) or nameof(Qualidade) or nameof(GerarPdf):
                 Replanejar();
