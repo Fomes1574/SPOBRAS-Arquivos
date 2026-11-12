@@ -184,9 +184,21 @@ public static class GeradorRelatorio
 
             for (int i = 0; i < cabecalho.Campos.Count; i++)
             {
+                var campo = cabecalho.Campos[i];
                 int linha = b + cabecalho.PrimeiroCampo + i;
-                Caixa(linha, c, linha, v - 1, ERotuloEsq, cabecalho.Campos[i].Rotulo);
-                Caixa(linha, v, linha, c + 9, EValorEsq, cabecalho.Campos[i].Valor);
+                Caixa(linha, c, linha, v - 1, ERotuloEsq, campo.Rotulo);
+                if (campo.Dupla)
+                {
+                    // Contrato e Data da OS lado a lado.
+                    const int r2 = c + CabecalhoRelatorio.ColunaDoRotulo2, v2 = c + CabecalhoRelatorio.ColunaDoValor2;
+                    Caixa(linha, v, linha, r2 - 1, EValor, campo.Valor);
+                    Caixa(linha, r2, linha, v2 - 1, ERotuloEsq, campo.Rotulo2);
+                    Caixa(linha, v2, linha, c + 9, EValor, campo.Valor2);
+                }
+                else
+                {
+                    Caixa(linha, v, linha, c + 9, EValorEsq, campo.Valor);
+                }
             }
 
             // ---- Faixa de titulo ----
@@ -208,16 +220,22 @@ public static class GeradorRelatorio
 
                 var (primeira, ultima) = GradeRelatorio.ColunasDoEspaco(foto.Coluna, foto.Colunas);
                 int linhaTexto = corpo0 + foto.LinhaInicial + foto.LinhasDaFoto;
-                int linhasTitulo = PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura);
+                int linhasTitulo = foto.Titulo.Length == 0 ? 0 : PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura);
                 int linhasUteis = foto.LinhasDoTexto - 1; // a ultima e o respiro
-                if (foto.Descricao.Length == 0)
+                // Sem legenda nem descricao, nada embaixo da foto.
+                if (foto.Titulo.Length > 0 && foto.Descricao.Length == 0)
                 {
                     TextoMesclado(linhaTexto, c + primeira, linhaTexto + Math.Max(1, linhasUteis) - 1, c + ultima, ELegenda, foto.Titulo);
                 }
-                else
+                else if (foto.Descricao.Length > 0)
                 {
-                    TextoMesclado(linhaTexto, c + primeira, linhaTexto + linhasTitulo - 1, c + ultima, ELegenda, foto.Titulo);
-                    TextoMesclado(linhaTexto + linhasTitulo, c + primeira, linhaTexto + linhasUteis - 1, c + ultima, EDescricao, foto.Descricao);
+                    if (foto.Titulo.Length > 0)
+                    {
+                        TextoMesclado(linhaTexto, c + primeira, linhaTexto + linhasTitulo - 1, c + ultima, ELegenda, foto.Titulo);
+                    }
+
+                    int inicio = foto.Titulo.Length > 0 ? linhaTexto + linhasTitulo : linhaTexto;
+                    TextoMesclado(inicio, c + primeira, linhaTexto + linhasUteis - 1, c + ultima, EDescricao, foto.Descricao);
                 }
 
                 fotosFeitas?.Report(++feitas);
@@ -312,8 +330,9 @@ public static class GeradorRelatorio
             xml.Append("</mergeCells>");
         }
 
-        // Escala fixa (e nao "ajustar a pagina") para o Excel respeitar as quebras de pagina manuais.
-        xml.Append("""<printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.5" bottom="0.6" header="0.3" footer="0.3"/>""");
+        // Margens estreitas e escala fixa (e nao "ajustar a pagina"): o Excel respeita as quebras de pagina manuais
+        // e cada folha sai igual, com qualquer quantidade de fotos.
+        xml.Append("""<printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.5" header="0.2" footer="0.2"/>""");
         xml.Append(CultureInfo.InvariantCulture, $"""<pageSetup paperSize="9" scale="{GradeRelatorio.EscalaDeImpressao}" orientation="portrait"/>""");
         xml.Append("""<headerFooter><oddFooter>&amp;C&amp;"Calibri,Regular"&amp;11Página &amp;P de &amp;N</oddFooter></headerFooter>""");
         if (plano.Paginas.Count > 1)

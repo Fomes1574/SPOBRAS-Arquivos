@@ -202,8 +202,9 @@ public class RelatorioFotograficoTests : IDisposable
         Assert.Equal(3, textos.Count(t => t == "000/EXEMPLO/2026"));
         Assert.Equal(3, textos.Count(t => t == "LOTE"));
         Assert.DoesNotContain("PORTARIA", textos); // campo vazio nao aparece
-        Assert.Contains("Foto 01 — Serviço 1 & <teste>", textos); // caracteres especiais preservados
-        Assert.Contains("Foto 14 — Serviço 14 & <teste>", textos);
+        Assert.Contains("Serviço 1 & <teste>", textos); // caracteres especiais preservados
+        Assert.Contains("Serviço 14 & <teste>", textos);
+        Assert.DoesNotContain(textos, t => t.StartsWith("Foto ")); // sem numeracao automatica
         Assert.DoesNotContain("Descrição do serviço executado.", textos); // modo legenda curta
 
         // Data como data de verdade (editavel no Excel), nao como texto.
@@ -314,6 +315,39 @@ public class RelatorioFotograficoTests : IDisposable
         var emPe = primeira.First(f => f.Foto.Altura > f.Foto.Largura);
         var deitada = primeira.First(f => f.Foto.Altura < f.Foto.Largura && f.LinhaInicial == emPe.LinhaInicial);
         Assert.Equal(emPe.Imagem.Y + emPe.Imagem.Altura / 2, deitada.Imagem.Y + deitada.Imagem.Altura / 2, 0);
+    }
+
+    [Fact]
+    public void Cabecalho_compacto_contrato_e_data_da_os_na_mesma_linha_fiscal_descricao_e_margens_estreitas()
+    {
+        var dados = new DadosRelatorio
+        {
+            Unidade = "EMEI Exemplo", Lote = "LOTE 900", Portaria = "PORTARIA EXEMPLO Nº 03 (2021)", Contrato = "001/EX/2026",
+            DataOs = new DateOnly(2026, 5, 13), Responsavel = "Fulano", Descricao = "Visita de rotina.", Contratada = "Construtora Exemplo",
+        };
+        var cab = CabecalhoRelatorio.Montar(dados);
+        Assert.Equal(["UNIDADE EDUCACIONAL", "LOTE", "PORTARIA", "CONTRATO", "FISCAL", "DESCRIÇÃO"], cab.Campos.Select(c => c.Rotulo));
+        Assert.Equal(("DATA DA OS", "13/05/2026"), (cab.Campos[3].Rotulo2, cab.Campos[3].Valor2));
+
+        // Sem contrato, a Data da OS fica sozinha; vazio nao aparece, nem o rotulo.
+        var semContrato = CabecalhoRelatorio.Montar(dados with { Contrato = "", Responsavel = " ", Descricao = "" });
+        Assert.Equal(["UNIDADE EDUCACIONAL", "LOTE", "PORTARIA", "DATA DA OS"], semContrato.Campos.Select(c => c.Rotulo));
+
+        var (_, caminho) = Gerar(2, new OpcoesRelatorio(), dados, logo: false);
+        var planilha = Parte(caminho, "xl/worksheets/sheet1.xml");
+        var textos = Textos(planilha);
+        Assert.Contains("DATA DA OS", textos);
+        Assert.Contains("FISCAL", textos);
+        Assert.DoesNotContain("RESPONSÁVEL", textos);
+        Assert.Contains("Visita de rotina.", textos);
+        var margens = planilha.Descendants(S + "pageMargins").Single();
+        Assert.Equal("0.25", (string)margens.Attribute("left")!);
+        Assert.Equal(GradeRelatorio.EscalaDeImpressao.ToString(), (string)planilha.Descendants(S + "pageSetup").Single().Attribute("scale")!);
+
+        // A pagina cabe na folha A4 com essas margens: largura e altura uteis na escala de impressao.
+        double util = (8.27 - 0.5) * 96, alturaUtil = (11.69 - 0.9) * 96, escala = GradeRelatorio.EscalaDeImpressao / 100.0;
+        Assert.True(GradeRelatorio.Largura * escala <= util - 15, "largura passa da folha");
+        Assert.True(GradeRelatorio.AlturaDaPagina * escala <= alturaUtil - 10, "altura passa da folha");
     }
 
     [Fact]

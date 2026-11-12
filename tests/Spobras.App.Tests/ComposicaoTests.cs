@@ -142,6 +142,36 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
+    public async Task Relatorio_atualizar_dados_traz_de_novo_o_que_vem_da_base_e_diz_o_que_mudou()
+    {
+        using var app = await AppComBase();
+        app.Principal.Navegar(RelatorioVm.Modulo);
+        var relatorio = (RelatorioVm)app.Principal.PaginaAtual!;
+        relatorio.Contrato = "004/EX/2025";
+        Assert.Equal("", relatorio.ProcessoSei); // SEI so entra se o usuario digitar
+
+        relatorio.Lote = "";
+        relatorio.Portaria = "outra";
+        relatorio.Responsavel = "Fiscal Fulano";
+        relatorio.Descricao = "Minha descrição";
+        relatorio.AtualizarDadosCommand.Execute(null);
+
+        Assert.StartsWith("Atualizado pela Base de dados: ", relatorio.Resultado);
+        Assert.Contains("Portaria", relatorio.Resultado);
+        Assert.Equal(("Fiscal Fulano", "Minha descrição", ""), (relatorio.Responsavel, relatorio.Descricao, relatorio.ProcessoSei));
+        relatorio.AtualizarDadosCommand.Execute(null);
+        Assert.Equal("Os dados já estavam iguais aos da Base de dados.", relatorio.Resultado);
+
+        // Contrato com duas escolas e sem escola escrita: pede a escola e nao troca nada.
+        relatorio.Contrato = "001/EX/2024";
+        relatorio.EscolherObraCommand.Execute(relatorio.EscolasDoContrato[0]);
+        relatorio.Unidade = "";
+        relatorio.AtualizarDadosCommand.Execute(null);
+        Assert.True(relatorio.ResultadoComFalha);
+        Assert.Contains("tem 2 escolas", relatorio.Resultado);
+    }
+
+    [Fact]
     public async Task Inicio_mostra_a_planilha_mestra_e_leva_a_base()
     {
         using var app = await AppComBase();

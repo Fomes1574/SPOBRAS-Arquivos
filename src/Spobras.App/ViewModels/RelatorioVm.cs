@@ -335,6 +335,10 @@ public sealed partial class RelatorioVm : TelaVm
     [ObservableProperty]
     private string _responsavel = "";
 
+    /// <summary>Descricao geral, opcional, no fim do cabecalho.</summary>
+    [ObservableProperty]
+    private string _descricao = "";
+
     [ObservableProperty]
     private string _dataTexto = "";
 
@@ -429,7 +433,7 @@ public sealed partial class RelatorioVm : TelaVm
                 Replanejar();
                 break;
             case nameof(Contratada) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
-                or nameof(Objeto) or nameof(Responsavel) or nameof(DataTexto) or nameof(DataOsTexto) or nameof(FotosPorPagina)
+                or nameof(Objeto) or nameof(Responsavel) or nameof(Descricao) or nameof(DataTexto) or nameof(DataOsTexto) or nameof(FotosPorPagina)
                 or nameof(Assinaturas) or nameof(AssinaturaFiscal) or nameof(AssinaturaContratada) or nameof(Qualidade) or nameof(GerarPdf):
                 Replanejar();
                 break;
@@ -710,7 +714,7 @@ public sealed partial class RelatorioVm : TelaVm
         }
 
         _restaurando = true;
-        Unidade = Contratada = Contrato = Lote = Portaria = ProcessoSei = Objeto = Responsavel = DataTexto = DataOsTexto = "";
+        Unidade = Contratada = Contrato = Lote = Portaria = ProcessoSei = Objeto = Responsavel = Descricao = DataTexto = DataOsTexto = "";
         Fotos.Clear();
         Problemas.Clear();
         _nomeEditado = false;
@@ -732,14 +736,7 @@ public sealed partial class RelatorioVm : TelaVm
     public void PreencherDaObra(Spobras.Core.Base.ObraLida obra)
     {
         _restaurando = true;
-        Unidade = obra.Empreendimento;
-        Contratada = obra.Contratada ?? "";
-        Contrato = obra.Contrato;
-        Lote = obra.Lote ?? "";
-        Portaria = obra.Portaria ?? "";
-        ProcessoSei = obra.ProcessoSei ?? "";
-        Objeto = obra.Escopo ?? "";
-        DataOsTexto = obra.DataOs?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "";
+        AplicarDaBase(obra);
         _nomeEditado = false;
         Etapa = 0;
         _restaurando = false;
@@ -748,6 +745,82 @@ public sealed partial class RelatorioVm : TelaVm
         OnPropertyChanged(nameof(EtapaConferencia));
         OnPropertyChanged(nameof(TextoBotaoAvancar));
         Orientar($"Dados de {obra.Empreendimento} (contrato {obra.Contrato}) trazidos da Base de dados. Confira e ajuste o que precisar.");
+        Replanejar();
+    }
+
+    /// <summary>
+    /// Os campos que vem da base. O Processo SEI fica de fora de proposito (quase sempre nao vai no relatorio;
+    /// quem quiser digita), e data do relatorio, fiscal, descricao e fotos nunca sao tocados.
+    /// </summary>
+    private List<string> AplicarDaBase(Spobras.Core.Base.ObraLida obra)
+    {
+        var mudou = new List<string>();
+        void Trocar(string rotulo, string atual, string novo, Action<string> definir)
+        {
+            if (!string.Equals(atual.Trim(), novo.Trim(), StringComparison.Ordinal))
+            {
+                mudou.Add(rotulo);
+                definir(novo);
+            }
+        }
+
+        Trocar("Unidade", Unidade, obra.Empreendimento, v => Unidade = v);
+        Trocar("Contratada", Contratada, obra.Contratada ?? "", v => Contratada = v);
+        Trocar("Contrato", Contrato, obra.Contrato, v => Contrato = v);
+        Trocar("Lote", Lote, obra.Lote ?? "", v => Lote = v);
+        Trocar("Portaria", Portaria, obra.Portaria ?? "", v => Portaria = v);
+        Trocar("Data da OS", DataOsTexto, obra.DataOs?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "", v => DataOsTexto = v);
+        Trocar("Objeto", Objeto, obra.Escopo ?? "", v => Objeto = v);
+        return mudou;
+    }
+
+    /// <summary>
+    /// Busca de novo na Base os dados da obra que ja esta no relatorio (pelo contrato e pela escola) e diz o que
+    /// mudou. Campos apagados de proposito voltam; quem nao quiser apaga de novo.
+    /// </summary>
+    [RelayCommand]
+    private void AtualizarDados()
+    {
+        Spobras.Core.Base.ObraLida? obra = null;
+        string contrato = Contrato.Trim(), escola = Unidade.Trim();
+        var doContrato = contrato.Length > 0 && ObrasDoContrato is not null ? ObrasDoContrato(contrato) : [];
+        if (doContrato.Count > 0)
+        {
+            var daEscola = doContrato.Where(o => MesmaEscola(o.Empreendimento, escola)).ToList();
+            obra = daEscola.Count == 1 ? daEscola[0] : doContrato.Count == 1 && escola.Length == 0 ? doContrato[0] : null;
+            if (obra is null)
+            {
+                Avisar(escola.Length == 0
+                    ? $"O contrato {contrato} tem {doContrato.Count} escolas. Escreva a escola para atualizar os dados certos."
+                    : $"O contrato {contrato} não tem a escola “{escola}” na Base de dados. Nada foi trocado.");
+                return;
+            }
+        }
+        else if (escola.Length > 0 && ObrasDaEscola is not null)
+        {
+            var obras = ObrasDaEscola(escola).Where(o => MesmaEscola(o.Empreendimento, escola)).ToList();
+            if (obras.Count > 1)
+            {
+                Avisar($"{escola} está em {obras.Count} contratos. Escreva o contrato para atualizar os dados certos.");
+                return;
+            }
+
+            obra = obras.FirstOrDefault();
+        }
+
+        if (obra is null)
+        {
+            Avisar("Não achei esta obra na Base de dados. Confira o contrato e a escola.");
+            return;
+        }
+
+        _restaurando = true;
+        var mudou = AplicarDaBase(obra);
+        _restaurando = false;
+        LimparEscolhas();
+        Orientar(mudou.Count == 0
+            ? "Os dados já estavam iguais aos da Base de dados."
+            : $"Atualizado pela Base de dados: {string.Join(", ", mudou)}.");
         Replanejar();
     }
 
@@ -777,6 +850,7 @@ public sealed partial class RelatorioVm : TelaVm
         ProcessoSei = ProcessoSei,
         Objeto = Objeto,
         Responsavel = Responsavel,
+        Descricao = Descricao,
         Data = LerData(DataTexto).Data,
         DataOs = LerData(DataOsTexto).Data,
     };
@@ -954,8 +1028,19 @@ public sealed partial class RelatorioVm : TelaVm
         for (int i = 0; i < cab.Campos.Count; i++)
         {
             double y = cab.YDoCampo(i), alt = h[cab.PrimeiroCampo + i];
-            e.Add(new ElementoPrevia(0, y, xv, alt) { Borda = true, Texto = cab.Campos[i].Rotulo, Negrito = true, Meio = true });
-            e.Add(new ElementoPrevia(xv, y, largura - xv, alt) { Borda = true, Texto = cab.Campos[i].Valor, Meio = true });
+            var campo = cab.Campos[i];
+            e.Add(new ElementoPrevia(0, y, xv, alt) { Borda = true, Texto = campo.Rotulo, Negrito = true, Meio = true });
+            if (campo.Dupla)
+            {
+                double x2 = X(CabecalhoRelatorio.ColunaDoRotulo2), xv2 = X(CabecalhoRelatorio.ColunaDoValor2);
+                e.Add(new ElementoPrevia(xv, y, x2 - xv, alt) { Borda = true, Texto = campo.Valor, Centro = true, Meio = true });
+                e.Add(new ElementoPrevia(x2, y, xv2 - x2, alt) { Borda = true, Texto = campo.Rotulo2 ?? "", Negrito = true, Meio = true });
+                e.Add(new ElementoPrevia(xv2, y, largura - xv2, alt) { Borda = true, Texto = campo.Valor2 ?? "", Centro = true, Meio = true });
+            }
+            else
+            {
+                e.Add(new ElementoPrevia(xv, y, largura - xv, alt) { Borda = true, Texto = campo.Valor, Meio = true });
+            }
         }
 
         e.Add(new ElementoPrevia(0, cab.YDoTitulo + GradeRelatorio.LinhasDoTitulo[0], largura, GradeRelatorio.LinhasDoTitulo[1])
@@ -966,8 +1051,11 @@ public sealed partial class RelatorioVm : TelaVm
         {
             fotos.TryGetValue(foto.Foto.Caminho, out var vm);
             e.Add(new ElementoPrevia(foto.Imagem.X, foto.Imagem.Y, foto.Imagem.Largura, foto.Imagem.Altura) { Imagem = vm?.Miniatura, Faltando = vm?.Faltando == true, Borda = vm?.Miniatura is null });
-            double alturaTitulo = PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura) * GradeRelatorio.AlturaDaLinha;
-            e.Add(new ElementoPrevia(foto.Texto.X, foto.Texto.Y, foto.Texto.Largura, alturaTitulo) { Texto = foto.Titulo, Negrito = true, Centro = true });
+            double alturaTitulo = foto.Titulo.Length == 0 ? 0 : PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura) * GradeRelatorio.AlturaDaLinha;
+            if (foto.Titulo.Length > 0)
+            {
+                e.Add(new ElementoPrevia(foto.Texto.X, foto.Texto.Y, foto.Texto.Largura, alturaTitulo) { Texto = foto.Titulo, Negrito = true, Centro = true });
+            }
             if (foto.Descricao.Length > 0)
             {
                 e.Add(new ElementoPrevia(foto.Texto.X, foto.Texto.Y + alturaTitulo, foto.Texto.Largura, foto.Texto.Altura - alturaTitulo) { Texto = foto.Descricao });
@@ -1077,6 +1165,7 @@ public sealed partial class RelatorioVm : TelaVm
         ProcessoSei = r.Dados.ProcessoSei;
         Objeto = r.Dados.Objeto;
         Responsavel = r.Dados.Responsavel;
+        Descricao = r.Dados.Descricao ?? "";
         DataTexto = r.DataTexto;
         DataOsTexto = r.DataOsTexto;
         FotosPorPagina = OpcoesRelatorio.Capacidades.Contains(r.FotosPorPagina) ? r.FotosPorPagina : 6;

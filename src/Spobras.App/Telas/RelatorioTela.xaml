@@ -86,8 +86,12 @@
         <Border Grid.Row="2" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="0" Visibility="{Binding EtapaDados, Converter={StaticResource Visivel}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                 <StackPanel Margin="20" MaxWidth="900" HorizontalAlignment="Left">
-                    <TextBlock Text="Dados do cabeçalho" Style="{StaticResource TituloPainel}" />
-                    <TextBlock Text="Todos os campos são opcionais. O que ficar em branco não aparece no relatório." Style="{StaticResource Texto2}" Margin="0,4,0,12" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Atualizar dados" MinHeight="40" Command="{Binding AtualizarDadosCommand}"
+                                ToolTip="Busca de novo na Base de dados, pelo contrato e pela escola, e traz os dados atualizados. Data, fiscal, descrição e fotos não mudam." />
+                        <TextBlock Text="Dados do cabeçalho" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="Todos os campos são opcionais. Campo em branco não aparece no relatório, nem o nome dele." Style="{StaticResource Texto2}" Margin="0,4,0,12" TextWrapping="Wrap" />
 
                     <TextBlock Text="Unidade educacional (escola)" Style="{StaticResource Rotulo}" />
                     <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged, Delay=500}" AutomationProperties.Name="Unidade educacional"
@@ -161,7 +165,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Processo SEI" Style="{StaticResource Rotulo}" />
+                            <TextBlock Text="Processo SEI (só se quiser no relatório)" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
                             <TextBox Text="{Binding ProcessoSei, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Processo SEI" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
@@ -169,13 +173,17 @@
                             <TextBox Text="{Binding DataOsTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data da OS" t:Mascaras.Data="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="4">
-                            <TextBlock Text="Responsável / fiscal" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Responsavel, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Responsável ou fiscal" />
+                            <TextBlock Text="Fiscal" Style="{StaticResource Rotulo}" />
+                            <TextBox Text="{Binding Responsavel, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fiscal" />
                         </StackPanel>
                     </Grid>
 
                     <TextBlock Text="Objeto / serviço" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
                     <TextBox Text="{Binding Objeto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Objeto ou serviço" />
+
+                    <TextBlock Text="Descrição geral (opcional, vai no fim do cabeçalho)" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
+                    <TextBox Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição geral"
+                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" VerticalContentAlignment="Top" />
 
                     <ItemsControl ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,16,0,0" Focusable="False" />
                 </StackPanel>

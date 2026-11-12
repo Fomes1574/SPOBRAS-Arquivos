@@ -65,8 +65,8 @@ public class RelatorioTests
         Assert.Equal(17, plano.Paginas.Count); // 16 paginas de 6 + 1 de 4
         var todas = plano.Paginas.SelectMany(p => p.Fotos).ToList();
         Assert.Equal(Enumerable.Range(1, 100), todas.Select(f => f.Numero));
-        Assert.Equal("Foto 001 — Serviço 1", todas[0].Titulo);
-        Assert.Equal("Foto 100 — Serviço 100", todas[99].Titulo);
+        Assert.Equal("Serviço 1", todas[0].Titulo); // so a legenda: sem "Foto 001" automatico
+        Assert.Equal("Serviço 100", todas[99].Titulo);
         Assert.Equal(Enumerable.Range(1, 17), plano.Paginas.Select(p => p.Numero));
     }
 
@@ -153,7 +153,7 @@ public class RelatorioTests
         Assert.Contains(plano.Avisos, a => a.Gravidade == Gravidade.PrecisaConferir && a.Mensagem.Contains("continuam na página seguinte"));
         Assert.EndsWith("(continua na próxima página)", plano.Paginas[0].Fotos[0].Descricao);
         var continuacao = Assert.Single(plano.Paginas.SelectMany(p => p.Continuacoes));
-        Assert.Equal("Foto 01 — Geral (continuação)", continuacao.Titulo);
+        Assert.Equal("Geral (continuação)", continuacao.Titulo);
         string juntos = plano.Paginas[0].Fotos[0].Descricao.Replace(" (continua na próxima página)", "") + " " + continuacao.Texto;
         Assert.Equal(enorme, juntos); // nenhuma palavra se perde
         Assert.Equal(2, plano.TotalDeFotos);
@@ -176,10 +176,13 @@ public class RelatorioTests
     }
 
     [Fact]
-    public void Legenda_vazia_mostra_so_o_numero_e_sem_fotos_impede()
+    public void Legenda_vazia_nao_escreve_nada_embaixo_e_a_foto_ganha_o_espaco_e_sem_fotos_impede()
     {
-        var plano = PaginadorRelatorio.Paginar([Horizontal(1)], new OpcoesRelatorio());
-        Assert.Equal("Foto 01", plano.Paginas[0].Fotos[0].Titulo);
+        var plano = PaginadorRelatorio.Paginar([Horizontal(1), Horizontal(2)], new OpcoesRelatorio { FotosPorPagina = 2 });
+        var comLegenda = PaginadorRelatorio.Paginar([Horizontal(1) with { Legenda = "Fachada" }, Horizontal(2) with { Legenda = "Pátio" }], new OpcoesRelatorio { FotosPorPagina = 2 });
+        Assert.Equal("", plano.Paginas[0].Fotos[0].Titulo);
+        Assert.Equal(1, plano.Paginas[0].Fotos[0].LinhasDoTexto); // so o respiro
+        Assert.True(plano.Paginas[0].Fotos[0].LinhasDaFoto > comLegenda.Paginas[0].Fotos[0].LinhasDaFoto);
 
         Assert.False(PaginadorRelatorio.Paginar([], new OpcoesRelatorio()).PodeGerar);
         Assert.False(PaginadorRelatorio.Paginar([Horizontal(1)], new OpcoesRelatorio { FotosPorPagina = 3 }).PodeGerar);

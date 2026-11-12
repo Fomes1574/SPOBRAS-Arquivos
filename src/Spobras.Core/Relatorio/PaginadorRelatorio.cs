@@ -85,7 +85,7 @@ public static class PaginadorRelatorio
                     if (textos[c].Linhas > cabe)
                     {
                         var (fica, resto) = Dividir(textos[c].Descricao, (cabe - textos[c].LinhasDoTitulo - 1) * CaracteresPorLinha(GradeRelatorio.LarguraDoEspaco(c, colunas)));
-                        restos.Add((textos[c].Titulo, resto, c));
+                        restos.Add((textos[c].Titulo.Length > 0 ? textos[c].Titulo : Rotulo(i + c + 1, fotos.Count), resto, c));
                         textos[c] = textos[c] with { Descricao = fica + " (continua na próxima página)", Linhas = cabe };
                         textosContinuados++;
                     }
@@ -167,11 +167,14 @@ public static class PaginadorRelatorio
 
     private sealed record TextoDaFoto(string Titulo, string Descricao, int LinhasDoTitulo, int Linhas);
 
+    /// <summary>
+    /// Texto embaixo da foto: so a legenda que o usuario escreveu (sem "Foto 01" automatico) e, no modo descricao,
+    /// a descricao do servico. Sem nenhum dos dois, fica so a linha de respiro e a foto ganha o espaco.
+    /// </summary>
     private static TextoDaFoto Texto(FotoRelatorio foto, int numero, int total, OpcoesRelatorio opcoes, double largura)
     {
-        string rotulo = Rotulo(numero, total);
-        string titulo = string.IsNullOrWhiteSpace(foto.Legenda) ? rotulo : $"{rotulo} — {foto.Legenda.Trim()}";
-        int linhasDoTitulo = LinhasDe(titulo, largura);
+        string titulo = foto.Legenda.Trim();
+        int linhasDoTitulo = titulo.Length == 0 ? 0 : LinhasDe(titulo, largura);
         string descricao = opcoes.Modo == ModoLegenda.DescricaoServico ? foto.Descricao.Trim() : "";
         int linhasDaDescricao = descricao.Length == 0 ? 0 : LinhasDe(descricao, largura);
 

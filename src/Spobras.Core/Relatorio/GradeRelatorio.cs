@@ -20,14 +20,17 @@ public static class GradeRelatorio
     /// <summary>Linha em branco, faixa "RELATÓRIO FOTOGRÁFICO" e respiro antes das fotos.</summary>
     public static readonly IReadOnlyList<int> LinhasDoTitulo = [12, 34, 10];
 
-    /// <summary>Altura util de cada pagina (cabe em A4 em pe na escala de impressao de 80%: 1240 x 0,8 = 992 px de 1017).</summary>
-    public const double AlturaDaPagina = 1240;
+    /// <summary>
+    /// Altura util de cada pagina, ja para margens estreitas (0,4" em cima, 0,5" embaixo): A4 em pe tem 10,79" uteis,
+    /// 1036 px; na escala de 88% cabem 1177 px, e ficam 1160 para sobrar folga.
+    /// </summary>
+    public const double AlturaDaPagina = 1160;
 
     /// <summary>Colunas (indices 0 a 9) do cabecalho: logo C-E, titulo F-H, caixa I-L; rotulo C-E e valor F-L.</summary>
     public const int ColunaDoTitulo = 3, ColunaDaCaixa = 6, ColunaDoValorDaData = 7, ColunaDoValor = 3;
 
     /// <summary>Escala de impressao (%) usada no arquivo e na conta da altura da pagina.</summary>
-    public const int EscalaDeImpressao = 80;
+    public const int EscalaDeImpressao = 88;
 
     /// <summary>
     /// Largura que o Excel grava para a coluna ter exatamente <paramref name="pixels"/> na tela (Calibri 11, 96 dpi).

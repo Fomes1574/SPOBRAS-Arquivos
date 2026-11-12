@@ -41,7 +41,8 @@ public class RelatorioVmTests : ComApp
         Assert.True(vm.EtapaConferencia);
         Assert.Equal("8 fotos em 2 páginas", vm.Resumo);
         Assert.Equal(["Página 1 de 2", "Página 2 de 2"], vm.Paginas.Select(p => p.Titulo));
-        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "Foto 01 — Fachada");
+        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "Fachada"); // so a legenda, sem "Foto 01"
+        Assert.DoesNotContain(vm.Paginas[0].Elementos, e => e.Texto?.StartsWith("Foto ") == true);
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "EMEF Exemplo");
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "10/11/2026");
         await vm.Miniaturas; // miniaturas em segundo plano

@@ -10,7 +10,11 @@ public sealed record DadosRelatorio
     public string Portaria { get; init; } = "";
     public string ProcessoSei { get; init; } = "";
     public string Objeto { get; init; } = "";
+    /// <summary>Fiscal da obra (o nome antigo da propriedade fica para os rascunhos ja gravados).</summary>
     public string Responsavel { get; init; } = "";
+
+    /// <summary>Descricao geral do relatorio, opcional, no fim do cabecalho.</summary>
+    public string Descricao { get; init; } = "";
     public DateOnly? Data { get; init; }
 
     /// <summary>Data da Ordem de Servico (inicio da obra), quando conhecida.</summary>

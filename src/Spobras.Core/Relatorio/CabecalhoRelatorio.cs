@@ -2,8 +2,14 @@ using System.Globalization;
 
 namespace Spobras.Core.Relatorio;
 
-/// <summary>Uma linha da tabela de dados do cabecalho: rotulo a esquerda, valor a direita.</summary>
-public sealed record CampoCabecalho(string Rotulo, string Valor, int Linhas);
+/// <summary>
+/// Uma linha da tabela de dados do cabecalho: rotulo a esquerda, valor a direita. Com <paramref name="Rotulo2"/>,
+/// a linha tem um segundo par na metade direita (Contrato e Data da OS lado a lado).
+/// </summary>
+public sealed record CampoCabecalho(string Rotulo, string Valor, int Linhas, string? Rotulo2 = null, string? Valor2 = null)
+{
+    public bool Dupla => Rotulo2 is not null;
+}
 
 /// <summary>
 /// Cabecalho montado para uma pagina: alturas (pixels) de cada linha fixa, na ordem da planilha:
@@ -37,7 +43,16 @@ public static class CabecalhoRelatorio
     /// <summary>Largura da caixa da direita (SPOBRAS, data, contratada).</summary>
     public static double LarguraDaCaixa => GradeRelatorio.Largura - GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDaCaixa);
 
-    /// <summary>Campos preenchidos, na ordem do documento.</summary>
+    /// <summary>Colunas (0 a 9) da linha dupla: valor 1 em F-G, rotulo 2 em H-J, valor 2 em K-L.</summary>
+    public const int ColunaDoRotulo2 = 5, ColunaDoValor2 = 8;
+
+    /// <summary>Largura do primeiro valor numa linha dupla (colunas F e G).</summary>
+    public static double LarguraDoValorDuplo => GradeRelatorio.XDaColuna(ColunaDoRotulo2) - GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoValor);
+
+    /// <summary>
+    /// Campos preenchidos, na ordem do documento. Campo vazio nao aparece (nem o rotulo). Contrato e Data da OS
+    /// dividem a mesma linha para o cabecalho ficar menor e sobrar espaco para as fotos.
+    /// </summary>
     public static IReadOnlyList<CampoCabecalho> Campos(DadosRelatorio d)
     {
         var campos = new List<CampoCabecalho>();
@@ -51,13 +66,23 @@ public static class CabecalhoRelatorio
         }
 
         Somar("UNIDADE EDUCACIONAL", d.Unidade);
-        Somar("CONTRATO", d.Contrato);
         Somar("LOTE", d.Lote);
         Somar("PORTARIA", d.Portaria);
+        string contrato = d.Contrato.Trim(), dataOs = Data(d.DataOs);
+        if (contrato.Length > 0 && dataOs.Length > 0)
+        {
+            campos.Add(new CampoCabecalho("CONTRATO", contrato, PaginadorRelatorio.LinhasDe(contrato, LarguraDoValorDuplo), "DATA DA OS", dataOs));
+        }
+        else
+        {
+            Somar("CONTRATO", contrato);
+            Somar("DATA DA OS", dataOs);
+        }
+
         Somar("PROCESSO SEI", d.ProcessoSei);
-        Somar("DATA DA OS", Data(d.DataOs));
         Somar("OBJETO", d.Objeto);
-        Somar("RESPONSÁVEL", d.Responsavel);
+        Somar("FISCAL", d.Responsavel);
+        Somar("DESCRIÇÃO", d.Descricao);
         return campos;
     }
 
