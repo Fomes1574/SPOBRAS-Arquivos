@@ -523,6 +523,31 @@ public sealed partial class ConfiguracoesVm : TelaVm
         Ler();
     }
 
+    /// <summary>Tira o logo do cabecalho de um relatorio pronto (como o modelo de referencia).</summary>
+    [RelayCommand]
+    private void LogoDeRelatorio()
+    {
+        string? arquivo = _dialogos.EscolherArquivos("Escolha um relatório que já tem o logo no cabeçalho", "Planilhas do Excel|*.xlsx;*.xlsm", PastaTrabalho).FirstOrDefault();
+        if (arquivo is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_modelos.UsarLogoDeRelatorio(arquivo))
+            {
+                _dialogos.Avisar("Logo", $"Não achei imagem no cabeçalho de \"{Path.GetFileName(arquivo)}\". Use Escolher imagem.");
+            }
+        }
+        catch (Exception ex) when (ex is Spobras.Documentos.Planilhas.PlanilhaInvalidaException or Spobras.Documentos.Imagens.FotoInvalidaException or IOException or UnauthorizedAccessException)
+        {
+            _dialogos.Avisar("Logo", ex.Message);
+        }
+
+        Ler();
+    }
+
     [RelayCommand]
     private void RemoverLogo()
     {
@@ -580,6 +605,10 @@ public sealed partial class PrincipalVm : ObservableObject
     }
 
     public IReadOnlyList<ModuloVm> Modulos { get; }
+
+    /// <summary>Logo mostrado no menu, embaixo do nome do app.</summary>
+    [ObservableProperty]
+    private string? _logo;
 
     [ObservableProperty]
     private TelaVm? _paginaAtual;

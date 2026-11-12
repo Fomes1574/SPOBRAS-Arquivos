@@ -160,6 +160,9 @@ public sealed partial class BaseVm : TelaVm
 
     public ObservableCollection<PerfilGuardado> Consultas { get; } = [];
 
+    /// <summary>Logo cadastrado (vai no topo das planilhas exportadas). Definido pela composicao do app.</summary>
+    public Func<string?>? Logo { get; set; }
+
     /// <summary>Abre a busca dentro dos arquivos com um termo (contrato ou escola da obra escolhida).</summary>
     public Action<string>? AoBuscarNosArquivos { get; set; }
 
@@ -679,7 +682,7 @@ public sealed partial class BaseVm : TelaVm
             [
                 new Spobras.Documentos.Planilhas.AbaNova("Obras", titulos, linhas),
                 new Spobras.Documentos.Planilhas.AbaNova("Sobre esta consulta", ["Item", "Valor"], sobre, ComFiltro: false),
-            ]);
+            ], Logo?.Invoke(), "Consulta da Base de dados" + (ConsultaAberta is { } aberta ? $" - {aberta.Nome}" : ""));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -927,6 +930,9 @@ public sealed partial class FontesVm : TelaVm
     public bool TemApelidos => Apelidos.Count > 0;
     public bool TemVinculos => Vinculos.Count > 0;
 
+    /// <summary>Logo cadastrado (vai no topo das planilhas exportadas).</summary>
+    public Func<string?>? Logo { get; set; }
+
     /// <summary>Para registrar no historico a exportacao e datar as edicoes (definidos pela composicao do app).</summary>
     public ServicoOperacoes? Operacoes { get; set; }
     public Spobras.Core.Abstracoes.IRelogio? Relogio { get; set; }
@@ -1040,7 +1046,7 @@ public sealed partial class FontesVm : TelaVm
                 new Spobras.Documentos.Planilhas.AbaNova("Portarias e dotações",
                     ["Portaria", "Contrato de receita", "Finalidade", "Dotação completa", "Dotação resumida", "Descrição", "Origem"],
                     [.. _base.Vinculos().Select(v => new object?[] { v.Portaria, v.ContratoReceita, v.Finalidade, v.DotacaoCompleta, v.DotacaoResumida, v.Descricao, v.Origem })]),
-            ]);
+            ], Logo?.Invoke(), "Portarias, contratos de receita e dotações");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

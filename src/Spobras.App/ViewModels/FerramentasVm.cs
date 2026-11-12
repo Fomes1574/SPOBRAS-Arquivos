@@ -79,6 +79,9 @@ public sealed partial class FerramentasVm : TelaVm
 
     public override string Titulo => "Ferramentas";
 
+    /// <summary>Logo cadastrado (vai no topo das planilhas geradas). Definido pela composicao do app.</summary>
+    public Func<string?>? Logo { get; set; }
+
     public ObservableCollection<string> Pastas { get; } = [];
     public ObservableCollection<string> Arquivos { get; } = [];
     public ObservableCollection<AchadoVm> Achados { get; } = [];
@@ -596,7 +599,7 @@ public sealed partial class FerramentasVm : TelaVm
         {
             try
             {
-                JuntarPlanilhas.Gravar(previa, saida);
+                JuntarPlanilhas.Gravar(previa, saida, Logo?.Invoke());
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {

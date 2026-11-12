@@ -57,6 +57,9 @@ public sealed class ServicoModelos(string pastaDados)
             ? Directory.EnumerateFiles(PastaModelos, "logo.*").FirstOrDefault(Fotos.Suportada)
             : null;
 
+    /// <summary>O logo foi cadastrado, trocado ou tirado.</summary>
+    public event Action? LogoMudou;
+
     /// <summary>Guarda uma copia do logo escolhido. Vale para os documentos gerados dali em diante.</summary>
     public void DefinirLogo(string origem)
     {
@@ -64,6 +67,33 @@ public sealed class ServicoModelos(string pastaDados)
         Directory.CreateDirectory(PastaModelos);
         RemoverLogo();
         File.Copy(origem, Path.Combine(PastaModelos, "logo" + Path.GetExtension(origem).ToLowerInvariant()));
+        LogoMudou?.Invoke();
+    }
+
+    /// <summary>
+    /// Usa como logo a imagem do cabecalho de um relatorio pronto (.xlsx). O relatorio so e lido.
+    /// Devolve false se ele nao tiver imagem no cabecalho.
+    /// </summary>
+    public bool UsarLogoDeRelatorio(string xlsx)
+    {
+        string temporaria = Path.Combine(Path.GetTempPath(), "ArquivosSPOBRAS", "logo-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            if (Spobras.Documentos.Imagens.LogoDePlanilha.Extrair(xlsx, temporaria) is not { } imagem)
+            {
+                return false;
+            }
+
+            DefinirLogo(imagem);
+            return true;
+        }
+        finally
+        {
+            if (Directory.Exists(temporaria))
+            {
+                Directory.Delete(temporaria, recursive: true); // so a copia temporaria do app
+            }
+        }
     }
 
     /// <summary>Tira o logo do cadastro (apaga so a copia interna do app, nunca o arquivo do usuario).</summary>
@@ -78,6 +108,8 @@ public sealed class ServicoModelos(string pastaDados)
         {
             File.Delete(antigo);
         }
+
+        LogoMudou?.Invoke();
     }
 
     /// <summary>Copia do modelo de cronograma cadastrado pelo usuario, ou null.</summary>

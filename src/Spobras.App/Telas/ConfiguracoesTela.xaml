@@ -45,6 +45,8 @@
                     <DockPanel Margin="0,10,0,0">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                             <Button Style="{StaticResource BotaoSecundario}" Content="Escolher imagem" Command="{Binding EscolherLogoCommand}" />
+                            <Button Style="{StaticResource BotaoLinha}" Content="Tirar de um relatório…" MinHeight="44" Margin="8,0,0,0" Command="{Binding LogoDeRelatorioCommand}"
+                                    ToolTip="Usa o logo que já está no cabeçalho de um relatório seu (.xlsx). O relatório não é alterado." />
                             <Button Style="{StaticResource BotaoLinha}" Content="Tirar o logo" MinHeight="44" Margin="8,0,0,0" Command="{Binding RemoverLogoCommand}"
                                     Visibility="{Binding TemLogo, Converter={StaticResource Visivel}}" />
                         </StackPanel>

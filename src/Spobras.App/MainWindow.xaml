@@ -63,8 +63,12 @@
         <Border x:Name="Menu" Background="{StaticResource Preto}">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Top" Margin="24,24,24,16">
-                    <Image x:Name="Logo" MaxHeight="48" HorizontalAlignment="Left" Margin="0,0,0,10" Visibility="Collapsed" />
                     <TextBlock Text="Arquivos SPOBRAS" Foreground="White" FontSize="18" FontWeight="Bold" />
+                    <Border Background="White" CornerRadius="8" Padding="8,6" Margin="0,12,0,0" HorizontalAlignment="Left"
+                            Visibility="{Binding Logo, Converter={StaticResource VisivelSe}}">
+                        <Image Source="{Binding Logo, Converter={StaticResource Imagem}, ConverterParameter=400}" MaxHeight="56" MaxWidth="168" Stretch="Uniform"
+                               AutomationProperties.Name="Logo SPOBRAS" />
+                    </Border>
                 </StackPanel>
 
                 <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,16">

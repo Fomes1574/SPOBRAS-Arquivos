@@ -74,7 +74,7 @@ public static class JuntarPlanilhas
         }
     }
 
-    public static void Gravar(PreviaJuntar previa, string saida)
+    public static void Gravar(PreviaJuntar previa, string saida, string? logo = null)
     {
         var linhas = new List<object?[]>();
         foreach (var origem in previa.Origens.Where(o => o.Ok))
@@ -107,7 +107,7 @@ public static class JuntarPlanilhas
         [
             new AbaNova("Dados juntos", ["Arquivo de origem", "Tabela ou aba", .. previa.Colunas], linhas),
             new AbaNova("Origem", ["Arquivo", "De onde", "Linhas", "Colunas que faltaram ou problema"], sobre, ComFiltro: false),
-        ]);
+        ], logo, "Planilhas juntas");
     }
 
     private static object? Converter(object? valor) => valor switch

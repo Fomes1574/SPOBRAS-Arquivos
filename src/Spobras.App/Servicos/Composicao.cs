@@ -148,7 +148,15 @@ public sealed class Composicao : IDisposable
         };
         Fontes.Mudou += () => @interface.Executar(inicio.AtualizarMestra);
         inicio.AtualizarMestra();
-        Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
+        Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface) { Logo = Modelos.Logo };
+        Modelos.LogoMudou += () => @interface.Executar(() =>
+        {
+            Principal.Logo = null; // forca a tela a reler a imagem trocada
+            Principal.Logo = Modelos.Logo;
+        });
+        ((BaseVm)telas[BaseVm.Modulo]).Logo = () => Modelos.Logo;
+        ((FontesVm)telas[FontesVm.Modulo]).Logo = () => Modelos.Logo;
+        ((FerramentasVm)telas[FerramentasVm.Modulo]).Logo = () => Modelos.Logo;
     }
 
     public string PastaDados { get; }

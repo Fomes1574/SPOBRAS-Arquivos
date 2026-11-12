@@ -234,7 +234,7 @@ public static partial class TextoPdf
     /// Grava uma planilha nova com uma linha por linha do PDF: pagina e linha de origem, depois as colunas.
     /// Valores em reais e datas viram numero e data do Excel; a aba "Sobre" diz o que conferir.
     /// </summary>
-    public static TextoExtraido ParaExcel(string pdf, string saida, CancellationToken cancelamento = default, IOcr? ocr = null)
+    public static TextoExtraido ParaExcel(string pdf, string saida, CancellationToken cancelamento = default, IOcr? ocr = null, string? logo = null)
     {
         bool imagem = Path.GetExtension(pdf).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".tif" or ".tiff";
         var extraido = imagem ? DeImagem(pdf, ocr) : Extrair(pdf, cancelamento, ocr);
@@ -257,7 +257,7 @@ public static partial class TextoPdf
             new object?[] { "Lidas por OCR", extraido.LidasPorOcr.Count == 0 ? "nenhuma" : string.Join(", ", extraido.LidasPorOcr) + $" (imagem lida pelo OCR do Windows, {ocr?.Idioma}: confira com mais atenção)" },
             new object?[] { "Atenção", "Leitura automática. Confira valores, datas, linhas quebradas e subtotais antes de usar." },
         };
-        GravadorXlsx.Gravar(saida, [new AbaNova("Texto do PDF", titulos, linhas), new AbaNova("Sobre", ["Item", "Valor"], sobre, ComFiltro: false)]);
+        GravadorXlsx.Gravar(saida, [new AbaNova("Texto do PDF", titulos, linhas), new AbaNova("Sobre", ["Item", "Valor"], sobre, ComFiltro: false)], logo, $"Texto de {Path.GetFileName(pdf)}");
         return extraido;
     }
 }

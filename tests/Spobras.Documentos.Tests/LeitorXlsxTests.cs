@@ -131,3 +131,66 @@ public class GravadorXlsxTests : IDisposable
         Assert.Equal(["A", "Z", "AA", "AZ", "BA"], new[] { 0, 25, 26, 51, 52 }.Select(GravadorXlsx.Coluna));
     }
 }
+
+public class LogoTests : IDisposable
+{
+    private readonly string _pasta = Directory.CreateTempSubdirectory("spobras-logo-").FullName;
+
+    public void Dispose() => Directory.Delete(_pasta, recursive: true);
+
+    private string Logo()
+    {
+        string caminho = Path.Combine(_pasta, "logo.png");
+        using var b = new SkiaSharp.SKBitmap(195, 138);
+        b.Erase(SkiaSharp.SKColors.DarkRed);
+        using var i = SkiaSharp.SKImage.FromBitmap(b);
+        File.WriteAllBytes(caminho, i.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100).ToArray());
+        return caminho;
+    }
+
+    [Fact]
+    public void Exportacao_com_logo_poe_logo_e_titulo_no_topo_e_a_tabela_embaixo()
+    {
+        string saida = Path.Combine(_pasta, "consulta.xlsx");
+        GravadorXlsx.Gravar(saida, [new AbaNova("Obras", ["Contrato", "Valor"], [["001/EX", 10m]]), new AbaNova("Sobre", ["Item"], [["x"]])], Logo(), "Consulta da Base de dados");
+
+        using (var leitor = new Spobras.Documentos.Planilhas.LeitorXlsx(saida))
+        {
+            var obras = leitor.LerAba("Obras");
+            Assert.Equal("Consulta da Base de dados", obras[1].First(c => c is not null));
+            Assert.Equal(["Contrato", "Valor"], obras[3].Take(2));
+            Assert.Equal("001/EX", obras[4][0]);
+            Assert.Equal("Item", leitor.LerAba("Sobre")[0][0]); // so a primeira aba ganha o topo
+        }
+
+        using var doc = DocumentFormat.OpenXml.Packaging.SpreadsheetDocument.Open(saida, false);
+        var folha = doc.WorkbookPart!.WorksheetParts.First(p => p.DrawingsPart is not null);
+        Assert.Single(folha.DrawingsPart!.ImageParts);
+        Assert.Equal("A4:B5", folha.Worksheet!.GetFirstChild<DocumentFormat.OpenXml.Spreadsheet.AutoFilter>()!.Reference!.Value);
+
+        // Sem logo, nada muda
+        string semLogo = Path.Combine(_pasta, "sem.xlsx");
+        GravadorXlsx.Gravar(semLogo, [new AbaNova("Obras", ["Contrato"], [["x"]])], logo: Path.Combine(_pasta, "nao-existe.png"));
+        using var l2 = new Spobras.Documentos.Planilhas.LeitorXlsx(semLogo);
+        Assert.Equal("Contrato", l2.LerAba("Obras")[0][0]);
+    }
+
+    [Fact]
+    public void Tira_o_logo_do_cabecalho_de_um_relatorio()
+    {
+        string relatorio = Path.Combine(_pasta, "relatorio.xlsx");
+        GravadorXlsx.Gravar(relatorio, [new AbaNova("Relatório", ["A"], [["x"]])], Logo(), "Relatório");
+
+        string? extraido = Spobras.Documentos.Imagens.LogoDePlanilha.Extrair(relatorio, Path.Combine(_pasta, "saida"));
+
+        Assert.NotNull(extraido);
+        var info = Spobras.Documentos.Imagens.Fotos.Ler(extraido);
+        Assert.Equal((195, 138), (info.Largura, info.Altura));
+
+        string semImagem = Path.Combine(_pasta, "sem.xlsx");
+        GravadorXlsx.Gravar(semImagem, [new AbaNova("A", ["x"], [])]);
+        Assert.Null(Spobras.Documentos.Imagens.LogoDePlanilha.Extrair(semImagem, Path.Combine(_pasta, "saida2")));
+        File.WriteAllText(Path.Combine(_pasta, "texto.xlsx"), "x");
+        Assert.Throws<PlanilhaInvalidaException>(() => Spobras.Documentos.Imagens.LogoDePlanilha.Extrair(Path.Combine(_pasta, "texto.xlsx"), _pasta));
+    }
+}

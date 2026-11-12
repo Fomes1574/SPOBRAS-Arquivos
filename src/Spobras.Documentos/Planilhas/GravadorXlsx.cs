@@ -2,6 +2,7 @@ using System.Globalization;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
+using Drawing = DocumentFormat.OpenXml.Spreadsheet.Drawing;
 
 namespace Spobras.Documentos.Planilhas;
 
@@ -19,8 +20,11 @@ public static class GravadorXlsx
     private const uint EstiloNumero = 3;
     private const uint EstiloInteiro = 4;
 
-    public static void Gravar(string caminho, IReadOnlyList<AbaNova> abas)
+    /// <param name="logo">Imagem do logo (cadastrada no app): vai no topo da primeira aba, com o titulo ao lado.</param>
+    /// <param name="titulo">Titulo ao lado do logo; sem ele, o nome do arquivo.</param>
+    public static void Gravar(string caminho, IReadOnlyList<AbaNova> abas, string? logo = null, string? titulo = null)
     {
+        bool comLogo = !string.IsNullOrWhiteSpace(logo) && File.Exists(logo);
         if (File.Exists(caminho))
         {
             throw new IOException($"Já existe \"{Path.GetFileName(caminho)}\". Nada foi sobrescrito.");
@@ -44,10 +48,18 @@ public static class GravadorXlsx
                 var folhas = pastaTrabalho.Workbook.AppendChild(new Sheets());
                 uint id = 1;
                 var usados = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                bool primeira = true;
                 foreach (var aba in abas)
                 {
                     var parte = pastaTrabalho.AddNewPart<WorksheetPart>();
-                    parte.Worksheet = Folha(aba);
+                    bool topo = primeira && comLogo;
+                    parte.Worksheet = Folha(aba, topo ? LinhasDoTopo : 0);
+                    if (topo)
+                    {
+                        Topo(parte, logo!, titulo ?? Path.GetFileNameWithoutExtension(caminho));
+                    }
+
+                    primeira = false;
                     folhas.Append(new Sheet { Id = pastaTrabalho.GetIdOfPart(parte), SheetId = id++, Name = NomeDeAba(aba.Nome, usados) });
                 }
             }
@@ -84,21 +96,29 @@ public static class GravadorXlsx
         return tentativa;
     }
 
-    private static Worksheet Folha(AbaNova aba)
+    /// <summary>Linhas reservadas no topo para o logo e o titulo.</summary>
+    private const int LinhasDoTopo = 3;
+
+    private static Worksheet Folha(AbaNova aba, int topo = 0)
     {
         int colunas = Math.Max(aba.Titulos.Count, aba.Linhas.Count == 0 ? 0 : aba.Linhas.Max(l => l.Length));
         var larguras = new double[colunas];
         var dados = new SheetData();
+        for (uint t = 1; t <= topo; t++)
+        {
+            dados.Append(new Row { RowIndex = t, Height = 22, CustomHeight = true });
+        }
 
-        var titulo = new Row { RowIndex = 1 };
+        uint linhaTitulos = (uint)topo + 1;
+        var titulo = new Row { RowIndex = linhaTitulos };
         for (int c = 0; c < aba.Titulos.Count; c++)
         {
-            titulo.Append(Texto(Ref(c, 1), aba.Titulos[c], EstiloTitulo));
+            titulo.Append(Texto(Ref(c, linhaTitulos), aba.Titulos[c], EstiloTitulo));
             larguras[c] = Math.Max(larguras[c], aba.Titulos[c].Length + 2);
         }
 
         dados.Append(titulo);
-        uint r = 2;
+        uint r = linhaTitulos + 1;
         foreach (var linha in aba.Linhas)
         {
             var row = new Row { RowIndex = r };
@@ -140,7 +160,7 @@ public static class GravadorXlsx
         {
             folha.Append(new SheetViews(new SheetView(new Pane
             {
-                VerticalSplit = 1, TopLeftCell = "A2", ActivePane = PaneValues.BottomLeft, State = PaneStateValues.Frozen,
+                VerticalSplit = linhaTitulos, TopLeftCell = $"A{linhaTitulos + 1}", ActivePane = PaneValues.BottomLeft, State = PaneStateValues.Frozen,
             }) { WorkbookViewId = 0 }));
         }
 
@@ -155,10 +175,52 @@ public static class GravadorXlsx
         folha.Append(dados);
         if (aba.ComFiltro && aba.Titulos.Count > 0)
         {
-            folha.Append(new AutoFilter { Reference = $"A1:{Ref(aba.Titulos.Count - 1, Math.Max(1u, r - 1))}" });
+            folha.Append(new AutoFilter { Reference = $"A{linhaTitulos}:{Ref(aba.Titulos.Count - 1, Math.Max(linhaTitulos, r - 1))}" });
         }
 
         return folha;
+    }
+
+    /// <summary>Logo no canto (ate 3 linhas de altura) e o titulo em negrito ao lado.</summary>
+    private static void Topo(WorksheetPart parte, string logo, string titulo)
+    {
+        const int Emu = 9525;
+        var info = Spobras.Documentos.Imagens.Fotos.Ler(logo);
+        double altura = 3 * 22 * 96 / 72.0 - 8; // pixels das 3 linhas do topo, com folga
+        double largura = Math.Min(240, altura * info.Largura / Math.Max(1, info.Altura));
+        altura = largura * info.Altura / Math.Max(1, info.Largura);
+
+        var desenhos = parte.AddNewPart<DrawingsPart>();
+        bool png = Path.GetExtension(logo).Equals(".png", StringComparison.OrdinalIgnoreCase);
+        var imagem = desenhos.AddImagePart(png ? ImagePartType.Png : ImagePartType.Jpeg);
+        using (var dados = png ? File.OpenRead(logo) : new MemoryStream(Spobras.Documentos.Imagens.Fotos.Preparar(logo, 800, 92)) as Stream)
+        {
+            imagem.FeedData(dados);
+        }
+
+        string xml = string.Create(CultureInfo.InvariantCulture, $"""
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:oneCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>{4 * Emu}</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>{4 * Emu}</xdr:rowOff></xdr:from><xdr:ext cx="{(long)(largura * Emu)}" cy="{(long)(altura * Emu)}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="1" name="Logo"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="{desenhos.GetIdOfPart(imagem)}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{(long)(largura * Emu)}" cy="{(long)(altura * Emu)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>
+            """).Trim();
+        using (var fluxo = desenhos.GetStream(FileMode.Create))
+        using (var escritor = new StreamWriter(fluxo, new System.Text.UTF8Encoding(false)))
+        {
+            escritor.Write(xml);
+        }
+
+        // Titulo na primeira coluna depois do logo (colunas com cerca de 7 px por caractere + 5 de margem).
+        var colunas = parte.Worksheet!.GetFirstChild<Columns>()?.Elements<Column>().ToList() ?? [];
+        double x = 0;
+        int coluna = 0;
+        while (x < largura + 8)
+        {
+            double w = colunas.FirstOrDefault(c => c.Min!.Value == coluna + 1)?.Width?.Value ?? 8.43;
+            x += Math.Truncate(w * 7 + 5);
+            coluna++;
+        }
+
+        var segunda = parte.Worksheet.GetFirstChild<SheetData>()!.Elements<Row>().First(r => r.RowIndex!.Value == 2);
+        segunda.Append(Texto(Ref(coluna, 2), titulo, EstiloTitulo));
+        parte.Worksheet.Append(new Drawing { Id = parte.GetIdOfPart(desenhos) });
     }
 
     public static string Coluna(int indice)
