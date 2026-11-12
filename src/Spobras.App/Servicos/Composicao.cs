@@ -78,7 +78,7 @@ public sealed class Composicao : IDisposable
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
-            ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos),
+            ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos, banco),
         };
         var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>

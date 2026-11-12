@@ -50,3 +50,28 @@ public class ComposicaoTests : IDisposable
         Assert.True(busca.EhBuscar);
     }
 }
+
+public class CopiasDeSegurancaTests : ComApp
+{
+    [Fact]
+    public void Configuracoes_faz_copia_e_marca_a_volta_para_a_proxima_abertura()
+    {
+        var config = new ConfiguracoesVm(Preferencias, Novidades, Dialogos, Disco, Relogio, "0.1.0", Em("dados"), Modelos, Banco);
+        Assert.True(config.TemBackups);
+        Assert.StartsWith("Nenhuma cópia ainda", config.EstadoBackups);
+
+        config.FazerBackupCommand.Execute(null);
+        Assert.StartsWith("Cópia de segurança feita", config.Resultado);
+        Assert.StartsWith("1 cópia guardada", config.EstadoBackups);
+
+        Dialogos.Arquivos.Enqueue([Banco.Backups()[0].FullName]);
+        Dialogos.Confirmacoes.Enqueue(true);
+        config.RestaurarBackupCommand.Execute(null);
+        Assert.True(config.RestauracaoPendente);
+        Assert.Contains("abra de novo", config.Resultado);
+
+        config.CancelarRestauracaoCommand.Execute(null);
+        Assert.False(config.RestauracaoPendente);
+        Assert.False(Banco.RestauracaoPendente);
+    }
+}

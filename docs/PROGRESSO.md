@@ -1,8 +1,8 @@
 # Progresso
 
-Passo atual: **8. Revisão geral, instalador final e roteiro de conferência** (seção 10 da arquitetura).
+Passo atual: **entrega única para o teste do usuário** (fim da seção 10 da arquitetura). Aguardando o resultado do [roteiro de conferência](ROTEIRO-CONFERENCIA.md).
 
-Passos 1 a 7 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
+Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
 
 ## Feito
 
@@ -78,9 +78,16 @@ Passos 1 a 7 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Ferramentas (módulo novo): **buscar nos arquivos** (nome e conteúdo de .xlsx/.xlsm, PDF com texto, .docx, .txt, .csv; índice local que só relê arquivo alterado), **juntar planilhas** (colunas casadas pelo título, arquivo e aba de origem em cada linha, nada somado), **arquivos repetidos** (pelo conteúdo; separar as cópias numa pasta "Cópias repetidas" com confirmação e Desfazer; nada é apagado) e **Excel para PDF em lote** (pelo Excel).
 - Organizador por conteúdo: regra com "Conteúdo contém" e destino com `{contrato}`, `{escola}`, `{lote}`, `{portaria}`. A obra é reconhecida pelo número exato do contrato (no nome aceita `-`, `_` ou `.` no lugar da barra) ou pelo nome completo da escola, primeiro no nome e depois no conteúdo. Mais de uma obra possível, dado faltando ou base vazia vão para "Você decide", com a evidência.
 
+### Passo 8: revisão geral, entrega e roteiro de conferência
+
+- **Cópias de segurança** (especificação 6.1, T23): o banco é copiado pela API de backup do SQLite antes de toda atualização que muda a estrutura; em Configurações dá para fazer cópia na hora, abrir a pasta e voltar a uma cópia (a troca acontece na próxima abertura do app, e o estado de antes vira mais uma cópia). Ficam as 10 mais recentes.
+- Revisão: o editor de regras deixou de descartar a condição "pasta de origem" ao salvar; contrato com uma escola só passa a resolver `{escola}`; exemplos e nomes de pessoas fora dos documentos que eu escrevi.
+- Entrega: `ArquivosSPOBRAS.exe` único, autocontido, publicado pelo CI (artefato **ArquivosSPOBRAS**); versão 1.0.0. Não há instalador separado: o executável não precisa de instalação nem de administrador, como validado no Teste de Ambiente.
+- [Roteiro de conferência](ROTEIRO-CONFERENCIA.md) com o que testar em cada módulo, as perguntas pendentes e como devolver.
+
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 258 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 263 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -107,6 +114,7 @@ Passos 1 a 7 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 | T25 | `OrganizarConteudoTests`, `ComposicaoTests` | Escola em dois contratos, contrato com duas escolas, número parecido (1001 vs 001), PDF sem texto e base vazia: tudo em "Você decide" com o motivo. |
 | T33 | `ConsultasTests` | Consulta salva reaberta depois de a fonte mudar mostra os dados novos; exportação com todas as linhas, tipos do Excel e aba de filtros. |
 | T20 | `PdfTests`, `PdfVmTests` | Reduzir PDF com fotos (original preservado), PDF já otimizado (avisa e não cria cópia), protegido por senha (mensagem), assinado (aviso antes). |
+| T23 | `BackupTests`, `CopiasDeSegurancaTests` | Banco da versão anterior: cópia feita antes de migrar, dados preservados; voltar a uma cópia na próxima abertura, com o estado atual guardado; retenção. Falta a troca real de versão do app no PC. |
 | T24 | `TelasDeVerdadeTests` (CI) | Todas as telas a 1024x768 e 900x700, sem texto ou botão cortado, com nomes para leitor de tela. Falta conferir no monitor real e nas escalas 125% e 150%. |
 
 ## Decisões técnicas

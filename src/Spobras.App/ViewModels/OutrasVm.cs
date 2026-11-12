@@ -300,11 +300,13 @@ public sealed partial class ConfiguracoesVm : TelaVm
     private readonly IArquivos _arquivos;
     private readonly IRelogio _relogio;
     private readonly ServicoModelos _modelos;
+    private readonly Spobras.Dados.BancoApp? _banco;
 
     public ConfiguracoesVm(
         ServicoPreferencias preferencias, ServicoNovidades novidades, IDialogos dialogos, IArquivos arquivos, IRelogio relogio,
-        string versao, string pastaDados, ServicoModelos? modelos = null)
+        string versao, string pastaDados, ServicoModelos? modelos = null, Spobras.Dados.BancoApp? banco = null)
     {
+        _banco = banco;
         _modelos = modelos ?? new ServicoModelos(pastaDados);
         _preferencias = preferencias;
         _novidades = novidades;
@@ -371,6 +373,102 @@ public sealed partial class ConfiguracoesVm : TelaVm
     [RelayCommand]
     private void AbrirPastaDados() => _dialogos.AbrirPasta(PastaDados);
 
+    public bool TemBackups => _banco is not null;
+
+    [ObservableProperty]
+    private string _estadoBackups = "";
+
+    [ObservableProperty]
+    private bool _restauracaoPendente;
+
+    /// <summary>Copia do historico, regras, perfis, consultas e da base lida (os arquivos do usuario nao entram).</summary>
+    [RelayCommand]
+    private void FazerBackup()
+    {
+        if (_banco is null)
+        {
+            return;
+        }
+
+        try
+        {
+            string copia = _banco.FazerBackup("manual");
+            Resultado = $"Cópia de segurança feita: {Path.GetFileName(copia)}.";
+            ResultadoComFalha = false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            Resultado = $"A cópia não foi feita: {ex.Message}";
+            ResultadoComFalha = true;
+        }
+
+        LerBackups();
+    }
+
+    [RelayCommand]
+    private void RestaurarBackup()
+    {
+        if (_banco is null
+            || _dialogos.EscolherArquivos("Escolha a cópia de segurança", "Cópias do Arquivos SPOBRAS|*.db", _banco.PastaBackups).FirstOrDefault() is not { } copia)
+        {
+            return;
+        }
+
+        if (!_dialogos.Confirmar("Voltar a uma cópia de segurança",
+                $"O app volta ao estado de “{Path.GetFileNameWithoutExtension(copia)}”: histórico, regras, perfis, consultas e modelos cadastrados. "
+                + "Os seus arquivos e planilhas não mudam. O estado de agora vira mais uma cópia, para você poder voltar.\n\nA troca acontece quando o app for aberto de novo.",
+                "Voltar a esta cópia"))
+        {
+            return;
+        }
+
+        try
+        {
+            _banco.PedirRestauracao(copia);
+            Resultado = "Pronto. Feche o app (se ele estiver na bandeja, use Sair no ícone perto do relógio) e abra de novo para concluir.";
+            ResultadoComFalha = false;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
+        {
+            _dialogos.Avisar("Cópia não aceita", ex.Message);
+        }
+
+        LerBackups();
+    }
+
+    [RelayCommand]
+    private void CancelarRestauracao()
+    {
+        _banco?.CancelarRestauracao();
+        Resultado = "A volta à cópia foi cancelada.";
+        ResultadoComFalha = false;
+        LerBackups();
+    }
+
+    [RelayCommand]
+    private void AbrirPastaBackups()
+    {
+        if (_banco is not null)
+        {
+            Directory.CreateDirectory(_banco.PastaBackups);
+            _dialogos.AbrirPasta(_banco.PastaBackups);
+        }
+    }
+
+    private void LerBackups()
+    {
+        if (_banco is null)
+        {
+            return;
+        }
+
+        var copias = _banco.Backups();
+        RestauracaoPendente = _banco.RestauracaoPendente;
+        EstadoBackups = copias.Count == 0
+            ? "Nenhuma cópia ainda. O app faz uma sozinho antes de cada atualização."
+            : $"{Formato.Plural(copias.Count, "cópia guardada", "cópias guardadas")} (as {_banco.CopiasGuardadas} mais recentes ficam). Última: {Formato.DataHora(copias[0].LastWriteTime)}.";
+    }
+
     [ObservableProperty]
     private string? _logo;
 
@@ -413,6 +511,7 @@ public sealed partial class ConfiguracoesVm : TelaVm
 
     private void Ler()
     {
+        LerBackups();
         var p = _preferencias.Atual;
         PastaTrabalho = p.PastaTrabalho;
         PastaPlanilhasBase = p.PastaPlanilhasBase;
