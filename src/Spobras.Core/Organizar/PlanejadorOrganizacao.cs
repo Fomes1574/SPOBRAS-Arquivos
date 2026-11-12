@@ -9,8 +9,12 @@ namespace Spobras.Core.Organizar;
 /// Monta as sugestoes do organizador (especificacao 4.1, entrega inicial: nome, extensao,
 /// pasta de origem e regras explicitas). So sugere: mover depende de confirmacao na previa.
 /// </summary>
-public sealed class PlanejadorOrganizacao(IArquivos arquivos)
+/// <param name="lerConteudo">Texto de dentro do arquivo (ou o motivo de nao ter lido); null = nao le conteudo.</param>
+/// <param name="reconhecedor">Contratos e escolas da base, para {contrato}, {escola}, {lote} e {portaria}.</param>
+public sealed class PlanejadorOrganizacao(
+    IArquivos arquivos, Func<string, Spobras.Core.Ferramentas.TextoIndexado>? lerConteudo = null, ReconhecedorObras? reconhecedor = null)
 {
+    private static readonly string[] MarcadoresDaBase = ["{contrato}", "{escola}", "{lote}", "{portaria}"];
     private static readonly CompareInfo Comparador = CultureInfo.InvariantCulture.CompareInfo;
     private const CompareOptions SemAcentoNemCaixa = CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace;
 
@@ -43,20 +47,29 @@ public sealed class PlanejadorOrganizacao(IArquivos arquivos)
                 continue;
             }
 
-            var servem = ativas.Where(r => Serve(r, entrada.Caminho)).ToList();
+            var analise = new AnaliseArquivo(entrada.Caminho, lerConteudo, reconhecedor);
+            var servem = ativas.Where(r => Serve(r, entrada.Caminho) && ServeConteudo(r, analise)).ToList();
             if (servem.Count == 0)
             {
-                sugestoes.Add(new Sugestao(entrada.Caminho, tipo, "Nenhuma regra serve para este arquivo", OrigemSugestao.VoceDecide,
+                string porque = analise.MotivoSemConteudo is { } m && ativas.Any(r => r.ConteudoContem.Count > 0 && Serve(r, entrada.Caminho))
+                    ? $"Nenhuma regra serve. O conteúdo não foi lido ({m}); o arquivo continua podendo ser organizado pelo nome."
+                    : "Nenhuma regra serve para este arquivo";
+                sugestoes.Add(new Sugestao(entrada.Caminho, tipo, porque, OrigemSugestao.VoceDecide,
                     null, null, "Você decide. O app pode guardar a sua escolha, se você pedir.", null));
                 continue;
             }
 
             int maior = servem.Max(r => r.Prioridade);
             var vencedoras = servem.Where(r => r.Prioridade == maior).ToList();
-            var destinos = vencedoras
-                .Select(r => ResolverDestino(r.Destino, entrada))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var resolvidos = vencedoras.Select(r => (Regra: r, Destino: ResolverDestino(r.Destino, entrada, analise, out string? falta), Falta: falta)).ToList();
+            if (resolvidos.FirstOrDefault(r => r.Falta is not null) is { Regra: not null } pendente)
+            {
+                sugestoes.Add(new Sugestao(entrada.Caminho, tipo, pendente.Falta!, OrigemSugestao.VoceDecide, null, null,
+                    $"Você decide. A regra \"{pendente.Regra.Nome}\" precisa saber a obra do arquivo.", null));
+                continue;
+            }
+
+            var destinos = resolvidos.Select(r => r.Destino).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (destinos.Count > 1)
             {
                 string nomes = string.Join(", ", vencedoras.Select(r => $"\"{r.Nome}\""));
@@ -80,7 +93,7 @@ public sealed class PlanejadorOrganizacao(IArquivos arquivos)
             string destino = Path.Combine(pasta, livre);
             reservados.Add(destino);
 
-            string achou = DescreverCondicao(regra, entrada.Caminho);
+            string achou = DescreverCondicao(regra, entrada.Caminho, analise);
             string motivo = $"Regra \"{regra.Nome}\"" + (livre != nome ? $". Já existe \"{nome}\" lá; vai como \"{livre}\"." : "");
             sugestoes.Add(new Sugestao(entrada.Caminho, tipo, achou, OrigemSugestao.Regra, pasta, destino, motivo, regra.Id));
         }
@@ -178,6 +191,23 @@ public sealed class PlanejadorOrganizacao(IArquivos arquivos)
                || Contem(Path.GetDirectoryName(caminho) ?? "", regra.PastaOrigemContem);
     }
 
+    private static string DescreverCondicao(Regra regra, string caminho, AnaliseArquivo analise)
+    {
+        string basico = DescreverCondicao(regra, caminho);
+        var extras = new List<string>();
+        if (regra.ConteudoContem.FirstOrDefault(t => analise.Conteudo is { } c && Contem(c, t)) is { } dentro)
+        {
+            extras.Add($"conteúdo tem \"{dentro}\"");
+        }
+
+        if (MarcadoresDaBase.Any(m => regra.Destino.Contains(m, StringComparison.OrdinalIgnoreCase)) && analise.Obras.Count > 0)
+        {
+            extras.Add("achou " + analise.Obras[0].Evidencia);
+        }
+
+        return extras.Count == 0 ? basico : (basico == "Regra sem condição" ? "Pelo " : basico + "; ") + string.Join("; ", extras);
+    }
+
     private static string DescreverCondicao(Regra regra, string caminho)
     {
         string nome = Path.GetFileName(caminho);
@@ -201,14 +231,102 @@ public sealed class PlanejadorOrganizacao(IArquivos arquivos)
         return partes.Count == 0 ? "Regra sem condição" : "Pelo " + string.Join(" e ", partes).Replace("Pelo extensão", "Pela extensão");
     }
 
-    private static string ResolverDestino(string modelo, ArquivoParaOrganizar entrada)
+    private static string ResolverDestino(string modelo, ArquivoParaOrganizar entrada) => ResolverDestino(modelo, entrada, null, out _);
+
+    private static string ResolverDestino(string modelo, ArquivoParaOrganizar entrada, AnaliseArquivo? analise, out string? falta)
     {
+        falta = null;
         var data = entrada.ChegouEm ?? entrada.ModificadoEm;
         string ano = data?.ToString("yyyy", CultureInfo.InvariantCulture) ?? "sem data";
         string mes = data?.ToString("MM", CultureInfo.InvariantCulture) ?? "sem data";
-        return modelo
+        string destino = modelo
             .Replace("{ano}", ano, StringComparison.OrdinalIgnoreCase)
             .Replace("{mes}", mes, StringComparison.OrdinalIgnoreCase);
+        var usados = MarcadoresDaBase.Where(m => destino.Contains(m, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (usados.Count == 0 || analise is null)
+        {
+            return destino;
+        }
+
+        var obras = analise.Obras;
+        if (obras.Count == 0)
+        {
+            falta = analise.SemBase
+                ? "A regra usa dados da obra, mas a Base de dados ainda está vazia"
+                : "Não achou contrato nem escola da Base de dados no nome" + (analise.Conteudo is null ? "" : " nem no conteúdo");
+            return destino;
+        }
+
+        foreach (string marcador in usados)
+        {
+            var valores = obras.Select(o => marcador switch
+            {
+                "{contrato}" => o.Contrato,
+                "{escola}" => o.Escola,
+                "{lote}" => o.Lote,
+                _ => o.Portaria,
+            }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            string nome = marcador.Trim('{', '}');
+            if (valores.Count != 1 || string.IsNullOrWhiteSpace(valores[0]))
+            {
+                falta = valores.Count > 1
+                    ? $"Mais de uma obra combina ({string.Join("; ", obras.Select(o => o.Evidencia).Distinct().Take(3))}): {nome} não é único"
+                    : $"Achou {obras[0].Evidencia}, mas falta {nome} para montar a pasta";
+                return destino;
+            }
+
+            destino = destino.Replace(marcador, NomeArquivo.Corrigir(valores[0]!.Replace('/', '-')).Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        return destino;
+    }
+
+    private static bool ServeConteudo(Regra regra, AnaliseArquivo analise) =>
+        regra.ConteudoContem.Count == 0 || (analise.Conteudo is { } texto && regra.ConteudoContem.Any(t => Contem(texto, t)));
+
+    /// <summary>O que o app sabe do arquivo alem do nome: conteudo (lido so se alguma regra precisar) e obras reconhecidas.</summary>
+    private sealed class AnaliseArquivo(string caminho, Func<string, Spobras.Core.Ferramentas.TextoIndexado>? ler, ReconhecedorObras? reconhecedor)
+    {
+        private Spobras.Core.Ferramentas.TextoIndexado? _lido;
+        private IReadOnlyList<ObraReconhecida>? _obras;
+
+        private Spobras.Core.Ferramentas.TextoIndexado Lido => _lido ??= ler?.Invoke(caminho) ?? new(null, "leitura de conteúdo desligada");
+
+        public string? Conteudo => Lido.Texto;
+        public string? MotivoSemConteudo => Lido.Texto is null ? Lido.Motivo : null;
+        public bool SemBase => reconhecedor is null || reconhecedor.Vazio;
+
+        /// <summary>Primeiro pelo nome; se o nome nao identifica uma obra so, olha o conteudo.</summary>
+        public IReadOnlyList<ObraReconhecida> Obras => _obras ??= Reconhecer();
+
+        private IReadOnlyList<ObraReconhecida> Reconhecer()
+        {
+            if (SemBase)
+            {
+                return [];
+            }
+
+            var peloNome = reconhecedor!.Reconhecer(Path.GetFileNameWithoutExtension(caminho), "no nome");
+            if (peloNome.Count == 1 || ler is null)
+            {
+                return peloNome;
+            }
+
+            if (Conteudo is not { } texto)
+            {
+                return peloNome;
+            }
+
+            var peloConteudo = reconhecedor.Reconhecer(texto, "no conteúdo");
+            if (peloNome.Count == 0)
+            {
+                return peloConteudo;
+            }
+
+            // Nome ambiguo: o conteudo pode desempatar entre as candidatas do nome.
+            var juntas = peloNome.Where(n => peloConteudo.Any(c => c.Contrato == n.Contrato && c.Escola == n.Escola)).ToList();
+            return juntas.Count > 0 ? juntas : peloNome;
+        }
     }
 
     private static bool Contem(string texto, string trecho) =>

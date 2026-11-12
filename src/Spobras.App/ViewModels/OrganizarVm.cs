@@ -55,6 +55,12 @@ public sealed partial class RegraVm : ObservableObject
     private string _extensoes = "";
 
     [ObservableProperty]
+    private string _conteudoContem = "";
+
+    /// <summary>Sem campo na tela: e mantido como veio para nao se perder ao salvar.</summary>
+    public string? PastaOrigemContem { get; init; }
+
+    [ObservableProperty]
     private string _destino = "";
 
     [ObservableProperty]
@@ -69,6 +75,8 @@ public sealed partial class RegraVm : ObservableObject
         Nome = r.Nome,
         NomeContem = string.Join(", ", r.NomeContem),
         Extensoes = string.Join(", ", r.Extensoes),
+        ConteudoContem = string.Join(", ", r.ConteudoContem),
+        PastaOrigemContem = r.PastaOrigemContem,
         Destino = r.Destino,
         Prioridade = r.Prioridade.ToString(),
         Ativa = r.Ativa,
@@ -80,6 +88,8 @@ public sealed partial class RegraVm : ObservableObject
         Nome = string.IsNullOrWhiteSpace(Nome) ? "Regra sem nome" : Nome.Trim(),
         NomeContem = Lista(NomeContem),
         Extensoes = [.. Lista(Extensoes).Select(e => e.TrimStart('.', '*'))],
+        ConteudoContem = Lista(ConteudoContem),
+        PastaOrigemContem = PastaOrigemContem,
         Destino = Destino.Trim(),
         Prioridade = int.TryParse(Prioridade, out int p) ? p : 0,
         Ativa = Ativa,

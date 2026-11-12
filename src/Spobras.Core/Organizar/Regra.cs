@@ -22,7 +22,16 @@ public sealed record Regra
     /// <summary>Trecho do caminho da pasta onde o arquivo esta.</summary>
     public string? PastaOrigemContem { get; init; }
 
-    /// <summary>Pasta de destino. Aceita {ano} e {mes} (da chegada do arquivo; sem ela, da data do arquivo).</summary>
+    /// <summary>
+    /// Qualquer um destes trechos DENTRO do arquivo (planilha, PDF com texto, Word, texto). Arquivo que
+    /// nao da para ler nao atende a esta condicao.
+    /// </summary>
+    public IReadOnlyList<string> ConteudoContem { get; init; } = [];
+
+    /// <summary>
+    /// Pasta de destino. Aceita {ano} e {mes} (da chegada do arquivo; sem ela, da data do arquivo) e
+    /// {contrato}, {escola}, {lote} e {portaria}, quando o arquivo e reconhecido na Base de dados.
+    /// </summary>
     public required string Destino { get; init; }
 }
 

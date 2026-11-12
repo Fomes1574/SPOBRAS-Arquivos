@@ -31,6 +31,14 @@ public sealed class Composicao : IDisposable
             UsarEventos = eventosDasFontes,
         };
 
+        // Organizador por conteudo: texto lido com o indice da busca; contratos e escolas da base atual
+        // (refeito quando a base muda).
+        var indice = new Spobras.Dados.Busca.IndiceSqlite(banco);
+        Spobras.Core.Organizar.ReconhecedorObras? reconhecedor = null;
+        Fontes.Mudou += () => reconhecedor = null;
+        Novidades.LerConteudo = caminho => Spobras.Documentos.Ferramentas.BuscaArquivos.LerComIndice(caminho, indice);
+        Novidades.Reconhecedor = () => reconhecedor ??= new Spobras.Core.Organizar.ReconhecedorObras(Base.Buscar(new Spobras.Core.Base.FiltroObras(), int.MaxValue).Obras);
+
         // So entram no menu os modulos que ja funcionam (especificacao 9.1).
         Modulos =
         [
@@ -66,7 +74,7 @@ public sealed class Composicao : IDisposable
                 verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
             [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
-            [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, new Spobras.Dados.Busca.IndiceSqlite(banco),
+            [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, indice,
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),

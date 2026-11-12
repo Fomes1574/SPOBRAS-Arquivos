@@ -128,7 +128,13 @@ public sealed class ServicoNovidades : IDisposable
         Mudou?.Invoke();
     }
 
-    public PlanejadorOrganizacao Planejador => new(_arquivos);
+    /// <summary>Le o texto de dentro do arquivo (com o indice da busca), para regras por conteudo.</summary>
+    public Func<string, Spobras.Core.Ferramentas.TextoIndexado>? LerConteudo { get; set; }
+
+    /// <summary>Contratos e escolas da base atual, para {contrato}, {escola}, {lote} e {portaria}.</summary>
+    public Func<ReconhecedorObras?>? Reconhecedor { get; set; }
+
+    public PlanejadorOrganizacao Planejador => new(_arquivos, LerConteudo, Reconhecedor?.Invoke());
 
     public void Dispose() => _vigia?.Dispose();
 

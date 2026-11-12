@@ -109,6 +109,33 @@ public static partial class BuscaArquivos
         }
     }
 
+    /// <summary>Texto do arquivo, usando o indice quando o arquivo nao mudou (organizador por conteudo).</summary>
+    public static TextoIndexado LerComIndice(string caminho, IIndiceTexto indice)
+    {
+        if (!LeConteudo(caminho))
+        {
+            return new TextoIndexado(null, "tipo de arquivo sem leitura de conteúdo");
+        }
+
+        try
+        {
+            var info = new FileInfo(caminho);
+            long ticks = info.LastWriteTimeUtc.Ticks;
+            if (indice.Ler(caminho, info.Length, ticks) is { } guardado)
+            {
+                return guardado;
+            }
+
+            var lido = Ler(caminho, info.Length);
+            indice.Gravar(caminho, info.Length, ticks, lido);
+            return lido;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new TextoIndexado(null, "não foi possível abrir: " + ex.Message);
+        }
+    }
+
     /// <summary>Texto do arquivo para a busca, ou o motivo de nao ter lido.</summary>
     public static TextoIndexado Ler(string caminho, long tamanho, CancellationToken cancelamento = default)
     {

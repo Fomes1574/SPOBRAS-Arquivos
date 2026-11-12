@@ -146,7 +146,7 @@
                 </Expander.Header>
                 <StackPanel Margin="0,10,0,6">
                     <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8"
-                               Text="A regra vale quando o arquivo bate com tudo o que estiver preenchido. Separe vários trechos ou extensões com vírgula. No destino você pode usar {ano} e {mes}. Prioridade maior ganha quando duas regras servem." />
+                               TextWrapping="Wrap" Text="A regra vale quando o arquivo bate com tudo o que estiver preenchido. Separe vários trechos com vírgula. “Conteúdo contém” procura dentro de planilhas, PDFs com texto e Word. No destino você pode usar {ano}, {mes} e, se o arquivo citar um contrato ou escola da Base de dados, {contrato}, {escola}, {lote} e {portaria}. Prioridade maior ganha." />
                     <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto" Focusable="False">
                         <ItemsControl ItemsSource="{Binding Regras}" Focusable="False">
                             <ItemsControl.ItemTemplate>
@@ -156,7 +156,8 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="2*" />
                                             <ColumnDefinition Width="2*" />
-                                            <ColumnDefinition Width="1.4*" />
+                                            <ColumnDefinition Width="1.2*" />
+                                            <ColumnDefinition Width="2*" />
                                             <ColumnDefinition Width="3*" />
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="70" />
@@ -166,11 +167,12 @@
                                         <TextBox Grid.Column="1" Text="{Binding Nome}" Margin="0,0,6,0" ToolTip="Nome da regra" AutomationProperties.Name="Nome da regra" />
                                         <TextBox Grid.Column="2" Text="{Binding NomeContem}" Margin="0,0,6,0" ToolTip="Nome do arquivo contém (ex.: medicao, medição)" AutomationProperties.Name="Nome do arquivo contém" />
                                         <TextBox Grid.Column="3" Text="{Binding Extensoes}" Margin="0,0,6,0" ToolTip="Extensões (ex.: pdf, xlsx)" AutomationProperties.Name="Extensões" />
-                                        <TextBox Grid.Column="4" Text="{Binding Destino}" Margin="0,0,6,0" ToolTip="Pasta de destino" AutomationProperties.Name="Pasta de destino" />
-                                        <Button Grid.Column="5" Style="{StaticResource BotaoLinha}" Content="Pasta…" MinHeight="44" Margin="0,0,6,0"
+                                        <TextBox Grid.Column="4" Text="{Binding ConteudoContem}" Margin="0,0,6,0" ToolTip="Texto dentro do arquivo (ex.: Ordem de Serviço). Deixe em branco para não ler o conteúdo." AutomationProperties.Name="Conteúdo do arquivo contém" />
+                                        <TextBox Grid.Column="5" Text="{Binding Destino}" Margin="0,0,6,0" ToolTip="Pasta de destino. Pode usar {ano}, {mes}, {contrato}, {escola}, {lote}, {portaria}" AutomationProperties.Name="Pasta de destino" />
+                                        <Button Grid.Column="6" Style="{StaticResource BotaoLinha}" Content="Pasta…" MinHeight="44" Margin="0,0,6,0"
                                                 Command="{Binding DataContext.EscolherDestinoDaRegraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <TextBox Grid.Column="6" Text="{Binding Prioridade}" Margin="0,0,6,0" ToolTip="Prioridade (número maior ganha)" AutomationProperties.Name="Prioridade" />
-                                        <Button Grid.Column="7" Style="{StaticResource BotaoLinha}" Content="✕" MinHeight="44" ToolTip="Remover a regra" AutomationProperties.Name="Remover a regra"
+                                        <TextBox Grid.Column="7" Text="{Binding Prioridade}" Margin="0,0,6,0" ToolTip="Prioridade (número maior ganha)" AutomationProperties.Name="Prioridade" />
+                                        <Button Grid.Column="8" Style="{StaticResource BotaoLinha}" Content="✕" MinHeight="44" ToolTip="Remover a regra" AutomationProperties.Name="Remover a regra"
                                                 Command="{Binding DataContext.RemoverRegraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                     </Grid>
                                 </DataTemplate>
