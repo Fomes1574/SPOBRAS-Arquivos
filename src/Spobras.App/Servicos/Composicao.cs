@@ -13,7 +13,7 @@ public sealed class Composicao : IDisposable
     public Composicao(
         string pastaDados, string pastaTrabalhoPadrao, IDialogos dialogos, IInterface @interface, string versao,
         IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null, bool eventosDasFontes = true,
-        IVerificadorCronograma? verificadorCronograma = null)
+        IVerificadorCronograma? verificadorCronograma = null, Spobras.Documentos.Pdf.IOcr? ocr = null)
     {
         PastaDados = pastaDados;
         var arquivos = new ArquivosDisco();
@@ -69,7 +69,7 @@ public sealed class Composicao : IDisposable
             [CompactarVm.Modulo] = new CompactarVm(arquivos, dialogos, Operacoes, Preferencias),
             [RelatorioVm.Modulo] = new RelatorioVm(dialogos, @interface, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
-            [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias, () => Modelos.Logo),
+            [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias, () => Modelos.Logo, ocr),
             [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
             [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),

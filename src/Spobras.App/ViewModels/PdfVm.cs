@@ -46,8 +46,11 @@ public sealed partial class PdfVm : TelaVm
         new(PosicaoCarimbo.TopoEsquerda, "Topo, à esquerda"),
     ];
 
-    public PdfVm(IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias, Func<string?>? logo = null)
+    private readonly IOcr? _ocr;
+
+    public PdfVm(IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias, Func<string?>? logo = null, IOcr? ocr = null)
     {
+        _ocr = ocr;
         _logo = logo ?? (() => null);
         _dialogos = dialogos;
         _operacoes = operacoes;
@@ -168,7 +171,8 @@ public sealed partial class PdfVm : TelaVm
     [RelayCommand]
     private void AdicionarArquivos()
     {
-        string filtro = EhFotos ? "Fotos|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif" : "Arquivos PDF|*.pdf";
+        string filtro = EhFotos ? "Fotos|*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif"
+            : EhParaExcel ? "PDF ou imagem escaneada|*.pdf;*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff" : "Arquivos PDF|*.pdf";
         Adicionar(_dialogos.EscolherArquivos(EhFotos ? "Escolha as fotos" : "Escolha os PDFs", filtro, _preferencias.Atual.PastaTrabalho));
     }
 
@@ -199,6 +203,10 @@ public sealed partial class PdfVm : TelaVm
 
                     var info = Fotos.Ler(caminho);
                     Entradas.Add(new EntradaPdfVm(caminho, $"{info.Largura} x {info.Altura}"));
+                }
+                else if (EhParaExcel && Path.GetExtension(caminho).ToLowerInvariant() is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".tif" or ".tiff")
+                {
+                    Entradas.Add(new EntradaPdfVm(caminho, $"Imagem · {Tamanho.Formatar(new FileInfo(caminho).Length)} · lida pelo OCR"));
                 }
                 else
                 {
@@ -351,9 +359,10 @@ public sealed partial class PdfVm : TelaVm
                                     else
                                     {
                                         string saida = Livre(Path.GetFileNameWithoutExtension(entradas[i]) + ".xlsx");
-                                        var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento);
+                                        var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento, _ocr);
                                         criados.Add(saida);
                                         notas.Add($"{original}: {Formato.Plural(lido.Linhas.Count, "linha lida", "linhas lidas")}"
+                                                  + (lido.LidasPorOcr.Count > 0 ? $" ({Formato.Plural(lido.LidasPorOcr.Count, "página lida", "páginas lidas")} pelo OCR: confira com atenção)" : "")
                                                   + (lido.PaginasSemTexto.Count > 0 ? $" ({Formato.Plural(lido.PaginasSemTexto.Count, "página sem texto", "páginas sem texto")}, ficou de fora)" : ""));
                                     }
                                 }
@@ -467,7 +476,7 @@ public sealed partial class PdfVm : TelaVm
             FerramentaPdf.Separar => ("PDF que vai ser separado", "Arraste um PDF para cá", "Escolher o PDF"),
             FerramentaPdf.FotosEmPdf => ("Fotos na ordem das páginas", "Arraste as fotos para cá", "Adicionar fotos"),
             FerramentaPdf.LogoENumeracao => ("PDFs que vão receber logo ou número", "Arraste os PDFs para cá", "Adicionar PDFs"),
-            FerramentaPdf.ParaExcel => ("PDFs para passar para o Excel", "Arraste os PDFs para cá", "Adicionar PDFs"),
+            FerramentaPdf.ParaExcel => ("PDFs e imagens para passar para o Excel", "Arraste PDFs ou fotos de documentos para cá", "Adicionar arquivos"),
             _ => ("PDFs para reduzir", "Arraste os PDFs para cá", "Adicionar PDFs"),
         };
 
@@ -548,7 +557,15 @@ public sealed partial class PdfVm : TelaVm
             if (Ferramenta == FerramentaPdf.ParaExcel)
             {
                 Avisos.Add(new AvisoVm(Gravidade.Informacao,
-                    "Uma planilha por PDF, com a página e a linha de origem de cada dado. Funciona com PDF gerado por sistema; PDF digitalizado (foto do papel) não tem texto e precisa de OCR, que ainda não faz parte do app."));
+                    "Uma planilha por arquivo, com a página e a linha de origem de cada dado. PDF gerado por sistema é lido direto; PDF digitalizado e foto são lidos pelo OCR do Windows."));
+                if (_ocr is { Disponivel: true } ocr)
+                {
+                    Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"O OCR (idioma: {ocr.Idioma}) pode trocar letras e números parecidos. Confira valores e datas das páginas lidas por OCR antes de usar."));
+                }
+                else
+                {
+                    Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, "O OCR do Windows não está disponível neste computador: páginas digitalizadas e fotos ficam de fora."));
+                }
             }
 
             if (Ferramenta == FerramentaPdf.Reduzir)

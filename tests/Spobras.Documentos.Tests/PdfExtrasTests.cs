@@ -101,9 +101,63 @@ public class PdfExtrasTests : IDisposable
         Assert.True(semTexto.SemTextoNenhum);
         Assert.Equal([1, 2], semTexto.PaginasSemTexto);
         var erro = Assert.Throws<PdfInvalidoException>(() => TextoPdf.ParaExcel(branco, Em("nada.xlsx")));
-        Assert.Contains("precisa de OCR", erro.Message);
+        Assert.Contains("OCR do Windows não está disponível", erro.Message);
         Assert.False(File.Exists(Em("nada.xlsx")));
         Assert.Throws<PdfInvalidoException>(() => TextoPdf.Extrair(Em("nao-existe.pdf")));
+    }
+
+    private sealed class OcrFalso : IOcr
+    {
+        public bool Disponivel => true;
+        public string Idioma => "Português (Brasil)";
+        public List<int> PaginasLidas { get; } = [];
+
+        // Uma "tabela" escaneada: duas colunas separadas por espaco largo, em pixels.
+        private static IReadOnlyList<PalavraPosicionada> Tabela() =>
+        [
+            new("Unidade", 100, 260, 50, 30), new("Orçamento", 900, 1100, 52, 30),
+            new("EMEF", 100, 190, 120, 30), new("Alfa", 200, 270, 121, 30), new("50.000,00", 900, 1080, 119, 30),
+        ];
+
+        public IReadOnlyList<PalavraPosicionada> LerPaginaPdf(string pdf, int pagina)
+        {
+            PaginasLidas.Add(pagina);
+            return Tabela();
+        }
+
+        public IReadOnlyList<PalavraPosicionada> LerImagem(string imagem) => Tabela();
+    }
+
+    [Fact]
+    public void Pdf_digitalizado_e_foto_sao_lidos_pelo_ocr_e_marcados_para_conferir()
+    {
+        var ocr = new OcrFalso();
+        string pdf = PdfEmBranco("escaneado.pdf", 2);
+        string saida = Em("escaneado.xlsx");
+
+        var lido = TextoPdf.ParaExcel(pdf, saida, ocr: ocr);
+
+        Assert.Equal([1, 2], ocr.PaginasLidas);
+        Assert.Equal([1, 2], lido.LidasPorOcr);
+        Assert.Equal(["EMEF Alfa", "50.000,00"], lido.Linhas[1].Colunas);
+        using (var leitor = new LeitorXlsx(saida))
+        {
+            Assert.Equal(new object?[] { 1m, 2m, "EMEF Alfa", 50000m }, leitor.LerAba("Texto do PDF")[2].Take(4));
+            Assert.Contains(leitor.LerAba("Sobre"), l => "Lidas por OCR".Equals(l[0]) && ((string)l[1]!).Contains("confira com mais atenção"));
+        }
+
+        // Pagina com texto nao passa pelo OCR
+        var comTexto = PdfComTexto("texto.pdf", [(40, "Unidade")]);
+        var ocr2 = new OcrFalso();
+        TextoPdf.Extrair(comTexto, ocr: ocr2);
+        Assert.Empty(ocr2.PaginasLidas);
+
+        // Foto de uma tabela
+        string foto = Em("foto.jpg");
+        File.WriteAllBytes(foto, [0xFF, 0xD8, 0xFF]);
+        var daFoto = TextoPdf.ParaExcel(foto, Em("foto.xlsx"), ocr: ocr);
+        Assert.Equal(["Unidade", "Orçamento"], daFoto.Linhas[0].Colunas);
+        Assert.Throws<PdfInvalidoException>(() => TextoPdf.ParaExcel(foto, Em("foto2.xlsx")));
     }
 
     [Fact]
