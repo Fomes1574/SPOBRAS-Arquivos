@@ -1,8 +1,8 @@
 # Progresso
 
-Passo atual: **7. Organizador por conteúdo, consultas salvas, ficha da obra, exportações, extras de PDF, busca, juntar planilhas, duplicados** (seção 10 da arquitetura).
+Passo atual: **8. Revisão geral, instalador final e roteiro de conferência** (seção 10 da arquitetura).
 
-Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
+Passos 1 a 7 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
 
 ## Feito
 
@@ -70,9 +70,17 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Início no meio do mês: o modelo só distribui valor a partir do mês seguinte quando o início não é dia 1º. A opção "Começar a contar no dia 1º do mês de início" (ligada por padrão) grava o dia 1º e cada linha mostra a data que vai para a planilha. Ver pendências.
 - Tela Modelos Excel: cadastro de qualquer planilha (.xlsx/.xlsm) com campos → célula (tipo texto, número ou data, obrigatório, ligado ou não a um dado da Base de dados), nome dos arquivos com `{Campo}`. Preenche um ou vários arquivos (uma linha por arquivo, colar do Excel, obra da Base), PDF opcional pelo Excel, atualizar outro arquivo de mesma estrutura numa cópia. Bloqueia célula com fórmula e célula mesclada (indica a primeira do grupo). Se o arquivo do modelo mudar de estrutura, pede revisão antes de gerar.
 
+### Passo 7: organizador por conteúdo, consultas, exportações, extras de PDF, busca, juntar planilhas, repetidos
+
+- Base de dados: **consultas salvas** (filtros com nome; ao reabrir, usam a base atual), **Exportar para Excel** (todas as obras do filtro, não só as da tela, com datas e números como tipos do Excel e uma aba "Sobre esta consulta" com filtros, data e de qual leitura das fontes os dados vieram), **pendências** (obras sem Data da OS e fontes com falha, com atalho para o filtro) e "Buscar o contrato nos arquivos" a partir da obra.
+- Ficha da obra: já existia no passo 5 (painel ao lado dos resultados com contrato, receita, portaria, dotação, Data da OS, valores, medições e empenhos do contrato).
+- PDF: **Logo e numeração** numa cópia (posição escolhida, a partir de uma página, prévia das páginas atingidas, aviso de PDF assinado) e **PDF para Excel** (texto do PDF em linhas e colunas, valores em reais e datas convertidos, página e linha de origem; PDF digitalizado é explicado, sem OCR).
+- Ferramentas (módulo novo): **buscar nos arquivos** (nome e conteúdo de .xlsx/.xlsm, PDF com texto, .docx, .txt, .csv; índice local que só relê arquivo alterado), **juntar planilhas** (colunas casadas pelo título, arquivo e aba de origem em cada linha, nada somado), **arquivos repetidos** (pelo conteúdo; separar as cópias numa pasta "Cópias repetidas" com confirmação e Desfazer; nada é apagado) e **Excel para PDF em lote** (pelo Excel).
+- Organizador por conteúdo: regra com "Conteúdo contém" e destino com `{contrato}`, `{escola}`, `{lote}`, `{portaria}`. A obra é reconhecida pelo número exato do contrato (no nome aceita `-`, `_` ou `.` no lugar da barra) ou pelo nome completo da escola, primeiro no nome e depois no conteúdo. Mais de uma obra possível, dado faltando ou base vazia vão para "Você decide", com a evidência.
+
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 235 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 258 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -95,6 +103,9 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 | T17, T18 | `BaseTests` | Contrato com várias escolas e portarias; várias medições e empenhos por contrato sem duplicar valores. |
 | T27, T29, T31 | `BaseTests`, `BaseEFontesTests` | Filtros vinculados em qualquer ordem, limpar um filtro, Data da OS por período, faixa de valor com valor ausente. |
 | T32 | `CronogramaVmTests` | Início vindo da OS identificado; início previsto identificado; data trocada à mão mostra divergência sem mexer na base. |
+| T19 | `PdfExtrasTests`, `PdfVmTests` | PDF com texto em várias colunas e páginas, valores e datas convertidos, origem por página e linha; PDF sem texto explicado. Falta testar com PDFs reais de Restos a Pagar e Anexo I. |
+| T25 | `OrganizarConteudoTests`, `ComposicaoTests` | Escola em dois contratos, contrato com duas escolas, número parecido (1001 vs 001), PDF sem texto e base vazia: tudo em "Você decide" com o motivo. |
+| T33 | `ConsultasTests` | Consulta salva reaberta depois de a fonte mudar mostra os dados novos; exportação com todas as linhas, tipos do Excel e aba de filtros. |
 | T20 | `PdfTests`, `PdfVmTests` | Reduzir PDF com fotos (original preservado), PDF já otimizado (avisa e não cria cópia), protegido por senha (mensagem), assinado (aviso antes). |
 | T24 | `TelasDeVerdadeTests` (CI) | Todas as telas a 1024x768 e 900x700, sem texto ou botão cortado, com nomes para leitor de tela. Falta conferir no monitor real e nas escalas 125% e 150%. |
 
@@ -109,6 +120,9 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - `{obra}`, `{lote}` e `{tarefa}` no destino das regras do organizador ainda não foram feitos: só `{ano}` e `{mes}`.
 - Base: uma obra é o par (CONTRATO, EMPREENDIMENTO) da mestra. Os filtros mostram os nomes de coluna da própria planilha; o app não decide sozinho qual valor é "o valor do contrato".
 - Modelos Excel: o app guarda uma cópia de cada modelo e grava a "assinatura" da estrutura (abas e número de fórmulas). Se mudar, pede revisão. Macros não são executadas.
+- Busca e organizador por conteúdo usam o mesmo índice (tabela `IndiceArquivo`, migração 5), chaveado por caminho, tamanho e data do arquivo.
+- PDF para Excel: colunas separadas por espaço largo entre palavras (cerca de dois caracteres). Funciona bem em relatórios de sistema alinhados; tabela com célula quebrada em duas linhas sai em duas linhas e precisa de conferência.
+- Texto escrito em PDF (numeração) usa as fontes do computador pelo SkiaSharp (Segoe UI/Arial no Windows).
 - Cronograma: portaria, lote e dotação só com algarismos são gravados como número (igual a digitar no Excel); com zero à esquerda, letras ou pontos ficam como texto.
 - Cronograma: a conferência pelo Excel salva o arquivo gerado já calculado (para abrir com os valores certos mesmo em visualizadores).
 - Fonte da interface: "Inter, Segoe UI". A Inter não vai no pacote; no PC sem ela o Windows usa Segoe UI.
@@ -127,6 +141,8 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - [ ] Cronograma em **aba nova de um arquivo já existente** (especificação T15): confirmar se você usa assim ou se um arquivo novo por cronograma basta.
 - [ ] Editar portarias e dotações dentro do app e "Exportar para o Excel": hoje a Base de dados só lê; dá para dar apelido à portaria. Confirmar se precisa editar no app ou se a planilha de dotações continua sendo o lugar.
 - [ ] Planilhas complementares (arquitetura 5.4, T30): não feitas. Dizer se há alguma outra planilha que deve entrar na base.
+
+- [ ] **Extração de Restos a Pagar e Anexo I Tabela SME** (especificação 4.8, item 5): o conversor geral já funciona, mas a extração com colunas certas (data, NE, ano, SEI, valor a liquidar, dotação; unidade, DRE, orçamento) precisa de um PDF de exemplo de cada. Se puder, envie um de cada (pode ser com valores alterados).
 
 ## Decidido pelo usuário
 
@@ -147,5 +163,6 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Reduzir fotos antes de compactar (especificação 4.3, item 5): ainda não ligado à tela Compactar.
 - Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
 - Cronograma gerado a partir do `Cronograma_revisado.xlsx` real e recalculado localmente no LibreOffice: remuneração, totais por obra, total geral, meses e totais por ano batem. O bloco "Resumo pedido" (e `Parametros!B20`) usa ORDENAR/ÚNICO/FILTRO/PROCX, que o LibreOffice daqui não calcula: **conferir no Excel do PC do trabalho**. Essa conferência mostrou que a dotação precisava ir como número (a aba `Dotacoes` guarda número); corrigido.
-- Duplicados por conteúdo e reconhecimento por conteúdo: passo 7.
+- Busca, repetidos e organizador por conteúdo em pastas grandes da rede/OneDrive (arquivos só na nuvem são baixados ao ler o conteúdo): medir no PC do trabalho.
+- OCR (PDF digitalizado e fotos): fora desta entrega, como na arquitetura.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).
