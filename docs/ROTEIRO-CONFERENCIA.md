@@ -23,6 +23,7 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] **Salvar consulta** com um nome, mude os filtros, depois escolha a consulta salva: os filtros voltam.
 - [ ] **Editar dados** numa obra (por exemplo, o lote): a lista mostra "campo editado no app" e a ficha mostra o valor da planilha, com "Voltar ao da planilha". Teste também **Incluir obra** e, em Fontes de dados, editar uma dotação.
 - [ ] **Conferir uma planilha**: escolha uma planilha sua com portarias e dotações e veja as propostas. A correção sai numa cópia "(padronizada)".
+- [ ] Escolha um **Lote**: aparecem os totais do lote acima da lista. Arraste a divisória entre a lista e a ficha, use **Ampliar** e **Recolher** os filtros.
 - [ ] **Exportar para Excel**: abra a planilha gerada e veja se datas e valores estão como data e número, e se a aba "Sobre esta consulta" diz os filtros.
 - [ ] Salve a planilha mestra na pasta da rede (pode ser sem mudar nada) e espere uns segundos: o app relê sozinho e a data da leitura muda.
 
@@ -31,14 +32,17 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] Digite um número de contrato na etapa Dados (pode usar hífen no lugar da barra): o resto se completa. Se o contrato tiver várias escolas, o app pede para escolher (se você já digitou a escola e ela é uma delas, usa essa).
 - [ ] Comece pela escola: se ela estiver em mais de um contrato, o app lista os contratos para escolher. Escola e contrato que não combinam na Base geram aviso, sem trocar nada.
 - [ ] Na Base, escolha uma obra e clique **Usar no relatório**: os dados entram na etapa Dados.
-- [ ] Adicione fotos de celular (em pé e deitadas), escreva algumas legendas, gere em Excel e em PDF.
+- [ ] Adicione fotos de celular (em pé e deitadas), escreva legenda só em algumas, gere em Excel e em PDF. Foto sem legenda fica sem texto embaixo.
+- [ ] Apague o Fiscal ou a Data da OS: a linha some do cabeçalho. Use **Atualizar dados** e veja o que voltou da base.
 - [ ] Abra o Excel gerado: ele já abre mostrando as folhas A4. Fotos inteiras, todas do mesmo tamanho e sem encostar uma na outra; cabeçalho em grade em todas as páginas; "Página X de Y".
 - [ ] O logo: em **Configurações → Logo dos documentos**, use **Tirar de um relatório…** com o relatório do Jardim Paulistano. Ele aparece no menu, no relatório e nas planilhas exportadas.
 
 ### Cronograma padrão
 
 - [ ] Na Base, use **Usar no cronograma** em duas obras (ou cole linhas do Excel); preencha valor e fim. Embaixo de cada linha aparecem a remuneração, o total e a dotação completa achada na base.
-- [ ] Em **Ajustes por mês**, coloque 5% em out/26, 7% em nov/26 e 8% em dez/26: em **Como fica**, os outros meses dividem o resto. Teste também um valor em reais num mês só para uma obra.
+- [ ] Digite o nome de uma escola com mais de um contrato: escolha o contrato certo na lista e veja lote, portaria e dotação entrarem. Inclua uma escola do mesmo lote pela lista de sugestões.
+- [ ] Troque a **Distribuição** para **Curva S** e confira em **Como fica** (começa baixo, sobe até o meio, desce). Depois, em **Ajustes por mês**, escolha um mês na lista e coloque 5%: os outros meses seguem a curva.
+- [ ] Digite 50000 no valor e saia do campo: vira R$ 50.000,00.
 - [ ] Gere com **Gerar também o PDF** marcado. Abra o Excel: logo, título, meses como "out/26", total de cada ano, total solicitado e, embaixo, a tabela por dotação (obra e remuneração).
 - [ ] Mude a **Remuneração** para outro percentual e gere de novo.
 
@@ -57,7 +61,7 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 ### PDF e Ferramentas
 
 - [ ] **PDF**: juntar dois PDFs, separar páginas, reduzir um PDF com fotos, e **Logo e numeração** a partir da página 2.
-- [ ] **PDF para Excel** com um PDF de Restos a Pagar ou do Anexo I, com um **PDF escaneado** e com uma **foto de documento**: veja o que veio certo e o que precisa de ajuste.
+- [ ] **PDF para Excel** com o PDF de Restos a Pagar e o do Anexo I: abra a planilha ao lado do PDF e compare (colunas, negrito, valores em R$, cabeçalho uma vez só). Teste também um **PDF escaneado** e uma **foto de documento**.
 - [ ] **Ferramentas → Buscar nos arquivos**: procure um número de contrato na sua pasta de trabalho. A primeira busca demora mais; a segunda é rápida.
 - [ ] **Arquivos repetidos** numa pasta com cópias. Use **Separar as cópias** e depois **Desfazer**.
 - [ ] **Excel para PDF** com duas planilhas.
@@ -71,7 +75,7 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 
 ## 3. O que ainda depende de você
 
-- Um PDF de **Restos a Pagar** e um do **Anexo I Tabela SME** (com valores trocados, se preferir), para a leitura com as colunas certas.
+- Confirmar a dotação 3363 (obra termina em 3900 na planilha; pela regra, seria 5100?).
 
 ## 4. Como devolver
 
