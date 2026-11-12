@@ -1,0 +1,225 @@
+<UserControl x:Class="Spobras.App.Telas.FerramentasTela"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AllowDrop="True" Drop="AoSoltar" DragOver="AoArrastar" Background="Transparent">
+    <Grid Margin="40,32,40,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel>
+            <TextBlock Text="Ferramentas" Style="{StaticResource TituloPagina}" />
+            <TextBlock Text="{Binding Resumo}" Style="{StaticResource Texto2}" Margin="0,4,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <UniformGrid Grid.Row="1" Rows="1" Margin="-6,16,-6,0">
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Buscar}">
+                <StackPanel>
+                    <TextBlock Text="Buscar nos arquivos" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Um contrato ou escola dentro das planilhas, PDFs e documentos." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Juntar}">
+                <StackPanel>
+                    <TextBlock Text="Juntar planilhas" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Várias planilhas iguais viram uma só, com a origem de cada linha." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Duplicados}">
+                <StackPanel>
+                    <TextBlock Text="Arquivos repetidos" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Acha cópias iguais, mesmo com nomes diferentes." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=ExcelPdf}">
+                <StackPanel>
+                    <TextBlock Text="Excel para PDF" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Várias planilhas em PDF de uma vez, pela impressão do Excel." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+        </UniformGrid>
+
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Entradas: pastas ou planilhas -->
+            <Border Style="{StaticResource Painel}">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Visibility="{Binding EhBuscar, Converter={StaticResource Visivel}}" Margin="0,0,0,12">
+                        <TextBlock Text="O que procurar" Style="{StaticResource Rotulo}" />
+                        <TextBox Text="{Binding Termo, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Texto a procurar"
+                                 ToolTip="Contrato, escola, número de SEI… sem precisar de acento nem maiúsculas" />
+                    </StackPanel>
+                    <StackPanel DockPanel.Dock="Top" Visibility="{Binding EhJuntar, Converter={StaticResource Visivel}}" Margin="0,0,0,12">
+                        <TextBlock Text="Nome da planilha nova" Style="{StaticResource Rotulo}" />
+                        <TextBox Text="{Binding NomeSaida, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome da planilha nova" />
+                    </StackPanel>
+
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar pasta" Command="{Binding AdicionarPastaCommand}"
+                                Visibility="{Binding UsaPastas, Converter={StaticResource Visivel}}" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar planilhas" Command="{Binding AdicionarArquivosCommand}"
+                                Visibility="{Binding UsaArquivos, Converter={StaticResource Visivel}}" />
+                        <TextBlock VerticalAlignment="Center" FontWeight="SemiBold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Planilhas" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding UsaPastas}" Value="True"><Setter Property="Text" Value="Pastas" /></DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </DockPanel>
+                    <Grid>
+                        <TextBlock Text="Arraste para cá ou use o botão acima." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                   Visibility="{Binding TemEntradas, Converter={StaticResource VisivelSeNao}}" />
+                        <ListBox ItemsSource="{Binding Pastas}" Style="{StaticResource ListaSimples}" Visibility="{Binding UsaPastas, Converter={StaticResource Visivel}}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="✕" Margin="8,0,0,0" ToolTip="Tirar da lista" AutomationProperties.Name="Tirar a pasta da lista"
+                                                Command="{Binding DataContext.RemoverPastaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <ListBox ItemsSource="{Binding Arquivos}" Style="{StaticResource ListaSimples}" Visibility="{Binding UsaArquivos, Converter={StaticResource Visivel}}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="✕" Margin="8,0,0,0" ToolTip="Tirar da lista (o arquivo não é apagado)" AutomationProperties.Name="Tirar a planilha da lista"
+                                                Command="{Binding DataContext.RemoverArquivoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        <TextBlock Text="{Binding Converter={StaticResource SoNome}}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- Resultado da ferramenta -->
+            <Border Grid.Column="2" Style="{StaticResource Painel}">
+                <DockPanel>
+                    <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+                    <Grid>
+                        <!-- Buscar -->
+                        <DockPanel Visibility="{Binding EhBuscar, Converter={StaticResource Visivel}}">
+                            <TextBlock DockPanel.Dock="Top" Text="Encontrados" Style="{StaticResource TituloPainel}" Margin="0,0,0,8" />
+                            <Grid>
+                                <TextBlock Text="Os arquivos encontrados aparecem aqui, com o trecho onde está o texto." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                           Visibility="{Binding TemAchados, Converter={StaticResource VisivelSeNao}}" />
+                                <ListBox ItemsSource="{Binding Achados}" Style="{StaticResource ListaSimples}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel>
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar" Margin="12,0,0,0" MinHeight="40" VerticalAlignment="Center"
+                                                        Command="{Binding DataContext.AbrirCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding Achado.Caminho}"
+                                                        AutomationProperties.Name="Mostrar o arquivo na pasta" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Nome}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Trecho}" TextWrapping="Wrap" FontSize="13" />
+                                                    <TextBlock Text="{Binding Pasta}" Style="{StaticResource Texto2}" FontSize="12" TextTrimming="CharacterEllipsis" ToolTip="{Binding Pasta}" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </DockPanel>
+
+                        <!-- Repetidos -->
+                        <DockPanel Visibility="{Binding EhDuplicados, Converter={StaticResource Visivel}}">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Desfazer" Margin="8,0,0,0" MinHeight="44" Command="{Binding DesfazerCommand}"
+                                        Visibility="{Binding PodeDesfazer, Converter={StaticResource Visivel}}" />
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Separar as cópias" Margin="8,0,0,0" Command="{Binding SepararCopiasCommand}"
+                                        Visibility="{Binding TemGrupos, Converter={StaticResource Visivel}}"
+                                        ToolTip="Move as cópias para uma pasta “Cópias repetidas”. Nada é apagado." />
+                                <TextBlock Text="Arquivos iguais" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Grid>
+                                <TextBlock Text="Escolha as pastas e clique em Procurar repetidos." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                           Visibility="{Binding TemGrupos, Converter={StaticResource VisivelSeNao}}" />
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                                    <ItemsControl ItemsSource="{Binding Grupos}" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,0,12">
+                                                    <TextBlock Text="{Binding Titulo}" FontWeight="SemiBold" />
+                                                    <TextBlock TextTrimming="CharacterEllipsis" ToolTip="{Binding Original}" FontSize="13">
+                                                        <Run Text="Fica: " Foreground="{StaticResource Secundario}" /><Run Text="{Binding Original, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                    <ItemsControl ItemsSource="{Binding Copias}" Focusable="False">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock TextTrimming="CharacterEllipsis" ToolTip="{Binding}" FontSize="13">
+                                                                    <Run Text="Cópia: " Foreground="{StaticResource Laranja}" /><Run Text="{Binding Mode=OneWay}" />
+                                                                </TextBlock>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </DockPanel>
+
+                        <!-- Juntar -->
+                        <DockPanel Visibility="{Binding EhJuntar, Converter={StaticResource Visivel}}">
+                            <TextBlock DockPanel.Dock="Top" Text="Prévia" Style="{StaticResource TituloPainel}" Margin="0,0,0,8" />
+                            <Grid>
+                                <TextBlock Text="Adicione as planilhas: aqui aparece de onde vêm os dados de cada uma e as colunas que faltam." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                           Visibility="{Binding LinhasPrevia.Count, Converter={StaticResource VisivelSeNao}}" />
+                                <ItemsControl ItemsSource="{Binding LinhasPrevia}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,6" /></DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </DockPanel>
+
+                        <!-- Excel para PDF -->
+                        <StackPanel Visibility="{Binding EhExcelPdf, Converter={StaticResource Visivel}}">
+                            <TextBlock Text="Como funciona" Style="{StaticResource TituloPainel}" Margin="0,0,0,8" />
+                            <TextBlock TextWrapping="Wrap" Style="{StaticResource Texto2}"
+                                       Text="O app abre cada planilha só para leitura numa janela invisível do Excel, criada por ele, e salva o PDF como sairia na impressão (com a área de impressão e as quebras de página da planilha). O seu Excel aberto não é tocado." />
+                        </StackPanel>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Margin="0,14,0,0">
+            <DockPanel Margin="0,0,0,10" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar na pasta" Margin="12,0,0,0" Command="{Binding AbrirResultadoCommand}"
+                        Visibility="{Binding PodeAbrirResultado, Converter={StaticResource Visivel}}" />
+                <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </DockPanel>
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="{Binding TextoBotao}" Margin="8,0,0,0" Command="{Binding ExecutarCommand}" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Escolher outra pasta" Margin="12,0,0,0" Command="{Binding EscolherDestinoCommand}"
+                        Visibility="{Binding UsaArquivos, Converter={StaticResource Visivel}}" />
+                <TextBlock Style="{StaticResource Texto2}" FontSize="13" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                           Visibility="{Binding UsaArquivos, Converter={StaticResource Visivel}}">
+                    <Run Text="Salvar em: " /><Run Text="{Binding PastaDestino, Mode=OneWay}" />
+                </TextBlock>
+            </DockPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

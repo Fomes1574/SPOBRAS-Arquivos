@@ -99,3 +99,11 @@ public sealed class Negar : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => value is not true;
 }
+
+/// <summary>Caminho completo vira so o nome do arquivo.</summary>
+public sealed class SoNome : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is string s ? Path.GetFileName(s) : "";
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}

@@ -137,6 +137,17 @@ public sealed class BancoApp
             portaria_rotulo text not null
         );
         """,
+
+        // 5: indice local da busca dentro dos arquivos (refeito por arquivo quando tamanho ou data mudam)
+        """
+        create table IndiceArquivo (
+            caminho text primary key,
+            tamanho integer not null,
+            modificado integer not null,
+            texto text null,
+            motivo text null
+        );
+        """,
     ];
 
     private readonly string _conexao;

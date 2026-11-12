@@ -156,6 +156,9 @@ public sealed partial class BaseVm : TelaVm
     }
 
     public ObservableCollection<PerfilGuardado> Consultas { get; } = [];
+
+    /// <summary>Abre a busca dentro dos arquivos com um termo (contrato ou escola da obra escolhida).</summary>
+    public Action<string>? AoBuscarNosArquivos { get; set; }
     public bool PodeSalvarConsultas => _apoio is not null;
     public bool TemConsultas => Consultas.Count > 0;
 
@@ -330,6 +333,15 @@ public sealed partial class BaseVm : TelaVm
         if (Selecionada is { } obra)
         {
             _usarNoCronograma?.Invoke(obra.Obra);
+        }
+    }
+
+    [RelayCommand]
+    private void BuscarNosArquivos(string? oQue)
+    {
+        if (Selecionada is { } obra)
+        {
+            AoBuscarNosArquivos?.Invoke(oQue == "escola" ? obra.Escola : obra.Contrato);
         }
     }
 

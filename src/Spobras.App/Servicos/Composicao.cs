@@ -48,6 +48,8 @@ public sealed class Composicao : IDisposable
                 "M4 4h16v16H4zM4 9h16M4 14h16M10 4v16"),
             new ModuloVm(PdfVm.Modulo, "PDF", "Juntar, separar, fotos em PDF, reduzir, numerar e passar para o Excel.",
                 "M6 3h9l4 4v14H6zM15 3v4h4"),
+            new ModuloVm(FerramentasVm.Modulo, "Ferramentas", "Buscar dentro dos arquivos, juntar planilhas, achar repetidos e Excel para PDF.",
+                "M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14M16 16l5 5"),
             new ModuloVm(BaseVm.Modulo, "Base de dados", "Portarias, dotações, contratos e escolas, sempre atualizados.",
                 "M4 6a8 3 0 1 0 16 0a8 3 0 1 0 -16 0M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"),
         ];
@@ -63,6 +65,8 @@ public sealed class Composicao : IDisposable
             [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
             [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),
+                exportadorPdf ?? new SemExportadorPdf(), relogio),
+            [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, new Spobras.Dados.Busca.IndiceSqlite(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
@@ -83,6 +87,11 @@ public sealed class Composicao : IDisposable
             ((ModelosVm)telas[ModelosVm.Modulo]).AdicionarDaBase(obra);
             Principal!.Navegar(ModelosVm.Modulo);
         }, new ApoioConsultas(dialogos, new PerfilRepositorio(banco), Operacoes, Preferencias, relogio));
+        ((BaseVm)telas[BaseVm.Modulo]).AoBuscarNosArquivos = termo =>
+        {
+            ((FerramentasVm)telas[FerramentasVm.Modulo]).BuscarPor(termo);
+            Principal!.Navegar(FerramentasVm.Modulo);
+        };
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
     }

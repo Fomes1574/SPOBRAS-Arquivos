@@ -278,6 +278,24 @@ public class TelasDeVerdadeTests
             modelosExcel.Linhas[1].Celulas[1].Valor = "abc";
             Fotografar(janela, saida, "46-modelos-preencher");
 
+            // Ferramentas: busca com resultado, repetidos, juntar com previa, Excel para PDF
+            principal.Navegar(FerramentasVm.Modulo);
+            var ferramentas = (FerramentasVm)principal.PaginaAtual!;
+            Fotografar(janela, saida, "49-ferramentas-buscar-vazio");
+            ferramentas.Termo = "Fotos";
+            ferramentas.ExecutarCommand.ExecuteAsync(null);
+            Esperar(() => !ferramentas.Ocupado && ferramentas.Resultado.Length > 0);
+            Fotografar(janela, saida, "50-ferramentas-buscar-resultado");
+            ferramentas.Ferramenta = FerramentaExtra.Duplicados;
+            ferramentas.ExecutarCommand.ExecuteAsync(null);
+            Esperar(() => !ferramentas.Ocupado && ferramentas.Resultado.Length > 0);
+            Fotografar(janela, saida, "51-ferramentas-repetidos");
+            ferramentas.Ferramenta = FerramentaExtra.Juntar;
+            ferramentas.Adicionar([modeloCronograma]);
+            Fotografar(janela, saida, "52-ferramentas-juntar");
+            ferramentas.Ferramenta = FerramentaExtra.ExcelPdf;
+            Fotografar(janela, saida, "53-ferramentas-excel-pdf");
+
             // Base de dados e Fontes de dados, com planilhas sinteticas de verdade
             string mestra = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoMestra);
             string dotacoes = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoDotacoes);
