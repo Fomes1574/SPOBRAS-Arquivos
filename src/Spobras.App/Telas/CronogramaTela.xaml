@@ -52,6 +52,8 @@
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Limpar tudo" Margin="8,0,0,0" MinHeight="44" Command="{Binding LimparCommand}"
                             Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSe}}" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Importar de uma planilha" Margin="8,0,0,0" MinHeight="44" Command="{Binding ImportarPlanilhaCommand}"
+                            ToolTip="Lê as obras de uma planilha sua, achando as colunas pelos títulos" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Colar do Excel" Margin="8,0,0,0" Command="{Binding ColarDoExcelCommand}"
                             ToolTip="Copie as linhas no Excel, na ordem das colunas abaixo, e clique aqui" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar obra" Margin="8,0,0,0" Command="{Binding NovaLinhaCommand}" />
@@ -150,7 +152,10 @@
                 <CheckBox IsChecked="{Binding AjustarInicio}" Margin="0,0,28,0"
                           Content="Começar a contar no dia 1º do mês de início"
                           ToolTip="O modelo só distribui valor no mês de início quando a data é o dia 1º. A data que vai para a planilha aparece em cada linha." />
-                <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding ExcelDisponivel}" />
+                <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding ExcelDisponivel}" Margin="0,0,28,0" />
+                <TextBlock Text="Nome do arquivo" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Text="{Binding NomeCronograma, UpdateSourceTrigger=PropertyChanged}" Width="280" AutomationProperties.Name="Nome do arquivo do cronograma"
+                         ToolTip="Em branco, o app usa “Cronograma - Portaria … - Lote …”" />
             </WrapPanel>
             <DockPanel Margin="0,0,0,10" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar na pasta" Margin="12,0,0,0" Command="{Binding AbrirResultadoCommand}"

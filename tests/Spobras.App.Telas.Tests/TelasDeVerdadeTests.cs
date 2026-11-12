@@ -247,6 +247,7 @@ public class TelasDeVerdadeTests
                 linha.Fim = "02/2027";
             }
 
+            cronograma.NomeCronograma = "Cronograma de novembro";
             Fotografar(janela, saida, "43-cronograma-linhas-e-avisos");
 
             // Modelos Excel: vazio, cadastro com problema, preenchimento
@@ -295,6 +296,8 @@ public class TelasDeVerdadeTests
             Fotografar(janela, saida, "52-ferramentas-juntar");
             ferramentas.Ferramenta = FerramentaExtra.ExcelPdf;
             Fotografar(janela, saida, "53-ferramentas-excel-pdf");
+            ferramentas.Ferramenta = FerramentaExtra.Padrao;
+            Fotografar(janela, saida, "54-ferramentas-conferir-padrao");
 
             // Base de dados e Fontes de dados, com planilhas sinteticas de verdade
             string mestra = Path.Combine(raiz, "Base", Spobras.Core.Base.Fontes.NomeArquivoMestra);

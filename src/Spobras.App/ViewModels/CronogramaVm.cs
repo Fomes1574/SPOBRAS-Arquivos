@@ -17,7 +17,7 @@ namespace Spobras.App.ViewModels;
 public sealed record LinhaRascunho(
     string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs);
 
-public sealed record RascunhoCronograma(List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf);
+public sealed record RascunhoCronograma(List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "");
 
 public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
 {
@@ -162,6 +162,12 @@ public sealed partial class CronogramaVm : TelaVm
     [ObservableProperty]
     private bool _gerarPdf;
 
+    /// <summary>Nome do arquivo escolhido pelo usuario; vazio = nome sugerido por portaria e lote.</summary>
+    [ObservableProperty]
+    private string _nomeCronograma = "";
+
+    partial void OnNomeCronogramaChanged(string value) => Conferir();
+
     [ObservableProperty]
     private string _pastaDestino;
 
@@ -236,6 +242,34 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
+    /// <summary>Le as obras de uma planilha sua (primeira aba), achando as colunas pelos titulos.</summary>
+    [RelayCommand]
+    private void ImportarPlanilha()
+    {
+        if (_dialogos.EscolherArquivos("Planilha com as obras", "Planilhas do Excel|*.xlsx;*.xlsm", _preferencias.Atual.PastaTrabalho).FirstOrDefault() is not { } arquivo)
+        {
+            return;
+        }
+
+        try
+        {
+            using var leitor = new LeitorXlsx(arquivo);
+            var (texto, problema) = ImportacaoCronograma.ParaColagem(leitor.LerAba(leitor.NomesDasAbas()[0]));
+            if (texto is null)
+            {
+                _dialogos.Avisar("Importar de uma planilha", problema!);
+                return;
+            }
+
+            Incluir(texto);
+            Resultado = $"De “{Path.GetFileName(arquivo)}”: " + Resultado;
+        }
+        catch (Exception ex) when (ex is PlanilhaInvalidaException or IOException or UnauthorizedAccessException)
+        {
+            _dialogos.Avisar("Importar de uma planilha", ex.Message);
+        }
+    }
+
     /// <summary>Cola linhas copiadas do Excel, nas colunas do modelo.</summary>
     [RelayCommand]
     private void ColarDoExcel()
@@ -247,6 +281,11 @@ public sealed partial class CronogramaVm : TelaVm
             return;
         }
 
+        Incluir(texto);
+    }
+
+    private void Incluir(string texto)
+    {
         var lida = ColagemCronograma.Ler(texto);
         foreach (var obra in lida.Obras)
         {
@@ -320,6 +359,7 @@ public sealed partial class CronogramaVm : TelaVm
         string destino = PastaDestino;
         var grupos = ValidadorCronograma.Dividir(Obras());
         bool pdf = GerarPdf && _verificador.Disponivel;
+        string nomeEscolhido = NomeArquivo.Corrigir(NomeCronograma.Trim()).Trim();
         var criados = new List<string>();
         var notas = new List<string>();
         bool falha = false;
@@ -333,7 +373,9 @@ public sealed partial class CronogramaVm : TelaVm
                 for (int g = 0; g < grupos.Count && !cancelamento.IsCancellationRequested; g++)
                 {
                     progresso.Report(new ProgressoTarefa(g, grupos.Count, _verificador.Disponivel ? "Aguardando o Excel calcular" : null));
-                    string nome = ModeloCronograma.NomeSugerido(grupos[g], g, grupos.Count);
+                    string nome = nomeEscolhido.Length == 0
+                        ? ModeloCronograma.NomeSugerido(grupos[g], g, grupos.Count)
+                        : grupos.Count == 1 ? nomeEscolhido : $"{nomeEscolhido} - parte {g + 1} de {grupos.Count}";
                     string saida = Path.Combine(destino, NomeArquivo.Livre(nome + extensao, n => File.Exists(Path.Combine(destino, n))));
                     try
                     {
@@ -560,7 +602,7 @@ public sealed partial class CronogramaVm : TelaVm
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
             [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase))],
-            AjustarInicio, GerarPdf), _relogio.Agora);
+            AjustarInicio, GerarPdf, NomeCronograma), _relogio.Agora);
     }
 
     private void Restaurar()
@@ -573,6 +615,7 @@ public sealed partial class CronogramaVm : TelaVm
         _restaurando = true;
         AjustarInicio = r.AjustarInicio;
         GerarPdf = r.GerarPdf;
+        NomeCronograma = r.NomeCronograma ?? "";
         foreach (var l in r.Linhas)
         {
             var linha = new LinhaCronogramaVm(Conferir) { Origem = l.Origem, DataOsDaBase = l.DataOs };

@@ -18,6 +18,16 @@ public enum FerramentaExtra
     Juntar,
     Duplicados,
     ExcelPdf,
+    Padrao,
+}
+
+public sealed record AchadoPadraoVm(Spobras.Core.Base.AchadoPadrao Achado)
+{
+    public string Onde => $"{Achado.Aba} · {Achado.Celula}";
+    public string Original => Achado.Original;
+    public string Proposta => Achado.Proposta ?? "conferir";
+    public string Motivo => Achado.Motivo;
+    public bool Corrigivel => Achado.Corrigivel;
 }
 
 public sealed record AchadoVm(AchadoBusca Achado)
@@ -74,6 +84,14 @@ public sealed partial class FerramentasVm : TelaVm
     public ObservableCollection<AchadoVm> Achados { get; } = [];
     public ObservableCollection<GrupoVm> Grupos { get; } = [];
     public ObservableCollection<string> LinhasPrevia { get; } = [];
+    public ObservableCollection<AchadoPadraoVm> AchadosPadrao { get; } = [];
+
+    /// <summary>Portarias e dotacoes completas da Base atual (para conferir planilhas).</summary>
+    public Func<(IReadOnlyList<Spobras.Core.Base.PortariaBase> Portarias, IReadOnlyCollection<string> Dotacoes)>? DadosDaBase { get; set; }
+
+    public bool EhPadrao => Ferramenta == FerramentaExtra.Padrao;
+    public bool TemAchadosPadrao => AchadosPadrao.Count > 0;
+    public bool PodeCorrigir => AchadosPadrao.Any(a => a.Corrigivel);
     public ObservableCollection<AvisoVm> Avisos { get; } = [];
 
     [ObservableProperty]
@@ -117,7 +135,10 @@ public sealed partial class FerramentasVm : TelaVm
         LinhasPrevia.Clear();
         Resultado = "";
         PodeAbrirResultado = false;
-        foreach (string nome in new[] { nameof(EhBuscar), nameof(EhJuntar), nameof(EhDuplicados), nameof(EhExcelPdf), nameof(UsaPastas), nameof(UsaArquivos) })
+        AchadosPadrao.Clear();
+        OnPropertyChanged(nameof(TemAchadosPadrao));
+        OnPropertyChanged(nameof(PodeCorrigir));
+        foreach (string nome in new[] { nameof(EhBuscar), nameof(EhJuntar), nameof(EhDuplicados), nameof(EhExcelPdf), nameof(EhPadrao), nameof(UsaPastas), nameof(UsaArquivos) })
         {
             OnPropertyChanged(nome);
         }
@@ -197,6 +218,12 @@ public sealed partial class FerramentasVm : TelaVm
                 continue;
             }
 
+            if (EhPadrao)
+            {
+                Arquivos.Clear(); // confere uma planilha por vez
+                AchadosPadrao.Clear();
+            }
+
             if (!Arquivos.Contains(caminho, StringComparer.OrdinalIgnoreCase))
             {
                 Arquivos.Add(caminho);
@@ -251,6 +278,7 @@ public sealed partial class FerramentasVm : TelaVm
             FerramentaExtra.Buscar => "Procurar",
             FerramentaExtra.Juntar => Arquivos.Count > 1 ? $"Juntar {Arquivos.Count} planilhas" : "Juntar planilhas",
             FerramentaExtra.Duplicados => "Procurar repetidos",
+            FerramentaExtra.Padrao => "Conferir a planilha",
             _ => Arquivos.Count > 1 ? $"Gerar {Arquivos.Count} PDFs" : "Gerar o PDF",
         };
 
@@ -302,6 +330,15 @@ public sealed partial class FerramentasVm : TelaVm
                 }
 
                 break;
+            case FerramentaExtra.Padrao:
+                Resumo = "Aponta portarias e dotações escritas fora do padrão da Base (como “Nº 03”, “3” ou espaço no lugar do ponto) e mostra a proposta. A correção vai para uma cópia.";
+                var dados = DadosDaBase?.Invoke();
+                if (dados is null || dados.Value.Portarias.Count == 0)
+                {
+                    Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, "A Base de dados ainda não tem portarias. Leia a planilha mestra e a de dotações em Fontes de dados."));
+                }
+
+                break;
             default:
                 Resumo = "Usa o Excel deste computador, como na impressão. Cada planilha vira um PDF com o mesmo nome; a planilha não é alterada.";
                 if (!_exportador.Disponivel)
@@ -321,6 +358,7 @@ public sealed partial class FerramentasVm : TelaVm
             FerramentaExtra.Buscar => Pastas.Count > 0 && Termo.Trim().Length >= 3,
             FerramentaExtra.Duplicados => Pastas.Count > 0,
             FerramentaExtra.Juntar => _previa is not null && _previa.TotalLinhas > 0,
+            FerramentaExtra.Padrao => Arquivos.Count == 1,
             _ => Arquivos.Count > 0,
         };
 
@@ -341,6 +379,9 @@ public sealed partial class FerramentasVm : TelaVm
                     break;
                 case FerramentaExtra.Juntar:
                     await JuntarAsync();
+                    break;
+                case FerramentaExtra.Padrao:
+                    ConferirPadrao();
                     break;
                 default:
                     await ExcelPdfAsync();
@@ -486,6 +527,64 @@ public sealed partial class FerramentasVm : TelaVm
         PodeDesfazer = false;
         Resultado = "As cópias voltaram para onde estavam.";
         ResultadoComFalha = false;
+    }
+
+    private void ConferirPadrao()
+    {
+        var (portarias, dotacoes) = DadosDaBase!.Invoke();
+        AchadosPadrao.Clear();
+        try
+        {
+            foreach (var achado in ConferirPlanilha.Conferir(Arquivos[0], portarias, dotacoes))
+            {
+                AchadosPadrao.Add(new AchadoPadraoVm(achado));
+            }
+        }
+        catch (Exception ex) when (ex is Spobras.Documentos.Planilhas.PlanilhaInvalidaException or IOException or UnauthorizedAccessException)
+        {
+            Resultado = ex.Message;
+            ResultadoComFalha = true;
+            return;
+        }
+
+        OnPropertyChanged(nameof(TemAchadosPadrao));
+        OnPropertyChanged(nameof(PodeCorrigir));
+        int corrigiveis = AchadosPadrao.Count(a => a.Corrigivel);
+        ResultadoComFalha = false;
+        Resultado = AchadosPadrao.Count == 0
+            ? "Nada fora do padrão: portarias e dotações conferem com a Base."
+            : $"{Formato.Plural(AchadosPadrao.Count, "ponto para olhar", "pontos para olhar")}: {Formato.Plural(corrigiveis, "com proposta", "com proposta")}"
+              + (AchadosPadrao.Count > corrigiveis ? $", {AchadosPadrao.Count - corrigiveis} para você conferir." : ".");
+    }
+
+    /// <summary>Grava uma copia da planilha com as propostas aplicadas. O arquivo original nao muda.</summary>
+    [RelayCommand]
+    private void GerarCopiaCorrigida()
+    {
+        if (Arquivos.Count != 1 || !PodeCorrigir)
+        {
+            return;
+        }
+
+        string original = Arquivos[0];
+        string pasta = Path.GetDirectoryName(original)!;
+        string saida = Path.Combine(pasta, NomeArquivo.Livre(Path.GetFileNameWithoutExtension(original) + " (padronizada)" + Path.GetExtension(original), n => File.Exists(Path.Combine(pasta, n))));
+        try
+        {
+            var nao = ConferirPlanilha.GravarCopiaCorrigida(original, [.. AchadosPadrao.Select(a => a.Achado)], saida);
+            int feitas = AchadosPadrao.Count(a => a.Corrigivel) - nao.Count;
+            _operacoes.RegistrarCriados($"Gerou “{Path.GetFileName(saida)}” com {Formato.Plural(feitas, "correção", "correções")}", [saida]);
+            _ultimoResultado = saida;
+            PodeAbrirResultado = true;
+            ResultadoComFalha = nao.Count > 0;
+            Resultado = $"“{Path.GetFileName(saida)}” gerado com {Formato.Plural(feitas, "correção", "correções")}. A planilha original não mudou."
+                        + (nao.Count > 0 ? $" {Formato.Plural(nao.Count, "célula tem", "células têm")} fórmula e não foi alterada: {string.Join(", ", nao.Select(a => a.Celula))}." : "");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Spobras.Documentos.Planilhas.PlanilhaInvalidaException)
+        {
+            Resultado = $"A cópia não foi gerada: {ex.Message}";
+            ResultadoComFalha = true;
+        }
     }
 
     private async Task JuntarAsync()

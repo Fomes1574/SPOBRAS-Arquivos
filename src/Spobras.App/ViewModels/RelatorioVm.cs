@@ -164,6 +164,48 @@ public sealed partial class RelatorioVm : TelaVm
 
     public override string Titulo => "Relatório fotográfico";
 
+    /// <summary>Obras da Base com o contrato digitado (vazio se a base nao tiver). Null = sem base ligada.</summary>
+    public Func<string, IReadOnlyList<Spobras.Core.Base.ObraLida>>? ObrasDoContrato { get; set; }
+
+    /// <summary>Escolas do contrato digitado, quando ele tem mais de uma: o usuario escolhe qual.</summary>
+    public ObservableCollection<Spobras.Core.Base.ObraLida> EscolasDoContrato { get; } = [];
+
+    public bool TemEscolasParaEscolher => EscolasDoContrato.Count > 0;
+
+    [RelayCommand]
+    private void EscolherObra(Spobras.Core.Base.ObraLida obra)
+    {
+        EscolasDoContrato.Clear();
+        OnPropertyChanged(nameof(TemEscolasParaEscolher));
+        PreencherDaObra(obra);
+    }
+
+    /// <summary>Contrato digitado: se a base conhece, completa o resto (ou pede para escolher a escola).</summary>
+    private void CompletarPeloContrato()
+    {
+        EscolasDoContrato.Clear();
+        if (ObrasDoContrato is not null && Contrato.Trim().Length >= 5)
+        {
+            var obras = ObrasDoContrato(Contrato.Trim());
+            if (obras.Count == 1)
+            {
+                PreencherDaObra(obras[0]);
+            }
+            else if (obras.Count > 1 && !obras.Any(o => string.Equals(o.Empreendimento, Unidade.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                foreach (var obra in obras)
+                {
+                    EscolasDoContrato.Add(obra);
+                }
+
+                Resultado = $"O contrato {obras[0].Contrato} tem {obras.Count} escolas na Base de dados. Escolha qual é a deste relatório.";
+                ResultadoComFalha = false;
+            }
+        }
+
+        OnPropertyChanged(nameof(TemEscolasParaEscolher));
+    }
+
     public ObservableCollection<FotoVm> Fotos { get; } = [];
     public ObservableCollection<AvisoVm> Problemas { get; } = [];
     public ObservableCollection<AvisoVm> Avisos { get; } = [];
@@ -282,7 +324,11 @@ public sealed partial class RelatorioVm : TelaVm
                 OnPropertyChanged(nameof(ModoDescricao));
                 Replanejar();
                 break;
-            case nameof(Unidade) or nameof(Contratada) or nameof(Contrato) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
+            case nameof(Contrato):
+                CompletarPeloContrato();
+                Replanejar();
+                break;
+            case nameof(Unidade) or nameof(Contratada) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
                 or nameof(Objeto) or nameof(Responsavel) or nameof(DataTexto) or nameof(DataOsTexto) or nameof(FotosPorPagina)
                 or nameof(Assinaturas) or nameof(AssinaturaFiscal) or nameof(AssinaturaContratada) or nameof(Qualidade) or nameof(GerarPdf):
                 Replanejar();

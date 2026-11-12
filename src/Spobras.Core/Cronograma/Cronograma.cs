@@ -252,3 +252,59 @@ public static class ColagemCronograma
         return null;
     }
 }
+
+/// <summary>
+/// Le obras de uma planilha qualquer (grade de celulas ja lida): acha a linha de titulos pelos nomes das
+/// colunas do modelo e monta o mesmo texto que a colagem do Excel, na ordem do modelo.
+/// </summary>
+public static class ImportacaoCronograma
+{
+    private static readonly (string Campo, string[] Titulos)[] Colunas =
+    [
+        ("Portaria", ["portaria"]),
+        ("Lote", ["lote"]),
+        ("Dotação", ["dotacao", "dotação"]),
+        ("Nome da Obra", ["nome da obra", "obra", "escola", "empreendimento", "unidade"]),
+        ("Breve escopo", ["breve escopo", "escopo", "servico", "serviço"]),
+        ("Valor", ["valores para obras", "valor para obras", "valor da obra", "valor"]),
+        ("Início", ["inicio", "início", "data de inicio", "data da os", "inicio execucao"]),
+        ("Fim", ["fim", "termino", "término", "data de termino"]),
+    ];
+
+    /// <summary>Texto no formato da colagem (sem a linha de titulos), ou o motivo de nao ter achado.</summary>
+    public static (string? Texto, string? Problema) ParaColagem(IReadOnlyList<object?[]> grade)
+    {
+        for (int r = 0; r < Math.Min(grade.Count, 30); r++)
+        {
+            var titulos = grade[r].Select(c => Base.Normalizacao.Busca(c?.ToString()?.Trim() ?? "")).ToList();
+            var posicoes = Colunas.Select(col => titulos.FindIndex(t => t.Length > 0 && col.Titulos.Any(n => t == Base.Normalizacao.Busca(n)))).ToArray();
+            if (posicoes[3] < 0 || posicoes.Count(p => p >= 0) < 3)
+            {
+                continue; // precisa pelo menos do nome da obra e de mais duas colunas
+            }
+
+            var linhas = new List<string>();
+            foreach (var linha in grade.Skip(r + 1))
+            {
+                if (linha.All(c => c is null || c.ToString()!.Trim().Length == 0))
+                {
+                    continue;
+                }
+
+                linhas.Add(string.Join('\t', posicoes.Select(p => p >= 0 && p < linha.Length ? Texto(linha[p]) : "")));
+            }
+
+            return linhas.Count == 0 ? (null, "A planilha tem os títulos, mas nenhuma linha de obra embaixo deles.") : (string.Join('\n', linhas), null);
+        }
+
+        return (null, "Não achei a linha de títulos (por exemplo “Nome da Obra”, “Portaria”, “Valor”, “Início”, “Fim”) nas primeiras 30 linhas da primeira aba.");
+    }
+
+    private static string Texto(object? valor) => valor switch
+    {
+        null => "",
+        DateTime d => d.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture),
+        decimal m => m.ToString("0.00", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")),
+        _ => valor.ToString()!.Trim(),
+    };
+}

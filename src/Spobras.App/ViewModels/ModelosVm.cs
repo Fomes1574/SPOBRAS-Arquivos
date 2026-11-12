@@ -142,6 +142,12 @@ public sealed partial class ModelosVm : TelaVm
 
     public override string Titulo => "Modelos Excel";
 
+    /// <summary>Leva a outra tela (definido pela composicao do app).</summary>
+    public Action<string>? Navegar { get; set; }
+
+    [RelayCommand]
+    private void IrPara(string modulo) => Navegar?.Invoke(modulo);
+
     public ObservableCollection<ModeloItemVm> Modelos { get; } = [];
     public ObservableCollection<LinhaModeloVm> Linhas { get; } = [];
     public ObservableCollection<string> Colunas { get; } = [];

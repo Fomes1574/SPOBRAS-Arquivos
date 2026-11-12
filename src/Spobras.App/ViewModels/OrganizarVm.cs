@@ -138,6 +138,12 @@ public sealed partial class OrganizarVm : TelaVm
 
     public override string Titulo => "Organizar arquivos";
 
+    /// <summary>Leva a outra tela (definido pela composicao do app).</summary>
+    public Action<string>? Navegar { get; set; }
+
+    [RelayCommand]
+    private void IrPara(string modulo) => Navegar?.Invoke(modulo);
+
     public ObservableCollection<LinhaOrganizarVm> Linhas { get; } = [];
     public ObservableCollection<RegraVm> Regras { get; } = [];
     public ObservableCollection<AvisoVm> AvisosRegras { get; } = [];

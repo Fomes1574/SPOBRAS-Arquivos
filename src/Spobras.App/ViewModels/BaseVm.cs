@@ -159,6 +159,12 @@ public sealed partial class BaseVm : TelaVm
 
     /// <summary>Abre a busca dentro dos arquivos com um termo (contrato ou escola da obra escolhida).</summary>
     public Action<string>? AoBuscarNosArquivos { get; set; }
+
+    /// <summary>Abre a conferencia de portarias e dotacoes de uma planilha.</summary>
+    public Action? AoConferirPlanilha { get; set; }
+
+    [RelayCommand]
+    private void ConferirPlanilha() => AoConferirPlanilha?.Invoke();
     public bool PodeSalvarConsultas => _apoio is not null;
     public bool TemConsultas => Consultas.Count > 0;
 

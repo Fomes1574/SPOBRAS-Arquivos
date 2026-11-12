@@ -10,11 +10,16 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <StackPanel>
-            <TextBlock Text="Organizar arquivos" Style="{StaticResource TituloPagina}" />
-            <TextBlock Text="O app olha o nome e o tipo de cada arquivo e sugere a pasta pelas suas regras. Você confirma antes de qualquer coisa ser movida."
-                       Style="{StaticResource Texto2}" Margin="0,4,0,0" />
-        </StackPanel>
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Procurar duplicados" MinHeight="44" Margin="16,0,0,0" VerticalAlignment="Center"
+                    Command="{Binding IrParaCommand}" CommandParameter="ferramentas-duplicados"
+                    ToolTip="Acha arquivos iguais, mesmo com nomes diferentes, e mostra a lista para você decidir" />
+            <StackPanel>
+                <TextBlock Text="Organizar arquivos" Style="{StaticResource TituloPagina}" />
+                <TextBlock Text="O app olha o nome, o tipo e, se a regra pedir, o conteúdo de cada arquivo e sugere a pasta. Você confirma antes de qualquer coisa ser movida."
+                           Style="{StaticResource Texto2}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </DockPanel>
 
         <!-- Estado do monitoramento -->
         <Grid Grid.Row="1" Margin="0,16,0,0">

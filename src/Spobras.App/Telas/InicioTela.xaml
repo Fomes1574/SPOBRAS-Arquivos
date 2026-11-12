@@ -98,6 +98,19 @@
                     </ItemsControl>
                 </StackPanel>
             </Border>
+
+            <!-- Planilha mestra -->
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0" Visibility="{Binding TemQuadroMestra, Converter={StaticResource Visivel}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Ver base de dados" Margin="12,0,0,0" VerticalAlignment="Center"
+                            Command="{Binding VerBaseCommand}" />
+                    <StackPanel>
+                        <TextBlock Text="Planilha mestra" Style="{StaticResource TituloPainel}" />
+                        <TextBlock Text="{Binding NomeMestra}" FontWeight="SemiBold" Margin="0,6,0,0" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding SituacaoMestra}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

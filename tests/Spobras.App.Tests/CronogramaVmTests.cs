@@ -171,6 +171,11 @@ public class CronogramaVmTests : ComApp
         using var leitor = new LeitorXlsx(Em("Downloads", "Cronograma - Portaria 3 - Lote 12 - parte 2 de 2.xlsx"));
         Assert.Equal("Escola 16", leitor.LerAba("Cronograma Dois")[2][4]);
         Assert.Equal("Gerou 2 arquivos de cronograma em Downloads", Operacoes.Ultimos()[0].Descricao);
+
+        vm.NomeCronograma = "Lote 12: novembro";
+        await vm.GerarCommand.ExecuteAsync(null);
+        Assert.Contains("Lote 12- novembro - parte 1 de 2.xlsx", Nomes("Downloads"));
+        Assert.Equal("Lote 12: novembro", NovoCronograma().NomeCronograma); // fica no rascunho
     }
 
     [Fact]

@@ -81,6 +81,7 @@ public sealed class Composicao : IDisposable
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos, banco),
         };
         var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
+        relatorio.ObrasDoContrato = ObrasDoContrato;
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
         {
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
@@ -101,10 +102,63 @@ public sealed class Composicao : IDisposable
             Principal!.Navegar(FerramentasVm.Modulo);
         };
         telas["inicio"] = new InicioVm(Modulos, Operacoes, Novidades, Preferencias, dialogos, @interface, id => Principal!.Navegar(id));
+        void Ir(string modulo)
+        {
+            if (modulo == "ferramentas-duplicados")
+            {
+                ((FerramentasVm)telas[FerramentasVm.Modulo]).Ferramenta = FerramentaExtra.Duplicados;
+                modulo = FerramentasVm.Modulo;
+            }
+
+            Principal!.Navegar(modulo);
+        }
+
+        // Padrao de portaria = como a planilha mestra escreve (orgao, numero e ano por extenso, especificacao 4.6).
+        ((FerramentasVm)telas[FerramentasVm.Modulo]).DadosDaBase = () =>
+        {
+            var daMestra = Base.PortariasDasObras()
+                .Select((rotulo, i) => (Rotulo: rotulo, Lida: Spobras.Core.Base.Normalizacao.Portaria(rotulo), Id: i))
+                .Where(p => p.Lida.Numero is not null)
+                .Select(p => new Spobras.Core.Base.PortariaBase(p.Id, p.Rotulo, p.Lida.Numero, p.Lida.Ano))
+                .ToList();
+            return (daMestra.Count > 0 ? daMestra : Base.Portarias(), Base.Vinculos().Select(v => v.DotacaoCompleta).Distinct().ToList());
+        };
+        ((BaseVm)telas[BaseVm.Modulo]).AoConferirPlanilha = () =>
+        {
+            ((FerramentasVm)telas[FerramentasVm.Modulo]).Ferramenta = FerramentaExtra.Padrao;
+            Principal!.Navegar(FerramentasVm.Modulo);
+        };
+        ((OrganizarVm)telas[OrganizarVm.Modulo]).Navegar = Ir;
+        ((ModelosVm)telas[ModelosVm.Modulo]).Navegar = Ir;
+        var inicio = (InicioVm)telas["inicio"];
+        inicio.EstadoDaMestra = () =>
+        {
+            var mestra = Base.Fonte(Spobras.Core.Base.Fontes.Mestra);
+            if (mestra is null || mestra.Caminho.Length == 0)
+            {
+                return ("Planilha mestra ainda não escolhida", "Aponte a planilha em Base de dados → Fontes de dados. Depois disso o app relê sozinho sempre que ela for salva.");
+            }
+
+            string quando = mestra.UltimaLeitura is { } u ? Formato.DataHora(u) : "ainda não lida";
+            return (Path.GetFileName(mestra.Caminho), mestra.Estado == Spobras.Core.Base.EstadoFonte.Atualizada
+                ? $"Lida pela última vez em {quando}. Quando ela for salva com dados novos, o app relê sozinho."
+                : $"Última leitura boa: {quando}. Atenção: {mestra.Mensagem}");
+        };
+        Fontes.Mudou += () => @interface.Executar(inicio.AtualizarMestra);
+        inicio.AtualizarMestra();
         Principal = new PrincipalVm(Modulos, telas, Novidades, Operacoes, @interface);
     }
 
     public string PastaDados { get; }
+
+    /// <summary>Obras de um contrato digitado (aceita "-" no lugar da barra, sem diferenciar maiusculas).</summary>
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoContrato(string digitado)
+    {
+        string alvo = digitado.Trim().Replace('-', '/').Replace(' ', '/');
+        string? contrato = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Contratos
+            .FirstOrDefault(c => string.Equals(c.Trim(), alvo, StringComparison.OrdinalIgnoreCase));
+        return contrato is null ? [] : Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = contrato }, 100).Obras;
+    }
     public ServicoPreferencias Preferencias { get; }
     public ServicoOperacoes Operacoes { get; }
     public ServicoNovidades Novidades { get; }

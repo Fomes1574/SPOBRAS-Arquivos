@@ -15,33 +15,40 @@
             <TextBlock Text="{Binding Resumo}" Style="{StaticResource Texto2}" Margin="0,4,0,0" TextWrapping="Wrap" />
         </StackPanel>
 
-        <UniformGrid Grid.Row="1" Rows="1" Margin="-6,16,-6,0">
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+        <UniformGrid Grid.Row="1" Columns="3" Margin="-6,16,-6,-12">
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Buscar}">
                 <StackPanel>
                     <TextBlock Text="Buscar nos arquivos" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Um contrato ou escola dentro das planilhas, PDFs e documentos." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Juntar}">
                 <StackPanel>
                     <TextBlock Text="Juntar planilhas" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Várias planilhas iguais viram uma só, com a origem de cada linha." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Duplicados}">
                 <StackPanel>
                     <TextBlock Text="Arquivos repetidos" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Acha cópias iguais, mesmo com nomes diferentes." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=ExcelPdf}">
                 <StackPanel>
                     <TextBlock Text="Excel para PDF" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Várias planilhas em PDF de uma vez, pela impressão do Excel." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaExtra" Margin="6,0,6,12"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Padrao}">
+                <StackPanel>
+                    <TextBlock Text="Conferir portarias e dotações" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Acha o que está escrito fora do padrão numa planilha e propõe corrigir." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
         </UniformGrid>
@@ -191,6 +198,32 @@
                                         <DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,6" /></DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                            </Grid>
+                        </DockPanel>
+
+                        <!-- Conferir portarias e dotacoes -->
+                        <DockPanel Visibility="{Binding EhPadrao, Converter={StaticResource Visivel}}">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Gerar cópia corrigida" Command="{Binding GerarCopiaCorrigidaCommand}"
+                                        Visibility="{Binding PodeCorrigir, Converter={StaticResource Visivel}}"
+                                        ToolTip="Grava ao lado da original uma cópia com as propostas aplicadas. A original não muda." />
+                                <TextBlock Text="Original → proposta" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Grid>
+                                <TextBlock Text="Escolha uma planilha e clique em Conferir a planilha." Style="{StaticResource Texto2}" TextWrapping="Wrap"
+                                           Visibility="{Binding TemAchadosPadrao, Converter={StaticResource VisivelSeNao}}" />
+                                <ListBox ItemsSource="{Binding AchadosPadrao}" Style="{StaticResource ListaSimples}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock TextWrapping="Wrap">
+                                                    <Run Text="{Binding Onde, Mode=OneWay}" Foreground="{StaticResource Secundario}" /><Run Text="   " /><Run Text="{Binding Original, Mode=OneWay}" /><Run Text="  →  " /><Run Text="{Binding Proposta, Mode=OneWay}" FontWeight="SemiBold" />
+                                                </TextBlock>
+                                                <TextBlock Text="{Binding Motivo}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
                             </Grid>
                         </DockPanel>
 

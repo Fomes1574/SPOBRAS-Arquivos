@@ -219,10 +219,34 @@ public sealed partial class InicioVm : TelaVm
 
     public bool TemAcoes => UltimasAcoes.Count > 0;
 
+    /// <summary>Nome e situacao da planilha mestra (null = base nao ligada; o quadro fica escondido).</summary>
+    public Func<(string Nome, string Situacao)?>? EstadoDaMestra { get; set; }
+
+    [ObservableProperty]
+    private string _nomeMestra = "";
+
+    [ObservableProperty]
+    private string _situacaoMestra = "";
+
+    [ObservableProperty]
+    private bool _temQuadroMestra;
+
+    public void AtualizarMestra()
+    {
+        var estado = EstadoDaMestra?.Invoke();
+        TemQuadroMestra = estado is not null;
+        NomeMestra = estado?.Nome ?? "";
+        SituacaoMestra = estado?.Situacao ?? "";
+    }
+
+    [RelayCommand]
+    private void VerBase() => _navegar(BaseVm.Modulo);
+
     public override void AoEntrar()
     {
         Recarregar();
         AtualizarEstado();
+        AtualizarMestra();
     }
 
     [RelayCommand]

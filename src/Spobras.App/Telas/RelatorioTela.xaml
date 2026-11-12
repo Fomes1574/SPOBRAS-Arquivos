@@ -116,8 +116,19 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Contrato, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Contrato" />
+                            <TextBlock Text="Contrato (o app completa o resto pela Base)" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
+                            <TextBox Text="{Binding Contrato, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Contrato"
+                                     ToolTip="Digite o número do contrato como está na Base de dados, por exemplo 123/SIURB/2024" />
+                            <ItemsControl ItemsSource="{Binding EscolasDoContrato}" Focusable="False" Margin="0,6,0,0"
+                                          Visibility="{Binding TemEscolasParaEscolher, Converter={StaticResource Visivel}}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Style="{StaticResource BotaoLink}" Content="{Binding Empreendimento}" HorizontalAlignment="Left" Margin="0,2,0,0"
+                                                Command="{Binding DataContext.EscolherObraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                AutomationProperties.Name="Escolher esta escola" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Lote" Style="{StaticResource Rotulo}" />
