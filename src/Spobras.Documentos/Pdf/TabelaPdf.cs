@@ -583,7 +583,10 @@ public static partial class TabelaPdf
             Letter? anterior = null;
             foreach (var l in linha.OrderBy(l => l.BoundingBox.Left))
             {
-                if (anterior is not null && l.BoundingBox.Left - anterior.BoundingBox.Right > Math.Max(0.8, l.PointSize * 0.22))
+                // Vao medido pelo avanco da letra anterior (onde a "caneta" parou), e nao pela caixa do desenho:
+                // assim letras estreitas como "1" nao parecem separadas, em qualquer fonte.
+                double vao = l.StartBaseLine.X - Math.Max(anterior?.EndBaseLine.X ?? 0, anterior?.BoundingBox.Left ?? 0);
+                if (anterior is not null && vao > Math.Max(0.6, l.PointSize * 0.18))
                 {
                     texto.Append(' ');
                 }

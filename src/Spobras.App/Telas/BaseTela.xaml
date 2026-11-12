@@ -191,7 +191,7 @@
         </Border>
         <Grid x:Name="Divisao">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="ColunaLista" Width="2*" MinWidth="280" />
+                <ColumnDefinition x:Name="ColunaLista" Width="2*" MinWidth="440" />
                 <ColumnDefinition x:Name="ColunaDivisoria" Width="16" />
                 <ColumnDefinition x:Name="ColunaFicha" Width="3*" MinWidth="340" />
             </Grid.ColumnDefinitions>
@@ -205,13 +205,13 @@
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" Margin="10,4,26,6">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="118" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="92" />
+                            <ColumnDefinition Width="122" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Contrato" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="Escola e portaria" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Grid.Column="1" Text="Escola" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
                         <TextBlock Grid.Column="2" Text="Data da OS" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap" />
                         <TextBlock Grid.Column="3" Text="Saldo a pagar" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" TextWrapping="NoWrap" />
                     </Grid>
@@ -225,10 +225,10 @@
                                 <DataTemplate>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="118" />
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="100" />
-                                            <ColumnDefinition Width="130" />
+                                            <ColumnDefinition Width="92" />
+                                            <ColumnDefinition Width="122" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Contrato}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />

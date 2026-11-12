@@ -49,7 +49,7 @@ public partial class BaseTela : UserControl
         bool ampliada = vm.FichaAmpliada;
         PainelLista.Visibility = ampliada ? Visibility.Collapsed : Visibility.Visible;
         Divisoria.Visibility = PainelLista.Visibility;
-        ColunaLista.MinWidth = ampliada ? 0 : 280;
+        ColunaLista.MinWidth = ampliada ? 0 : 440;
         ColunaLista.Width = ampliada ? new GridLength(0) : new GridLength(1 - vm.ProporcaoDaFicha, GridUnitType.Star);
         ColunaDivisoria.Width = new GridLength(ampliada ? 0 : 16);
         ColunaFicha.Width = new GridLength(ampliada ? 1 : vm.ProporcaoDaFicha, GridUnitType.Star);
