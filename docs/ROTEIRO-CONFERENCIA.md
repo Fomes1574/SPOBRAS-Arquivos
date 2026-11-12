@@ -75,7 +75,7 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 
 ## 3. O que ainda depende de você
 
-- Confirmar a dotação 3363 (obra termina em 3900 na planilha; pela regra, seria 5100?).
+- Nada no momento.
 
 ## 4. Como devolver
 

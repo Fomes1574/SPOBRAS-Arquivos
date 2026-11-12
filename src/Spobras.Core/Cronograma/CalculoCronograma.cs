@@ -333,8 +333,28 @@ public static partial class CalculoCronograma
 
     private static string FormatoValor(decimal v) => "R$ " + v.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR"));
 
-    /// <summary>Dotacao da remuneracao: a da obra trocando o elemento 5100 por 3900 (as que ja terminam em 3900 servem as duas).</summary>
-    public static string DotacaoDaRemuneracao(string completa) => completa.Replace(".4490.5100.", ".4490.3900.", StringComparison.Ordinal);
+    /// <summary>Dotacoes em que a 3900 serve a obra e a remuneracao (decisao do usuario).</summary>
+    public static readonly IReadOnlySet<string> MesmaDotacaoParaTudo = new HashSet<string> { "2830", "2878", "2879" };
+
+    /// <summary>
+    /// Regra do usuario: a obra termina sempre em 5100 e a remuneracao em 3900 (o mesmo numero, so muda o
+    /// elemento), menos 2830, 2878 e 2879, em que a 3900 serve as duas. Uma completa da obra escrita com
+    /// 3900 (como a 3363 na planilha) vira 5100 para a obra.
+    /// </summary>
+    public static DotacoesDaObra Par(string completa)
+    {
+        string[] partes = completa.Split('.');
+        if (partes.Length < 9 || MesmaDotacaoParaTudo.Contains(partes[5]) || partes[7] is not ("5100" or "3900"))
+        {
+            return new DotacoesDaObra(completa, completa);
+        }
+
+        string Com(string elemento) => string.Join('.', partes.Select((p, i) => i == 7 ? elemento : p));
+        return new DotacoesDaObra(Com("5100"), Com("3900"));
+    }
+
+    /// <summary>Dotacao da remuneracao pela regra (ver <see cref="Par"/>).</summary>
+    public static string DotacaoDaRemuneracao(string completa) => Par(completa).Remuneracao;
 
     /// <summary>Dotacao resumida (3360) de uma completa (16.10.12.365.3010.3360.4490.5100.00).</summary>
     public static string? Resumida(string completa)
@@ -351,8 +371,7 @@ public static partial class CalculoCronograma
             return null;
         }
 
-        string completa = Normalizacao.Dotacao(texto.Trim()).Completa;
-        return new DotacoesDaObra(completa, DotacaoDaRemuneracao(completa));
+        return Par(Normalizacao.Dotacao(texto.Trim()).Completa);
     }
 
     /// <summary>
@@ -394,7 +413,13 @@ public static partial class CalculoCronograma
         string? aviso = completas.Count > 1
             ? $"A dotação {texto} tem {completas.Count} dotações completas na base; ficou {escolhida}. Para outra, digite a completa."
             : null;
-        return (new DotacoesDaObra(escolhida, DotacaoDaRemuneracao(escolhida)), aviso);
+        var par = Par(escolhida);
+        if (par.Obra != escolhida)
+        {
+            aviso = (aviso is null ? "" : aviso + " ") + $"Na base a dotação da obra termina em 3900; pela regra, a obra usa {par.Obra} e a remuneração {par.Remuneracao}.";
+        }
+
+        return (par, aviso);
     }
 
     [GeneratedRegex(@"^\d{2}\.\d{2}\.\d{2}\.\d{3}\.\d{4}\.\d{4}\.\d{4}[.\s]\d{4}[.\s]\d{2}$")]

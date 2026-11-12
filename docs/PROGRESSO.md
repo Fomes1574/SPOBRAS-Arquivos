@@ -178,13 +178,13 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
-- [ ] Dotação 3363 (Portaria 2 de 2024): na planilha de dotações a da obra termina em 3900. Pela regra, deveria ser 5100? Enquanto não houver resposta, o app usa a que está na planilha.
+- [x] Dotação 3363: o usuário confirmou que a obra é 5100 e a remuneração 3900 (sempre essa diferença). O app corrige pela regra e avisa na linha.
 - [x] Extração de Restos a Pagar e Anexo I Tabela SME: o usuário mandou os PDFs; a leitura pela grade copia as colunas certas (conferido localmente, arquivos não versionados).
 
 ## Decidido pelo usuário
 
 - **Cronograma:** só o mês importa (nada de dia); portaria no formato "Nº 03 (2021)"; remuneração com padrão de 10% e opção de mudar; um arquivo novo por cronograma basta. O app faz o cronograma inteiro (sem modelo): uma ou várias escolas, breve escopo digitado, total por ano, total solicitado, ajuste de valor ou percentual num mês com os seguintes recalculados, tabela por dotação completa. Arredondar sempre para cima no centavo; a sobra fica no último mês.
-- **Dotações:** remuneração termina em 3900 e obra em 5100, menos 2830, 2878 e 2879, em que a 3900 serve às duas.
+- **Dotações:** remuneração termina em 3900 e obra em 5100, sempre, menos 2830, 2878 e 2879, em que a 3900 serve às duas. Vale também para a 3363, que na planilha veio com 3900 na obra.
 - **Relatório:** foto inteira (sem cortar), mas sem uma encostar na outra.
 - **Edição no app:** qualquer dado pode ser mudado no app; o dado da planilha vem por padrão e o usuário pode mudar.
 - **Macros:** nenhum modelo precisa rodar macro depois de preenchido.

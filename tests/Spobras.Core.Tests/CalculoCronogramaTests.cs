@@ -160,4 +160,23 @@ public class CalculoCronogramaTests
         Assert.Equal(meses[2], meses[3]); // o meio continua com o pico
         Assert.True(meses[5] < meses[4]);
     }
+
+    [Fact]
+    public void Obra_sempre_5100_e_remuneracao_3900_menos_2830_2878_e_2879()
+    {
+        Assert.Equal(new DotacoesDaObra("16.10.12.368.3010.3363.4490.5100.00", "16.10.12.368.3010.3363.4490.3900.00"),
+            CalculoCronograma.Par("16.10.12.368.3010.3363.4490.3900.00")); // 3363: na planilha a obra veio com 3900
+        Assert.Equal(new DotacoesDaObra("16.10.12.365.3010.3360.4490.5100.00", "16.10.12.365.3010.3360.4490.3900.00"),
+            CalculoCronograma.Par("16.10.12.365.3010.3360.4490.5100.00"));
+        foreach (string excecao in new[] { "2830", "2878", "2879" })
+        {
+            string d = $"16.10.12.361.3010.{excecao}.4490.3900.00";
+            Assert.Equal(new DotacoesDaObra(d, d), CalculoCronograma.Par(d));
+        }
+
+        var vinculo = new VinculoBase(1, "Portaria 2 (2024)", "016/EX/2026", null, "16.10.12.368.3010.3363.4490.3900.00", null, "3363", null);
+        var (dot, aviso) = CalculoCronograma.Resolver(Obra("CEU", 1, Out26, Out26, "3363"), [vinculo]);
+        Assert.Equal("16.10.12.368.3010.3363.4490.5100.00", dot!.Obra);
+        Assert.Contains("pela regra", aviso);
+    }
 }
