@@ -388,7 +388,7 @@
                 <DockPanel Margin="0,0,0,10" Visibility="{Binding Resultado, Converter={StaticResource VisivelSe}}">
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar na pasta" Margin="12,0,0,0" Command="{Binding AbrirResultadoCommand}"
                             Visibility="{Binding PodeAbrirResultado, Converter={StaticResource Visivel}}" />
-                    <TextBlock Text="{Binding Resultado}" Style="{StaticResource Forte}" VerticalAlignment="Center" />
+                    <ContentControl Content="{Binding}" ContentTemplate="{StaticResource ResultadoModelo}" VerticalAlignment="Center" Focusable="False" />
                 </DockPanel>
                 <DockPanel>
                     <Button DockPanel.Dock="Left" Style="{StaticResource BotaoSecundario}" Content="Voltar" Margin="0,0,12,0" Command="{Binding VoltarCommand}"

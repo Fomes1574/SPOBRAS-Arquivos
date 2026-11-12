@@ -17,6 +17,33 @@ public partial class MainWindow : Window
         DataContext = vm;
         vm.PropertyChanged += AoMudarVm;
         MarcarItemAtivo();
+        SourceInitialized += (_, _) => CaberNaTela();
+    }
+
+    /// <summary>
+    /// A janela sempre cabe no monitor onde abre (o do mouse): num monitor menor que o tamanho padrao (ex.: 1600x900),
+    /// a barra de titulo ficaria fora da tela e nao daria para arrastar nem maximizar. Nesse caso abre
+    /// maximizada; senao, centralizada dentro da area util (sem a barra de tarefas).
+    /// </summary>
+    private void CaberNaTela()
+    {
+        // Monitor onde esta o mouse: e onde a pessoa clicou para abrir o app.
+        var area = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
+        var origem = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice ?? System.Windows.Media.Matrix.Identity;
+        var canto = origem.Transform(new Point(area.Left, area.Top));
+        var tamanho = origem.Transform(new Point(area.Width, area.Height));
+        if (Width > tamanho.X - 40 || Height > tamanho.Y - 40)
+        {
+            Left = canto.X;
+            Top = canto.Y;
+            Width = Math.Min(Width, tamanho.X);
+            Height = Math.Min(Height, tamanho.Y);
+            WindowState = WindowState.Maximized;
+            return;
+        }
+
+        Left = canto.X + ((tamanho.X - Width) / 2);
+        Top = canto.Y + ((tamanho.Y - Height) / 2);
     }
 
     /// <summary>True quando fechar a janela deve so esconde-la (o app continua na bandeja).</summary>

@@ -361,9 +361,9 @@ public sealed partial class PdfVm : TelaVm
                                         string saida = Livre(Path.GetFileNameWithoutExtension(entradas[i]) + ".xlsx");
                                         var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento, _ocr);
                                         criados.Add(saida);
-                                        notas.Add($"{original}: {Formato.Plural(lido.Linhas.Count, "linha lida", "linhas lidas")}"
-                                                  + (lido.LidasPorOcr.Count > 0 ? $" ({Formato.Plural(lido.LidasPorOcr.Count, "página lida", "páginas lidas")} pelo OCR: confira com atenção)" : "")
-                                                  + (lido.PaginasSemTexto.Count > 0 ? $" ({Formato.Plural(lido.PaginasSemTexto.Count, "página sem texto", "páginas sem texto")}, ficou de fora)" : ""));
+                                        notas.Add($"{original} virou “{Path.GetFileName(saida)}” ({Formato.Plural(lido.Linhas.Count, "linha lida", "linhas lidas")})"
+                                                  + (lido.LidasPorOcr.Count > 0 ? $"; {Formato.Plural(lido.LidasPorOcr.Count, "página lida", "páginas lidas")} pelo OCR, confira com atenção" : "")
+                                                  + (lido.PaginasSemTexto.Count > 0 ? $"; {Formato.Plural(lido.PaginasSemTexto.Count, "página sem texto ficou", "páginas sem texto ficaram")} de fora" : ""));
                                     }
                                 }
                                 catch (Exception ex) when (ex is PdfInvalidoException or IOException or UnauthorizedAccessException)
@@ -422,7 +422,7 @@ public sealed partial class PdfVm : TelaVm
         }
 
         ResultadoComFalha = erro is not null;
-        Resultado = (ferramenta is FerramentaPdf.Reduzir or FerramentaPdf.LogoENumeracao or FerramentaPdf.ParaExcel && notas.Count > 0
+        Resultado = (erro is null && criados.Count > 0 ? "Pronto! " : "") + (ferramenta is FerramentaPdf.Reduzir or FerramentaPdf.LogoENumeracao or FerramentaPdf.ParaExcel && notas.Count > 0
                         ? string.Join("; ", notas) + "."
                         : $"{Formato.Plural(criados.Count, "arquivo criado", "arquivos criados")}" + (criados.Count == 1 ? $": {Path.GetFileName(criados[0])}." : "."))
                     + (erro is not null ? " " + erro : "");

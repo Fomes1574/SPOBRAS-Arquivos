@@ -16,6 +16,7 @@
     <SolidColorBrush x:Key="LaranjaClaro" Color="#FBF0E4" />
     <SolidColorBrush x:Key="VermelhoClaro" Color="#FBE9EC" />
     <SolidColorBrush x:Key="Secundario" Color="#5A5A5F" />
+    <SolidColorBrush x:Key="Verde" Color="#1E7B34" />
     <SolidColorBrush x:Key="MenuTexto" Color="#E9E9E7" />
     <SolidColorBrush x:Key="MenuSecundario" Color="#B5B5B1" />
     <SolidColorBrush x:Key="MenuRealce" Color="#3A3536" />
@@ -318,6 +319,28 @@
             <DataTrigger Binding="{Binding Impede}" Value="True">
                 <Setter TargetName="Caixa" Property="Background" Value="{StaticResource VermelhoClaro}" />
                 <Setter TargetName="Rot" Property="Foreground" Value="{StaticResource Vermelho}" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Resultado da ultima acao: verde com "✓" quando deu certo, vermelho com "!" quando algo falhou -->
+    <DataTemplate x:Key="ResultadoModelo">
+        <DockPanel>
+            <Border x:Name="Selo" DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource Verde}" Margin="0,0,10,0" VerticalAlignment="Center">
+                <TextBlock x:Name="Icone" Text="✓" Foreground="White" FontWeight="Bold" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock x:Name="Texto" Text="{Binding Resultado}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{StaticResource Verde}" />
+        </DockPanel>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding ResultadoInformativo}" Value="True">
+                <Setter TargetName="Selo" Property="Background" Value="{StaticResource Azul}" />
+                <Setter TargetName="Icone" Property="Text" Value="i" />
+                <Setter TargetName="Texto" Property="Foreground" Value="{StaticResource Preto}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding ResultadoComFalha}" Value="True">
+                <Setter TargetName="Selo" Property="Background" Value="{StaticResource Vermelho}" />
+                <Setter TargetName="Icone" Property="Text" Value="!" />
+                <Setter TargetName="Texto" Property="Foreground" Value="{StaticResource Vermelho}" />
             </DataTrigger>
         </DataTemplate.Triggers>
     </DataTemplate>

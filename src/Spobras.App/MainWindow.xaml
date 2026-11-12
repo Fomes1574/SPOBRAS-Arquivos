@@ -4,7 +4,7 @@
         xmlns:vm="clr-namespace:Spobras.App.ViewModels"
         xmlns:t="clr-namespace:Spobras.App.Telas"
         Title="Arquivos SPOBRAS" Width="1360" Height="900" MinWidth="760" MinHeight="560"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Background="{StaticResource Fundo}" Foreground="{StaticResource Preto}"
         FontFamily="{StaticResource Fonte}" FontSize="15" UseLayoutRounding="True"
         SizeChanged="AoMudarTamanho">

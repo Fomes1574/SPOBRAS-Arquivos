@@ -115,6 +115,20 @@ public abstract partial class TelaVm : ObservableObject
     [ObservableProperty]
     private bool _resultadoComFalha;
 
+    /// <summary>Mensagem que so orienta (nem sucesso nem falha). Volta a false a cada mensagem nova.</summary>
+    [ObservableProperty]
+    private bool _resultadoInformativo;
+
+    partial void OnResultadoChanged(string value) => ResultadoInformativo = false;
+
+    /// <summary>Mostra uma orientacao (azul, com "i"), sem marcar sucesso nem falha.</summary>
+    protected void Orientar(string texto)
+    {
+        ResultadoComFalha = false;
+        Resultado = texto;
+        ResultadoInformativo = true;
+    }
+
     [ObservableProperty]
     private bool _ocupado;
 

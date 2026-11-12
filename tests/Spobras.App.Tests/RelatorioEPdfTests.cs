@@ -315,7 +315,7 @@ public class PdfVmTests : ComApp
         await vm.ExecutarCommand.ExecuteAsync(null);
 
         Assert.False(vm.ResultadoComFalha, vm.Resultado);
-        Assert.Equal("relatorio.pdf: 2 páginas marcadas.", vm.Resultado);
+        Assert.Equal("Pronto! relatorio.pdf: 2 páginas marcadas.", vm.Resultado);
         Assert.True(File.Exists(Em("Downloads", "relatorio (numerado).pdf")));
         Assert.Equal(3, Paginas(Em("Downloads", "relatorio (numerado).pdf")));
     }
@@ -334,7 +334,7 @@ public class PdfVmTests : ComApp
         await vm.ExecutarCommand.ExecuteAsync(null);
 
         Assert.True(vm.ResultadoComFalha);
-        Assert.Contains("numerado.pdf: 2 linhas lidas", vm.Resultado);
+        Assert.Contains("numerado.pdf virou “numerado.xlsx” (2 linhas lidas)", vm.Resultado);
         Assert.Contains("digitalizado.pdf: \"digitalizado.pdf\" não tem texto", vm.Resultado);
         Assert.True(File.Exists(Em("Downloads", "numerado.xlsx")));
         Assert.False(File.Exists(Em("Downloads", "digitalizado.xlsx")));
@@ -364,7 +364,7 @@ public class PdfVmTests : ComApp
         await vm.ExecutarCommand.ExecuteAsync(null);
 
         Assert.Equal(5, Paginas(Em("Downloads", "a (junto).pdf")));
-        Assert.Equal("1 arquivo criado: a (junto).pdf.", vm.Resultado);
+        Assert.Equal("Pronto! 1 arquivo criado: a (junto).pdf.", vm.Resultado);
         Assert.False(vm.TemEntradas);
         Assert.Equal("Gerou “a (junto).pdf”", Operacoes.Ultimos()[0].Descricao);
     }
@@ -391,7 +391,7 @@ public class PdfVmTests : ComApp
         await vm.ExecutarCommand.ExecuteAsync(null);
 
         Assert.Equal(["Anexo - p 1-2.pdf", "Anexo - p 5-6.pdf"], Nomes("Separados"));
-        Assert.Equal("2 arquivos criados.", vm.Resultado);
+        Assert.Equal("Pronto! 2 arquivos criados.", vm.Resultado);
 
         vm.Adicionar([pdf]);
         vm.SepararCadaPagina = true;

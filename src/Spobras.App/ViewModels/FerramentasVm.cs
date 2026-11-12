@@ -166,8 +166,7 @@ public sealed partial class FerramentasVm : TelaVm
         Termo = termo;
         Achados.Clear();
         OnPropertyChanged(nameof(TemAchados));
-        Resultado = Pastas.Count == 0 ? "Escolha as pastas onde procurar." : $"Clique em Procurar para buscar “{termo}” nas pastas da lista.";
-        ResultadoComFalha = false;
+        Orientar(Pastas.Count == 0 ? "Escolha as pastas onde procurar." : $"Clique em Procurar para buscar “{termo}” nas pastas da lista.");
     }
 
     [RelayCommand]

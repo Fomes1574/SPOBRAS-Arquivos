@@ -198,8 +198,7 @@ public sealed partial class RelatorioVm : TelaVm
                     EscolasDoContrato.Add(obra);
                 }
 
-                Resultado = $"O contrato {obras[0].Contrato} tem {obras.Count} escolas na Base de dados. Escolha qual é a deste relatório.";
-                ResultadoComFalha = false;
+                Orientar($"O contrato {obras[0].Contrato} tem {obras.Count} escolas na Base de dados. Escolha qual é a deste relatório.");
             }
         }
 
@@ -647,8 +646,7 @@ public sealed partial class RelatorioVm : TelaVm
         OnPropertyChanged(nameof(EtapaFotos));
         OnPropertyChanged(nameof(EtapaConferencia));
         OnPropertyChanged(nameof(TextoBotaoAvancar));
-        Resultado = $"Dados de {obra.Empreendimento} (contrato {obra.Contrato}) trazidos da Base de dados. Confira e ajuste o que precisar.";
-        ResultadoComFalha = false;
+        Orientar($"Dados de {obra.Empreendimento} (contrato {obra.Contrato}) trazidos da Base de dados. Confira e ajuste o que precisar.");
         Replanejar();
     }
 
