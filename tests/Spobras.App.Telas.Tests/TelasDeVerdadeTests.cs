@@ -110,6 +110,14 @@ public class TelasDeVerdadeTests
             };
             janela.Show();
 
+            // Monitor do CI menor que a janela: o app abre maximizado (CaberNaTela). As medidas do teste
+            // valem para o tamanho pedido, entao a janela volta ao normal com 1360x900.
+            janela.WindowState = WindowState.Normal;
+            janela.Left = 0;
+            janela.Top = 0;
+            janela.Width = 1360;
+            janela.Height = 900;
+
             // Inicio vazio
             Fotografar(janela, saida, "01-inicio-vazio");
 
