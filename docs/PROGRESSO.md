@@ -84,10 +84,11 @@ Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Revisão: o editor de regras deixou de descartar a condição "pasta de origem" ao salvar; contrato com uma escola só passa a resolver `{escola}`; exemplos e nomes de pessoas fora dos documentos que eu escrevi.
 - Entrega: `ArquivosSPOBRAS.exe` único, autocontido, publicado pelo CI (artefato **ArquivosSPOBRAS**); versão 1.0.0. Não há instalador separado: o executável não precisa de instalação nem de administrador, como validado no Teste de Ambiente.
 - [Roteiro de conferência](ROTEIRO-CONFERENCIA.md) com o que testar em cada módulo, as perguntas pendentes e como devolver.
+- Compactar: **reduzir as fotos** (especificação 4.3, item 5). Cópias reduzidas das fotos JPG (qualidade alta, média ou leve) numa pasta temporária do app; a prévia mostra o tamanho antes e depois, o limite por zip considera o tamanho reduzido, e as originais não mudam.
 
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 263 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 264 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -139,7 +140,6 @@ Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 
 ## Pendências com o usuário
 
-- [ ] Reenviar `Cronograma_revisado.xlsx` e o relatório fotográfico de exemplo quando chegar a vez dos passos 4 e 6: os arquivos enviados na conversa não ficam guardados entre sessões e não podem ir para o repositório.
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
 - [ ] Confirmar o uso da aba `PORTARIAS` e o layout de `CONTRATADO_LIQUIDADO` na planilha mestra (passo 5; ver `docs/FONTES.md`).
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
@@ -168,7 +168,6 @@ Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - PDF do relatório pelo Excel real e impressão em papel: dependem do PC do trabalho (T10 e T22 parciais).
 - Relatório com fotos reais de celular (EXIF variado, HEIC) e 100 fotos grandes: testado só com fotos sintéticas.
 - T04 "entre volumes" é simulado; pen drive e pasta sincronizada reais ficam para o roteiro de conferência.
-- Reduzir fotos antes de compactar (especificação 4.3, item 5): ainda não ligado à tela Compactar.
 - Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
 - Cronograma gerado a partir do `Cronograma_revisado.xlsx` real e recalculado localmente no LibreOffice: remuneração, totais por obra, total geral, meses e totais por ano batem. O bloco "Resumo pedido" (e `Parametros!B20`) usa ORDENAR/ÚNICO/FILTRO/PROCX, que o LibreOffice daqui não calcula: **conferir no Excel do PC do trabalho**. Essa conferência mostrou que a dotação precisava ir como número (a aba `Dotacoes` guarda número); corrigido.
 - Busca, repetidos e organizador por conteúdo em pastas grandes da rede/OneDrive (arquivos só na nuvem são baixados ao ler o conteúdo): medir no PC do trabalho.

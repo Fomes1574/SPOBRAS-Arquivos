@@ -30,6 +30,15 @@ public sealed class PlanejadorZip(IArquivos arquivos)
 {
     internal const long FimDoZip = 22 + 76; // registro final + margem para zip64
 
+    /// <summary>
+    /// Copia que entra no zip no lugar do original (por exemplo, a foto reduzida), com o tamanho dela.
+    /// O nome dentro do zip continua o do original. Null = usa o proprio arquivo.
+    /// </summary>
+    public Func<string, (string Caminho, long Tamanho)?>? Substituir { get; set; }
+
+    private EntradaZip Entrada(string caminho, string nome, long tamanho) =>
+        Substituir?.Invoke(caminho) is { } copia ? new EntradaZip(copia.Caminho, nome, copia.Tamanho) : new EntradaZip(caminho, nome, tamanho);
+
     public PlanoZip UmPorPasta(IReadOnlyList<string> pastas, string pastaDestino)
     {
         var avisos = new List<Aviso>();
@@ -175,7 +184,7 @@ public sealed class PlanejadorZip(IArquivos arquivos)
                 // Dois arquivos de pastas diferentes com o mesmo nome nao se sobrepoem dentro do zip.
                 string nome = NomeArquivo.Livre(Path.GetFileName(caminho), nomes.Contains);
                 nomes.Add(nome);
-                entradas.Add(new EntradaZip(caminho, nome, info.Tamanho));
+                entradas.Add(Entrada(caminho, nome, info.Tamanho));
             }
         }
 
@@ -198,7 +207,7 @@ public sealed class PlanejadorZip(IArquivos arquivos)
                 continue;
             }
 
-            entradas.Add(new EntradaZip(caminho, relativo, info.Tamanho));
+            entradas.Add(Entrada(caminho, relativo, info.Tamanho));
         }
 
         return entradas;

@@ -49,7 +49,7 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] **Renomear**: 10 arquivos para "Relatório 01, 02…". Confira a prévia, renomeie e use **Desfazer**.
 - [ ] **Organizar**: crie uma regra com destino `...\Obras\{contrato}` e copie para Downloads um arquivo com o número de um contrato da base no nome, trocando as barras por hífen (por exemplo, `Medição 123-SIURB-2024.pdf` para o contrato 123/SIURB/2024). A sugestão deve apontar a pasta do contrato e dizer onde achou o número.
 - [ ] Deixe o **modo automático** ligado, feche a janela e baixe um arquivo: deve aparecer o aviso perto do relógio. Clique e veja a sugestão.
-- [ ] **Compactar**: uma pasta com fotos em vários .zip com limite de tamanho.
+- [ ] **Compactar**: uma pasta com fotos em vários .zip com limite de tamanho. Marque **Reduzir as fotos** e veja a prévia mostrar o tamanho novo.
 
 ### PDF e Ferramentas
 

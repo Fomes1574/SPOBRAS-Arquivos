@@ -142,7 +142,7 @@ public abstract class ComApp : IDisposable
 
     protected RenomearVm NovoRenomear() => new(Disco, Dialogos, Operacoes, Preferencias, Perfis, Relogio);
     protected OrganizarVm NovoOrganizar() => new(Disco, Dialogos, new InterfaceDireta(), Operacoes, Novidades, Preferencias, Relogio);
-    protected CompactarVm NovoCompactar() => new(Disco, Dialogos, Operacoes, Preferencias);
+    protected CompactarVm NovoCompactar() => new(Disco, Dialogos, Operacoes, Preferencias, Em("cache-fotos"));
     protected HistoricoVm NovoHistorico() => new(Operacoes, Dialogos, new InterfaceDireta());
     protected ServicoModelos Modelos => new(Em("dados"));
     protected ExportadorFalso Exportador { get; } = new();

@@ -38,8 +38,12 @@ public sealed partial class CompactarVm : TelaVm
     private PlanoZip? _plano;
     private string? _ultimaPastaDeResultado;
 
-    public CompactarVm(IArquivos arquivos, IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias)
+    private readonly string _pastaCache;
+    private PreparoFotos? _preparo;
+
+    public CompactarVm(IArquivos arquivos, IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias, string? pastaCache = null)
     {
+        _pastaCache = pastaCache ?? Path.Combine(Path.GetTempPath(), "ArquivosSPOBRAS", "fotos-reduzidas");
         _arquivos = arquivos;
         _dialogos = dialogos;
         _operacoes = operacoes;
@@ -71,6 +75,54 @@ public sealed partial class CompactarVm : TelaVm
 
     [ObservableProperty]
     private bool _podeAbrirResultado;
+
+    [ObservableProperty]
+    private bool _reduzirFotos;
+
+    [ObservableProperty]
+    private QualidadeFotos _qualidadeFotos = QualidadeFotos.Media;
+
+    /// <summary>Preparacao das copias reduzidas em andamento (os testes aguardam por ela).</summary>
+    public Task Preparando { get; private set; } = Task.CompletedTask;
+
+    partial void OnReduzirFotosChanged(bool value) => PrepararFotos();
+
+    partial void OnQualidadeFotosChanged(QualidadeFotos value) => PrepararFotos();
+
+    /// <summary>Faz (ou reaproveita) as copias reduzidas das fotos JPG da lista e refaz a previa com o tamanho novo.</summary>
+    private void PrepararFotos()
+    {
+        _preparo = null;
+        if (!ReduzirFotos || Entradas.Count == 0)
+        {
+            Replanejar();
+            return;
+        }
+
+        var fotos = Entradas.SelectMany(e => e.EhPasta
+                ? Directory.EnumerateFiles(e.Caminho, "*", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true })
+                : [e.Caminho])
+            .Where(FotosReduzidas.Reduzivel).ToList();
+        var (lado, qualidade) = QualidadeFotos switch { QualidadeFotos.Alta => (2400, 85), QualidadeFotos.Media => (1600, 75), _ => (1200, 65) };
+        string cache = _pastaCache;
+        PreparoFotos? pronto = null;
+        Replanejar();
+        var tarefa = _operacoes.Fila.Enfileirar($"Reduzir {Formato.Plural(fotos.Count, "foto", "fotos")} para o zip", (progresso, cancelamento) =>
+        {
+            pronto = FotosReduzidas.Preparar(fotos, cache, lado, qualidade, new Progresso(n => progresso.Report(new ProgressoTarefa(n, fotos.Count, null))), cancelamento);
+            return Task.FromResult<string?>(Formato.Plural(pronto.Copias.Count, "foto reduzida", "fotos reduzidas"));
+        });
+        Preparando = FilaTarefas.Aguardar(tarefa).ContinueWith(_ =>
+        {
+            _preparo = pronto;
+            Replanejar();
+        }, SynchronizationContext.Current is null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext());
+    }
+
+    private sealed class Progresso(Action<int> aoMudar) : IProgress<int>
+    {
+        public void Report(int value) => aoMudar(value);
+    }
 
     public bool ModoUmPorPasta => Modo == ModoCompactar.UmPorPasta;
     public bool ModoUnico => Modo == ModoCompactar.Unico;
@@ -120,14 +172,14 @@ public sealed partial class CompactarVm : TelaVm
             NomeZip = Entradas[0].EhPasta ? Entradas[0].Nome : Path.GetFileNameWithoutExtension(Entradas[0].Nome);
         }
 
-        Replanejar();
+        PrepararFotos();
     }
 
     [RelayCommand]
     private void Remover(EntradaCompactarVm entrada)
     {
         Entradas.Remove(entrada);
-        Replanejar();
+        PrepararFotos();
     }
 
     [RelayCommand]
@@ -151,6 +203,7 @@ public sealed partial class CompactarVm : TelaVm
     [RelayCommand]
     private async Task CriarAsync()
     {
+        await Preparando; // nao gera o zip com a reducao pela metade
         if (_plano is null || !_plano.PodeExecutar)
         {
             return;
@@ -308,6 +361,20 @@ public sealed partial class CompactarVm : TelaVm
 
         var caminhos = Entradas.Select(e => e.Caminho).ToList();
         string nome = string.IsNullOrWhiteSpace(NomeZip) ? "Arquivos" : NomeZip.Trim();
+        var copias = ReduzirFotos ? _preparo?.Copias : null;
+        _planejador.Substituir = copias is null ? null : c => copias.TryGetValue(c, out var copia) ? copia : null;
+        if (ReduzirFotos)
+        {
+            Avisos.Add(_preparo is null
+                ? new AvisoVm(Gravidade.Informacao, "Preparando as cópias reduzidas das fotos…")
+                : new AvisoVm(Gravidade.Informacao, _preparo.Fotos == 0
+                    ? "Não há fotos JPG na lista para reduzir."
+                    : $"Fotos: {Formato.Plural(_preparo.Fotos, "foto", "fotos")}, de {Tamanho.Formatar(_preparo.Antes)} para {Tamanho.Formatar(_preparo.Depois)}. No zip vão cópias reduzidas; as fotos originais não mudam."));
+            foreach (string problema in _preparo?.Problemas ?? [])
+            {
+                Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, problema));
+            }
+        }
         switch (Modo)
         {
             case ModoCompactar.UmPorPasta:

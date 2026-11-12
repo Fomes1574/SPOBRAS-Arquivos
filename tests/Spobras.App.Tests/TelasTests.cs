@@ -264,6 +264,38 @@ public class OrganizarVmTests : ComApp
 public class CompactarVmTests : ComApp
 {
     [Fact]
+    public async Task Reduzir_fotos_mostra_o_tamanho_novo_e_poe_copias_no_zip_sem_mexer_nos_originais()
+    {
+        string grande = CriarFoto(Path.Combine("Downloads", "Obra", "foto 1.jpg"), 3000, 2000);
+        string outra = CriarFoto(Path.Combine("Downloads", "Obra", "foto 2.jpg"), 3000, 2000);
+        Criar(Path.Combine("Downloads", "Obra", "planilha.xlsx"), "não é foto");
+        var antes = File.ReadAllBytes(grande);
+        var vm = NovoCompactar();
+        vm.Adicionar([Em("Downloads", "Obra")]);
+
+        vm.ReduzirFotos = true;
+        await vm.Preparando;
+
+        var aviso = Assert.Single(vm.Avisos, a => a.Texto.StartsWith("Fotos: 2 fotos, de"));
+        Assert.Contains("as fotos originais não mudam", aviso.Texto);
+        await vm.CriarCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ResultadoComFalha, vm.Resultado);
+        string zip = Em("Downloads", "Obra.zip");
+        using (var arquivo = System.IO.Compression.ZipFile.OpenRead(zip))
+        {
+            Assert.Equal(["foto 1.jpg", "foto 2.jpg", "planilha.xlsx"], arquivo.Entries.Select(e => e.FullName).Order());
+            var foto = arquivo.GetEntry("foto 1.jpg")!;
+            Assert.True(foto.Length < antes.Length);
+            using var lida = SkiaSharp.SKBitmap.Decode(foto.Open());
+            Assert.Equal(1600, Math.Max(lida.Width, lida.Height)); // qualidade media
+        }
+
+        Assert.Equal(antes, File.ReadAllBytes(grande)); // original intacto
+        Assert.True(File.Exists(outra));
+    }
+
+    [Fact]
     public async Task Um_zip_por_pasta_mostra_previa_cria_e_registra_no_historico()
     {
         Criar(Path.Combine("Downloads", "Pautas", "p1.pdf"), new string('a', 3000));

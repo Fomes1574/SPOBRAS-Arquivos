@@ -57,6 +57,14 @@
                                      AutomationProperties.Name="Tamanho máximo de cada parte em megabytes" />
                             <TextBlock Text="Você escolhe o limite conforme o serviço por onde vai enviar." Style="{StaticResource Texto2}" FontSize="13" Margin="0,6,0,0" />
                         </StackPanel>
+
+                        <CheckBox Content="Reduzir as fotos (cópias)" IsChecked="{Binding ReduzirFotos}" Margin="0,16,0,0"
+                                  ToolTip="As fotos JPG entram no zip como cópias menores. As fotos originais não mudam." />
+                        <StackPanel Visibility="{Binding ReduzirFotos, Converter={StaticResource Visivel}}" Margin="22,6,0,0">
+                            <RadioButton GroupName="QualidadeZip" Content="Alta (para imprimir)" IsChecked="{Binding QualidadeFotos, Converter={StaticResource EnumIgual}, ConverterParameter=Alta}" />
+                            <RadioButton GroupName="QualidadeZip" Content="Média" IsChecked="{Binding QualidadeFotos, Converter={StaticResource EnumIgual}, ConverterParameter=Media}" />
+                            <RadioButton GroupName="QualidadeZip" Content="Leve (para enviar)" IsChecked="{Binding QualidadeFotos, Converter={StaticResource EnumIgual}, ConverterParameter=Leve}" />
+                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
