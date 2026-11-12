@@ -44,6 +44,9 @@ public sealed class ObraVm(ObraLida obra)
     public string ValorPago => FormatoBase.Reais(Obra.ValorPago);
     public string ValorContratado => FormatoBase.Reais(Obra.ValorContratadoComAditamento);
 
+    /// <summary>"incluída no app", "2 campos editados no app" ou vazio.</summary>
+    public string Marca => Obra.IncluidaNoApp ? "Incluída no app" : Obra.CamposEditados > 0 ? Formato.Plural(Obra.CamposEditados, "campo editado no app", "campos editados no app") : "";
+
     /// <summary>Todos os campos da obra, com o nome da planilha, para a ficha ao lado.</summary>
     public IReadOnlyList<KeyValuePair<string, string>> Campos
     {
@@ -159,6 +162,117 @@ public sealed partial class BaseVm : TelaVm
 
     /// <summary>Abre a busca dentro dos arquivos com um termo (contrato ou escola da obra escolhida).</summary>
     public Action<string>? AoBuscarNosArquivos { get; set; }
+
+    [ObservableProperty]
+    private EdicaoObraVm? _edicao;
+
+    public bool Editando => Edicao is not null;
+
+    partial void OnEdicaoChanged(EdicaoObraVm? value) => OnPropertyChanged(nameof(Editando));
+
+    private DateTimeOffset Agora => _apoio?.Relogio.Agora ?? DateTimeOffset.Now;
+
+    [RelayCommand]
+    private void EditarObra()
+    {
+        if (Selecionada is { } obra)
+        {
+            Edicao = new EdicaoObraVm(obra.Obra, obra.Obra.IncluidaNoApp ? [] : _base.Ajustes(obra.Contrato, obra.Escola));
+        }
+    }
+
+    [RelayCommand]
+    private void NovaObra() => Edicao = new EdicaoObraVm(null, []);
+
+    [RelayCommand]
+    private void CancelarEdicao() => Edicao = null;
+
+    [RelayCommand]
+    private void SalvarEdicao()
+    {
+        if (Edicao is not { } edicao || edicao.Mudancas() is not { } mudancas)
+        {
+            return;
+        }
+
+        try
+        {
+            ObraLida gravada;
+            if (edicao.Nova)
+            {
+                var o = new ObraLida
+                {
+                    Contrato = (string)mudancas["contrato"]!,
+                    Empreendimento = (string)mudancas["empreendimento"]!,
+                };
+                gravada = _base.IncluirObra(o, Agora);
+                mudancas.Remove("contrato");
+                mudancas.Remove("empreendimento");
+                if (mudancas.Count > 0)
+                {
+                    _base.GravarEdicao(gravada, mudancas, Agora);
+                }
+
+                Resultado = $"{gravada.Empreendimento} incluída no app (contrato {gravada.Contrato}). Ela aparece em todas as telas como as obras da planilha.";
+            }
+            else
+            {
+                gravada = edicao.Obra!;
+                if (mudancas.Count > 0)
+                {
+                    _base.GravarEdicao(gravada, mudancas, Agora);
+                }
+
+                Resultado = mudancas.Count == 0
+                    ? "Nada foi mudado."
+                    : $"{Formato.Plural(mudancas.Count, "campo mudado", "campos mudados")} em {gravada.Empreendimento}. A planilha mestra não foi alterada.";
+            }
+
+            ResultadoComFalha = false;
+            Edicao = null;
+            Buscar();
+            Selecionada = Obras.FirstOrDefault(o => o.Obra.Id == gravada.Id
+                || (o.Contrato == gravada.Contrato && o.Escola == (mudancas.TryGetValue("empreendimento", out var e) && e is string s ? s : gravada.Empreendimento)));
+        }
+        catch (InvalidOperationException ex)
+        {
+            edicao.Problemas = ex.Message;
+        }
+    }
+
+    /// <summary>Desfaz a mudanca de um campo: volta ao valor da planilha.</summary>
+    [RelayCommand]
+    private void VoltarAoDaPlanilha(CampoEdicaoObraVm campo)
+    {
+        if (Edicao?.Obra is not { } obra)
+        {
+            return;
+        }
+
+        _base.VoltarAoDaPlanilha(obra, campo.Campo.Chave);
+        Buscar();
+        var atual = Obras.FirstOrDefault(o => o.Obra.Id == obra.Id);
+        Selecionada = atual;
+        Edicao = atual is null ? null : new EdicaoObraVm(atual.Obra, _base.Ajustes(atual.Contrato, atual.Escola));
+        Resultado = $"{campo.Rotulo} voltou ao valor da planilha.";
+        ResultadoComFalha = false;
+    }
+
+    [RelayCommand]
+    private void RemoverObraIncluida()
+    {
+        if (Selecionada is not { Obra.IncluidaNoApp: true } obra
+            || _apoio?.Dialogos.Confirmar("Tirar a obra do app", $"Tirar {obra.Escola} (contrato {obra.Contrato}), que foi incluída no app? As obras da planilha mestra não são afetadas.", "Tirar") != true)
+        {
+            return;
+        }
+
+        _base.RemoverObraIncluida(obra.Obra);
+        Edicao = null;
+        Buscar();
+        Resultado = $"{obra.Escola} saiu do app.";
+        ResultadoComFalha = false;
+    }
 
     /// <summary>Abre a conferencia de portarias e dotacoes de uma planilha.</summary>
     public Action? AoConferirPlanilha { get; set; }
@@ -813,6 +927,134 @@ public sealed partial class FontesVm : TelaVm
     public bool TemApelidos => Apelidos.Count > 0;
     public bool TemVinculos => Vinculos.Count > 0;
 
+    /// <summary>Para registrar no historico a exportacao e datar as edicoes (definidos pela composicao do app).</summary>
+    public ServicoOperacoes? Operacoes { get; set; }
+    public Spobras.Core.Abstracoes.IRelogio? Relogio { get; set; }
+    private DateTimeOffset Agora => Relogio?.Agora ?? DateTimeOffset.Now;
+
+    private VinculoBase? _vinculoEmEdicao;
+
+    [ObservableProperty]
+    private bool _editandoVinculo;
+
+    [ObservableProperty]
+    private string _tituloVinculo = "";
+
+    [ObservableProperty]
+    private string _vPortaria = "";
+
+    [ObservableProperty]
+    private string _vReceita = "";
+
+    [ObservableProperty]
+    private string _vFinalidade = "";
+
+    [ObservableProperty]
+    private string _vDotacao = "";
+
+    [ObservableProperty]
+    private string _vResumida = "";
+
+    [ObservableProperty]
+    private string _vDescricao = "";
+
+    [ObservableProperty]
+    private string _problemaVinculo = "";
+
+    [RelayCommand]
+    private void NovoVinculo() => AbrirVinculo(null);
+
+    [RelayCommand]
+    private void EditarVinculo(VinculoBase vinculo) => AbrirVinculo(vinculo);
+
+    private void AbrirVinculo(VinculoBase? v)
+    {
+        _vinculoEmEdicao = v;
+        TituloVinculo = v is null ? "Incluir portaria e dotação" : "Editar portaria e dotação";
+        VPortaria = v?.Portaria ?? "";
+        VReceita = v?.ContratoReceita ?? "";
+        VFinalidade = v?.Finalidade ?? "";
+        VDotacao = v?.DotacaoCompleta ?? "";
+        VResumida = v?.DotacaoResumida ?? "";
+        VDescricao = v?.Descricao ?? "";
+        ProblemaVinculo = "";
+        EditandoVinculo = true;
+    }
+
+    [RelayCommand]
+    private void CancelarVinculo() => EditandoVinculo = false;
+
+    [RelayCommand]
+    private void SalvarVinculo()
+    {
+        string? Nulo(string t) => string.IsNullOrWhiteSpace(t) ? null : t.Trim();
+        var novo = new VinculoBase(0, VPortaria.Trim(), VReceita.Trim(), Nulo(VFinalidade), VDotacao.Trim(), null, Nulo(VResumida), Nulo(VDescricao));
+        try
+        {
+            if (_vinculoEmEdicao is null)
+            {
+                _base.IncluirVinculo(novo, Agora);
+            }
+            else
+            {
+                _base.AlterarVinculo(_vinculoEmEdicao, novo, Agora);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            ProblemaVinculo = ex.Message;
+            return;
+        }
+
+        EditandoVinculo = false;
+        Carregar();
+        Resultado = "Portaria e dotação salvas no app. A planilha de dotações não foi alterada; a mudança continua valendo quando ela for lida de novo.";
+        ResultadoComFalha = false;
+    }
+
+    [RelayCommand]
+    private void RemoverVinculo(VinculoBase vinculo)
+    {
+        if (!_dialogos.Confirmar("Tirar da base", $"Tirar {vinculo.Portaria} · {vinculo.DotacaoCompleta} da base do app? A planilha de dotações não é alterada.", "Tirar"))
+        {
+            return;
+        }
+
+        _base.RemoverVinculo(vinculo, Agora);
+        Carregar();
+        Resultado = "Tirado da base do app.";
+        ResultadoComFalha = false;
+    }
+
+    /// <summary>Tabela de portarias, contratos de receita e dotacoes, pronta para PROCX/SOMASES no Excel.</summary>
+    [RelayCommand]
+    private void ExportarVinculos()
+    {
+        string pasta = _preferencias.DestinoDe(BaseVm.Modulo);
+        string nome = Spobras.Core.Nomes.NomeArquivo.Livre($"Portarias e dotações - {Agora:yyyy-MM-dd}.xlsx", n => File.Exists(Path.Combine(pasta, n)));
+        string caminho = Path.Combine(pasta, nome);
+        try
+        {
+            Spobras.Documentos.Planilhas.GravadorXlsx.Gravar(caminho,
+            [
+                new Spobras.Documentos.Planilhas.AbaNova("Portarias e dotações",
+                    ["Portaria", "Contrato de receita", "Finalidade", "Dotação completa", "Dotação resumida", "Descrição", "Origem"],
+                    [.. _base.Vinculos().Select(v => new object?[] { v.Portaria, v.ContratoReceita, v.Finalidade, v.DotacaoCompleta, v.DotacaoResumida, v.Descricao, v.Origem })]),
+            ]);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Resultado = $"A planilha não foi gerada: {ex.Message}";
+            ResultadoComFalha = true;
+            return;
+        }
+
+        Operacoes?.RegistrarCriados($"Exportou portarias e dotações para “{nome}”", [caminho]);
+        _dialogos.MostrarNaPasta(caminho);
+        Resultado = $"“{nome}” gerado em {pasta}.";
+        ResultadoComFalha = false;
+    }
+
     public override void AoEntrar() => Carregar();
 
     [RelayCommand]
@@ -923,5 +1165,80 @@ public sealed partial class FontesVm : TelaVm
         {
             _base.GravarApelido(apelido.Texto, apelido.Portaria is null or SemVinculo ? null : apelido.Portaria);
         }
+    }
+}
+
+/// <summary>Um campo no formulario de edicao: o valor em uso e, se foi mudado no app, o que a planilha diz.</summary>
+public sealed partial class CampoEdicaoObraVm(CampoObra campo, string valor, AjusteObra? ajuste, bool somenteLeitura) : ObservableObject
+{
+    public CampoObra Campo { get; } = campo;
+    public string Rotulo => Campo.Rotulo;
+    public string Original { get; } = valor;
+    public bool SomenteLeitura { get; } = somenteLeitura;
+    public bool Editado => ajuste is not null;
+    public bool PlanilhaMudou => ajuste?.PlanilhaMudou == true;
+
+    /// <summary>"Na planilha: X", para o campo mudado no app.</summary>
+    public string NaPlanilha => ajuste is null ? "" :
+        (ajuste.PlanilhaMudou ? "A planilha mudou depois da sua edição e agora diz: " : "Na planilha: ") + CamposObra.Mostrar(Campo, ajuste.ValorDaPlanilha);
+
+    [ObservableProperty]
+    private string _valor = valor;
+
+    public bool Mudou => Valor.Trim() != Original.Trim();
+}
+
+/// <summary>
+/// Formulario para mudar qualquer dado de uma obra (ou incluir uma obra nova). O valor da planilha vem
+/// por padrao; o que o usuario muda fica guardado no app, com o original, e pode voltar ao da planilha.
+/// </summary>
+public sealed partial class EdicaoObraVm : ObservableObject
+{
+    public EdicaoObraVm(ObraLida? obra, IReadOnlyList<AjusteObra> ajustes)
+    {
+        Obra = obra;
+        bool nova = obra is null;
+        foreach (var campo in CamposObra.Todos)
+        {
+            string valor = obra is null ? "" : campo.Ler(obra);
+            var ajuste = ajustes.FirstOrDefault(a => a.Campo == campo.Chave);
+            Campos.Add(new CampoEdicaoObraVm(campo, valor, ajuste, !nova && obra!.IncluidaNoApp == false && CamposObra.Chave(campo.Chave)));
+        }
+    }
+
+    /// <summary>Null = obra nova, incluida no app.</summary>
+    public ObraLida? Obra { get; }
+    public bool Nova => Obra is null;
+    public string Titulo => Nova ? "Incluir obra" : Obra!.IncluidaNoApp ? $"Editar {Obra.Empreendimento} (incluída no app)" : $"Editar {Obra.Empreendimento}";
+    public string Explicacao => Nova
+        ? "Para uma obra que ainda não está na planilha mestra. Contrato e escola são obrigatórios; ela aparece marcada como incluída no app."
+        : Obra!.IncluidaNoApp
+            ? "Obra incluída no app: todos os campos podem ser mudados."
+            : "Os valores vêm da planilha mestra. O que você mudar vale no app e fica marcado; a planilha não é alterada e dá para voltar ao valor dela.";
+    public ObservableCollection<CampoEdicaoObraVm> Campos { get; } = [];
+
+    [ObservableProperty]
+    private string _problemas = "";
+
+    /// <summary>Campos mudados e convertidos; null (com Problemas preenchido) se algo nao foi entendido.</summary>
+    public Dictionary<string, object?>? Mudancas()
+    {
+        var mudancas = new Dictionary<string, object?>();
+        var erros = new List<string>();
+        foreach (var c in Campos.Where(c => !c.SomenteLeitura && (Nova ? c.Valor.Trim().Length > 0 || CamposObra.Chave(c.Campo.Chave) : c.Mudou)))
+        {
+            var (valor, erro) = CamposObra.Converter(c.Campo, c.Valor);
+            if (erro is not null)
+            {
+                erros.Add(erro);
+            }
+            else
+            {
+                mudancas[c.Campo.Chave] = valor;
+            }
+        }
+
+        Problemas = string.Join("\n", erros);
+        return erros.Count > 0 ? null : mudancas;
     }
 }

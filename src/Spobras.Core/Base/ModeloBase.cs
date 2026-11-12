@@ -88,6 +88,12 @@ public sealed record ObraLida
     public decimal? SaldoAMedir { get; init; }
     public decimal? SaldoAPagar { get; init; }
 
+    /// <summary>Obra que nao esta na planilha: incluida pelo usuario no app.</summary>
+    public bool IncluidaNoApp { get; init; }
+
+    /// <summary>Quantos campos desta obra foram mudados no app (o valor da planilha fica guardado).</summary>
+    public int CamposEditados { get; init; }
+
     public decimal? Valor(CampoValor campo) => campo switch
     {
         CampoValor.ValorEmpreendimento => ValorEmpreendimento,
@@ -133,7 +139,11 @@ public sealed record PortariaBase(long Id, string Rotulo, int? Numero, int? Ano)
 
 public sealed record VinculoBase(
     long Id, string Portaria, string ContratoReceita, string? Finalidade, string DotacaoCompleta, string? DotacaoOriginal,
-    string? DotacaoResumida, string? Descricao);
+    string? DotacaoResumida, string? Descricao, string Origem = "planilha")
+{
+    /// <summary>Identifica o vinculo entre uma leitura e outra da planilha de dotacoes.</summary>
+    public string Chave => $"{Portaria}|{ContratoReceita}|{DotacaoCompleta}";
+}
 
 public enum EstadoFonte
 {

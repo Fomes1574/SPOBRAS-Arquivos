@@ -128,6 +128,8 @@ public sealed class Composicao : IDisposable
             ((FerramentasVm)telas[FerramentasVm.Modulo]).Ferramenta = FerramentaExtra.Padrao;
             Principal!.Navegar(FerramentasVm.Modulo);
         };
+        ((FontesVm)telas[FontesVm.Modulo]).Operacoes = Operacoes;
+        ((FontesVm)telas[FontesVm.Modulo]).Relogio = relogio;
         ((OrganizarVm)telas[OrganizarVm.Modulo]).Navegar = Ir;
         ((ModelosVm)telas[ModelosVm.Modulo]).Navegar = Ir;
         var inicio = (InicioVm)telas["inicio"];

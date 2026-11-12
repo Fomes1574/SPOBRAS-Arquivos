@@ -148,6 +148,35 @@ public sealed class BancoApp
             motivo text null
         );
         """,
+
+        // 6: edicao no app por cima da base (a planilha nunca e alterada; cada mudanca guarda o valor da planilha)
+        """
+        alter table Obra add column local integer not null default 0;
+        alter table Obra add column editados integer not null default 0;
+        alter table Vinculo add column origem text not null default 'planilha';
+        create table AjusteObra (
+            contrato text not null,
+            empreendimento text not null,
+            campo text not null,
+            valor text null,
+            valor_planilha text null,
+            planilha_mudou integer not null default 0,
+            quando text not null,
+            primary key (contrato, empreendimento, campo)
+        );
+        create table ObraLocal (
+            id integer primary key,
+            json text not null,
+            quando text not null
+        );
+        create table VinculoLocal (
+            id integer primary key,
+            acao text not null,
+            chave text null,
+            json text null,
+            quando text not null
+        );
+        """,
     ];
 
     private const string SufixoRestaurar = ".restaurar";

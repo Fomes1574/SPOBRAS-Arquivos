@@ -110,11 +110,39 @@
             </Border>
 
             <!-- Portarias, contratos de receita e dotacoes -->
-            <Border Style="{StaticResource Painel}" Margin="0,16,0,0" Visibility="{Binding TemVinculos, Converter={StaticResource Visivel}}">
+            <Border Style="{StaticResource Painel}" Margin="0,16,0,0">
                 <StackPanel>
-                    <TextBlock Text="Portarias, contratos de receita e dotações" Style="{StaticResource TituloPainel}" />
-                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,10"
-                               Text="Como está na planilha de dotações (já com os pontos padronizados). Para mudar, edite a planilha no Excel e salve." />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Exportar para o Excel" MinHeight="44" Margin="8,0,0,0" Command="{Binding ExportarVinculosCommand}"
+                                ToolTip="Planilha nova com esta tabela, pronta para PROCX e SOMASES" />
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Incluir" Margin="8,0,0,0" Command="{Binding NovoVinculoCommand}" />
+                        <TextBlock Text="Portarias, contratos de receita e dotações" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,10" TextWrapping="Wrap"
+                               Text="Vem da planilha de dotações (já com os pontos padronizados). Você pode incluir, editar e tirar aqui: fica marcado e continua valendo quando a planilha for lida de novo. A planilha não é alterada." />
+
+                    <Border CornerRadius="8" Padding="14" Margin="0,0,0,12" Background="{StaticResource Fundo}" Visibility="{Binding EditandoVinculo, Converter={StaticResource Visivel}}">
+                        <StackPanel>
+                            <TextBlock Text="{Binding TituloVinculo}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                            <UniformGrid Columns="3" Margin="-6,0,-6,0">
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Portaria" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VPortaria, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Portaria" /></StackPanel>
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Contrato de receita" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VReceita, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Contrato de receita" /></StackPanel>
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Finalidade" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VFinalidade, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Finalidade" /></StackPanel>
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Dotação completa" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VDotacao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Dotação completa" /></StackPanel>
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Dotação resumida" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VResumida, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Dotação resumida" /></StackPanel>
+                                <StackPanel Margin="6,0,6,8"><TextBlock Text="Descrição" Style="{StaticResource Rotulo}" /><TextBox Text="{Binding VDescricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição" /></StackPanel>
+                            </UniformGrid>
+                            <TextBlock Text="{Binding ProblemaVinculo}" Foreground="{StaticResource Vermelho}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Visibility="{Binding ProblemaVinculo, Converter={StaticResource VisivelSe}}" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Style="{StaticResource BotaoSecundario}" Content="Cancelar" Command="{Binding CancelarVinculoCommand}" />
+                                <Button Style="{StaticResource BotaoPrimario}" Content="Salvar" Margin="8,0,0,0" Command="{Binding SalvarVinculoCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Nenhuma portaria ainda. Leia a planilha de dotações acima ou use Incluir." Style="{StaticResource Texto2}"
+                               Visibility="{Binding TemVinculos, Converter={StaticResource VisivelSeNao}}" />
                     <ItemsControl ItemsSource="{Binding Vinculos}" Focusable="False">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -124,17 +152,33 @@
                                             <ColumnDefinition Width="2*" />
                                             <ColumnDefinition Width="2*" />
                                             <ColumnDefinition Width="4*" />
+                                            <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel Margin="0,0,10,0">
                                             <TextBlock Text="{Binding Portaria}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                             <TextBlock Text="{Binding Finalidade}" Style="{StaticResource Texto2}" FontSize="13" Visibility="{Binding Finalidade, Converter={StaticResource VisivelSe}}" />
+                                            <TextBlock Text="{Binding Origem}" FontSize="12" Foreground="{StaticResource Azul}">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Origem}" Value="planilha"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </StackPanel>
                                         <TextBlock Grid.Column="1" Text="{Binding ContratoReceita}" TextWrapping="Wrap" Margin="0,0,10,0" />
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="{Binding DotacaoCompleta}" TextWrapping="Wrap" />
-                                            <TextBlock Style="{StaticResource Texto2}" FontSize="13">
+                                            <TextBlock Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap">
                                                 <Run Text="{Binding DotacaoResumida, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Descricao, Mode=OneWay}" />
                                             </TextBlock>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0">
+                                            <Button Style="{StaticResource BotaoLink}" Content="Editar" Margin="0,0,10,0"
+                                                    Command="{Binding DataContext.EditarVinculoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BotaoLink}" Content="Tirar"
+                                                    Command="{Binding DataContext.RemoverVinculoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                         </StackPanel>
                                     </Grid>
                                 </Border>

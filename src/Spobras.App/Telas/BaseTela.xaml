@@ -191,6 +191,7 @@
                                         <StackPanel Grid.Column="1" Margin="0,0,10,0">
                                             <TextBlock Text="{Binding Escola}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Escola}" />
                                             <TextBlock Text="{Binding Portaria}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Portaria}" />
+                                            <TextBlock Text="{Binding Marca}" FontSize="12" Foreground="{StaticResource Azul}" Visibility="{Binding Marca, Converter={StaticResource VisivelSe}}" />
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{Binding DataOs}" TextWrapping="Wrap" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="3" Text="{Binding SaldoAPagar}" TextAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -205,9 +206,37 @@
             <!-- Ficha da obra escolhida -->
             <Border Grid.Column="2" Style="{StaticResource Painel}" Padding="0">
                 <Grid>
-                    <TextBlock Text="Clique numa obra para ver todos os dados dela." Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center"
-                               TextAlignment="Center" Margin="20" Visibility="{Binding Selecionada, Converter={StaticResource VisivelSeNao}}" />
-                    <DockPanel Visibility="{Binding Selecionada, Converter={StaticResource VisivelSe}}">
+                    <TextBlock Text="Clique numa obra para ver todos os dados dela." VerticalAlignment="Center" HorizontalAlignment="Center"
+                               TextAlignment="Center" Margin="20">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource Texto2}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding Selecionada}" Value="{x:Null}" />
+                                            <Condition Binding="{Binding Editando}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <DockPanel>
+                        <DockPanel.Style>
+                            <Style TargetType="DockPanel">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Selecionada}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding Editando}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DockPanel.Style>
+                        <DockPanel DockPanel.Dock="Top" Margin="20,14,20,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Editar dados" MinHeight="40" Margin="8,0,0,0" Command="{Binding EditarObraCommand}"
+                                    ToolTip="Mude qualquer dado desta obra no app. A planilha mestra não é alterada." />
+                            <TextBlock Text="{Binding Selecionada.Marca}" Foreground="{StaticResource Azul}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
                         <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,16">
                             <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
@@ -232,12 +261,72 @@
                             </ItemsControl>
                         </ScrollViewer>
                     </DockPanel>
+
+                    <!-- Edicao da obra -->
+                    <DockPanel Visibility="{Binding Editando, Converter={StaticResource Visivel}}" DataContext="{Binding}">
+                        <StackPanel DockPanel.Dock="Top" Margin="20,14,20,8">
+                            <TextBlock Text="{Binding Edicao.Titulo}" Style="{StaticResource TituloPainel}" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Edicao.Explicacao}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <StackPanel DockPanel.Dock="Bottom" Margin="20,8,20,16">
+                            <TextBlock Text="{Binding Edicao.Problemas}" Foreground="{StaticResource Vermelho}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,8"
+                                       Visibility="{Binding Edicao.Problemas, Converter={StaticResource VisivelSe}}" />
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoPrimario}" Content="Salvar" Margin="8,0,0,0" Command="{Binding SalvarEdicaoCommand}" />
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Cancelar" Command="{Binding CancelarEdicaoCommand}" />
+                                <Button Style="{StaticResource BotaoLink}" Content="Tirar do app" HorizontalAlignment="Left" VerticalAlignment="Center" Command="{Binding RemoverObraIncluidaCommand}"
+                                        Visibility="{Binding Selecionada.Obra.IncluidaNoApp, Converter={StaticResource Visivel}}" />
+                            </DockPanel>
+                        </StackPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Edicao.Campos}" Margin="20,0,20,0" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding Rotulo}" Style="{StaticResource Rotulo}" />
+                                            <TextBox Text="{Binding Valor, UpdateSourceTrigger=PropertyChanged}" IsReadOnly="{Binding SomenteLeitura}" AutomationProperties.Name="{Binding Rotulo}">
+                                                <TextBox.Style>
+                                                    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding SomenteLeitura}" Value="True">
+                                                                <Setter Property="ToolTip" Value="Contrato e escola identificam a obra da planilha e não mudam aqui." />
+                                                                <Setter Property="Foreground" Value="{StaticResource Secundario}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBox.Style>
+                                            </TextBox>
+                                            <DockPanel Visibility="{Binding Editado, Converter={StaticResource Visivel}}" Margin="0,2,0,0">
+                                                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Voltar ao da planilha" Margin="8,0,0,0" VerticalAlignment="Top"
+                                                        Command="{Binding DataContext.VoltarAoDaPlanilhaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                                <TextBlock Text="{Binding NaPlanilha}" FontSize="12" TextWrapping="Wrap">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="{StaticResource Azul}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding PlanilhaMudou}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource Laranja}" />
+                                                                    <Setter Property="FontWeight" Value="SemiBold" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DockPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
                 </Grid>
             </Border>
         </Grid>
 
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Incluir obra" Margin="12,0,0,0" MinHeight="44" Command="{Binding NovaObraCommand}"
+                        ToolTip="Uma obra que ainda não está na planilha mestra" />
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Conferir uma planilha" Margin="12,0,0,0" MinHeight="44" Command="{Binding ConferirPlanilhaCommand}"
                         ToolTip="Aponta portarias e dotações escritas fora do padrão numa planilha sua e propõe corrigir numa cópia" />
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Exportar para Excel" Margin="12,0,0,0" Command="{Binding ExportarCommand}"

@@ -10,7 +10,7 @@ namespace Spobras.Dados.Base;
 /// Base local: copia da ultima importacao valida de cada fonte. Cada importacao entra inteira numa
 /// transacao ou nao entra (uma falha nunca deixa metade dos contratos atualizados).
 /// </summary>
-public sealed class BaseRepositorio(BancoApp banco)
+public sealed partial class BaseRepositorio(BancoApp banco)
 {
     // ---- Gravacao ----
 
@@ -83,6 +83,7 @@ public sealed class BaseRepositorio(BancoApp banco)
         }
 
         GravarFonte(conexao, tx, fonte);
+        AplicarEdicoesDeObras(conexao, tx, releitura: true);
         tx.Commit();
     }
 
@@ -116,6 +117,7 @@ public sealed class BaseRepositorio(BancoApp banco)
         }
 
         GravarFonte(conexao, tx, fonte);
+        AplicarEdicoesDeVinculos(conexao, tx);
         tx.Commit();
     }
 
@@ -311,7 +313,7 @@ public sealed class BaseRepositorio(BancoApp banco)
         using var conexao = banco.Abrir();
         using var cmd = conexao.CreateCommand();
         cmd.CommandText = """
-            select v.id, p.rotulo, v.contrato_receita, v.finalidade, v.dotacao, v.dotacao_original, v.resumida, v.descricao
+            select v.id, p.rotulo, v.contrato_receita, v.finalidade, v.dotacao, v.dotacao_original, v.resumida, v.descricao, v.origem
             from Vinculo v join Portaria p on p.id = v.portaria_id
             order by p.numero, p.ano, p.rotulo, v.contrato_receita, v.resumida
             """;
@@ -319,7 +321,7 @@ public sealed class BaseRepositorio(BancoApp banco)
         var lista = new List<VinculoBase>();
         while (r.Read())
         {
-            lista.Add(new VinculoBase(r.GetInt64(0), r.GetString(1), r.GetString(2), Txt(r, 3), r.GetString(4), Txt(r, 5), Txt(r, 6), Txt(r, 7)));
+            lista.Add(new VinculoBase(r.GetInt64(0), r.GetString(1), r.GetString(2), Txt(r, 3), r.GetString(4), Txt(r, 5), Txt(r, 6), Txt(r, 7), r.GetString(8)));
         }
 
         return lista;
@@ -531,6 +533,8 @@ public sealed class BaseRepositorio(BancoApp banco)
             ValorPago = V("valor_pago"),
             SaldoAMedir = V("saldo_medir"),
             SaldoAPagar = V("saldo_pagar"),
+            IncluidaNoApp = r.GetInt64(r.GetOrdinal("local")) != 0,
+            CamposEditados = r.GetInt32(r.GetOrdinal("editados")),
         };
     }
 
