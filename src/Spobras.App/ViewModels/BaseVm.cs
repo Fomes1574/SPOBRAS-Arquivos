@@ -87,7 +87,37 @@ public sealed class ObraVm(ObraLida obra)
             return campos;
         }
     }
+
+    /// <summary>Os mesmos campos agrupados em blocos, para a ficha larga (duas colunas por bloco).</summary>
+    public IReadOnlyList<GrupoFicha> Grupos
+    {
+        get
+        {
+            List<KeyValuePair<string, string>> Bloco(params (string Rotulo, string? Valor)[] itens) =>
+                [.. itens.Where(i => !string.IsNullOrWhiteSpace(i.Valor)).Select(i => new KeyValuePair<string, string>(i.Rotulo, i.Valor!))];
+
+            var grupos = new List<GrupoFicha>
+            {
+                new("Identificação", Bloco(
+                    ("Contrato", Obra.Contrato), ("Escola / empreendimento", Obra.Empreendimento), ("Contratada", Obra.Contratada),
+                    ("Lote", Obra.Lote), ("Status", Obra.Status), ("Status do contrato", Obra.StatusContrato), ("Situação", Obra.Situacao),
+                    ("Modalidade", Obra.Modalidade), ("Tipo de obra", Obra.TipoDeObra))),
+                new("Prazo", Bloco(
+                    ("Data de assinatura", FormatoBase.Data(Obra.DataAssinatura)), ("Data da OS (início da execução)", DataOs),
+                    ("Término da execução", FormatoBase.Data(Obra.Termino)))),
+                new("Valores", [.. Enum.GetValues<CampoValor>().Select(c => new KeyValuePair<string, string>(CamposValor.Rotulo(c), FormatoBase.Reais(Obra.Valor(c))))]),
+                new("Orçamento", Bloco(
+                    ("Portaria", Obra.Portaria), ("Contrato de receita (do contrato, pelas medições)", Obra.ContratoReceita), ("Dotação", Obra.Dotacao),
+                    ("Atividade (dotação resumida)", Obra.Atividade), ("Processo SEI", Obra.ProcessoSei))),
+                new("Escopo", Bloco(("Escopo", Obra.Escopo))),
+            };
+            return [.. grupos.Where(g => g.Campos.Count > 0)];
+        }
+    }
 }
+
+/// <summary>Um bloco da ficha da obra ("Prazo", "Valores"...), com os campos preenchidos.</summary>
+public sealed record GrupoFicha(string Titulo, IReadOnlyList<KeyValuePair<string, string>> Campos);
 
 public sealed record CampoValorVm(CampoValor Campo)
 {
@@ -107,6 +137,7 @@ public sealed record ConsultaSalva
     public string? Portaria { get; init; }
     public string? Contrato { get; init; }
     public string? Escola { get; init; }
+    public string? Lote { get; init; }
     public string? ContratoReceita { get; init; }
     public string? Dotacao { get; init; }
     public string? Status { get; init; }
@@ -304,7 +335,50 @@ public sealed partial class BaseVm : TelaVm
     public ObservableCollection<string> Portarias { get; } = [];
     public ObservableCollection<string> Contratos { get; } = [];
     public ObservableCollection<string> Escolas { get; } = [];
+    public ObservableCollection<string> Lotes { get; } = [];
     public ObservableCollection<string> ContratosReceita { get; } = [];
+
+    /// <summary>Totais das obras do lote escolhido (contratado, medido, pago, saldos), na faixa acima da lista.</summary>
+    public ObservableCollection<ItemCronograma> TotaisDoLote { get; } = [];
+
+    [ObservableProperty]
+    private string _tituloDoLote = "";
+
+    public bool TemLote => TotaisDoLote.Count > 0;
+
+    /// <summary>Ficha ocupando a area toda, por um momento (o "Ampliar").</summary>
+    [ObservableProperty]
+    private bool _fichaAmpliada;
+
+    /// <summary>Filtros recolhidos numa linha, para a lista e a ficha ganharem altura.</summary>
+    [ObservableProperty]
+    private bool _filtrosRecolhidos;
+
+    [RelayCommand]
+    private void AlternarAmpliar() => FichaAmpliada = !FichaAmpliada;
+
+    [RelayCommand]
+    private void AlternarFiltros() => FiltrosRecolhidos = !FiltrosRecolhidos;
+
+    /// <summary>Resumo dos filtros ativos, mostrado quando eles estao recolhidos.</summary>
+    public string FiltrosAtivos
+    {
+        get
+        {
+            var partes = new[] { Portaria, Contrato, Escola, Lote, ContratoReceita, Dotacao, Status, Texto.Trim().Length > 0 ? $"“{Texto.Trim()}”" : null }
+                .Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            return partes.Count == 0 ? "Sem filtros" : string.Join(" · ", partes);
+        }
+    }
+
+    /// <summary>Parte da largura que a ficha ocupa (0,3 a 0,8); fica guardada para a proxima vez.</summary>
+    public double ProporcaoDaFicha => Math.Clamp(_apoio?.Preferencias.Atual.ProporcaoDaFichaBase ?? 0.6, 0.3, 0.8);
+
+    public void GuardarProporcaoDaFicha(double proporcao)
+    {
+        double valor = Math.Round(Math.Clamp(proporcao, 0.3, 0.8), 3);
+        _apoio?.Preferencias.Alterar(p => p with { ProporcaoDaFichaBase = valor });
+    }
     public ObservableCollection<string> Dotacoes { get; } = [];
     public ObservableCollection<string> Situacoes { get; } = [];
     public IReadOnlyList<CampoValorVm> CamposDeValor { get; }
@@ -317,6 +391,9 @@ public sealed partial class BaseVm : TelaVm
 
     [ObservableProperty]
     private string? _escola;
+
+    [ObservableProperty]
+    private string? _lote;
 
     [ObservableProperty]
     private string? _contratoReceita;
@@ -388,7 +465,7 @@ public sealed partial class BaseVm : TelaVm
 
         switch (e.PropertyName)
         {
-            case nameof(Portaria) or nameof(Contrato) or nameof(Escola) or nameof(ContratoReceita) or nameof(Dotacao) or nameof(Status)
+            case nameof(Portaria) or nameof(Contrato) or nameof(Escola) or nameof(Lote) or nameof(ContratoReceita) or nameof(Dotacao) or nameof(Status)
                 or nameof(Texto) or nameof(ValorFiltrado) or nameof(ValorDe) or nameof(ValorAte) or nameof(ValorSemInformacao)
                 or nameof(OsDe) or nameof(OsAte) or nameof(SemDataOs) or nameof(Ordem):
                 _mostrando = Pagina;
@@ -413,6 +490,7 @@ public sealed partial class BaseVm : TelaVm
             case "portaria": Portaria = null; break;
             case "contrato": Contrato = null; break;
             case "escola": Escola = null; break;
+            case "lote": Lote = null; break;
             case "receita": ContratoReceita = null; break;
             case "dotacao": Dotacao = null; break;
             case "status": Status = null; break;
@@ -423,7 +501,7 @@ public sealed partial class BaseVm : TelaVm
     private void LimparFiltros()
     {
         _atualizando = true;
-        Portaria = Contrato = Escola = ContratoReceita = Dotacao = Status = null;
+        Portaria = Contrato = Escola = Lote = ContratoReceita = Dotacao = Status = null;
         Texto = ValorDe = ValorAte = OsDe = OsAte = "";
         ValorSemInformacao = SemDataOs = false;
         _atualizando = false;
@@ -479,7 +557,7 @@ public sealed partial class BaseVm : TelaVm
 
     private ConsultaSalva Atual() => new()
     {
-        Portaria = Portaria, Contrato = Contrato, Escola = Escola, ContratoReceita = ContratoReceita, Dotacao = Dotacao, Status = Status,
+        Portaria = Portaria, Contrato = Contrato, Escola = Escola, Lote = Lote, ContratoReceita = ContratoReceita, Dotacao = Dotacao, Status = Status,
         Texto = Texto, CampoValor = ValorFiltrado.Campo, ValorDe = ValorDe, ValorAte = ValorAte, ValorSemInformacao = ValorSemInformacao,
         OsDe = OsDe, OsAte = OsAte, SemDataOs = SemDataOs, Ordem = Ordem,
     };
@@ -490,6 +568,7 @@ public sealed partial class BaseVm : TelaVm
         Portaria = c.Portaria;
         Contrato = c.Contrato;
         Escola = c.Escola;
+        Lote = c.Lote;
         ContratoReceita = c.ContratoReceita;
         Dotacao = c.Dotacao;
         Status = c.Status;
@@ -533,6 +612,7 @@ public sealed partial class BaseVm : TelaVm
         Por("Portaria", Portaria);
         Por("Contrato", Contrato);
         Por("Escola", Escola);
+        Por("Lote", Lote);
         Por("Contrato de receita", ContratoReceita);
         Por("Dotação", Dotacao);
         Por("Status", Status);
@@ -742,6 +822,7 @@ public sealed partial class BaseVm : TelaVm
             Portaria = Portaria,
             Contrato = Contrato,
             Escola = Escola,
+            Lote = Lote,
             ContratoReceita = ContratoReceita,
             Dotacao = Dotacao,
             Status = Status,
@@ -783,6 +864,7 @@ public sealed partial class BaseVm : TelaVm
         Portaria = Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
         Contrato = Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
         Escola = Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
+        Lote = Trocar(Lotes, opcoes.Lotes, Lote, "Lote");
         ContratoReceita = Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
         Dotacao = Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
         Status = Trocar(Situacoes, opcoes.Status, Status, "Status");
@@ -809,8 +891,35 @@ public sealed partial class BaseVm : TelaVm
         OnPropertyChanged(nameof(PodeUsarNoRelatorio));
         OnPropertyChanged(nameof(PodeUsarNoCronograma));
         OnPropertyChanged(nameof(TemFiltro));
+        OnPropertyChanged(nameof(FiltrosAtivos));
         AtualizarMedicoes();
         AtualizarPendencias();
+        AtualizarLote(filtro);
+    }
+
+    /// <summary>
+    /// Com um lote escolhido: soma das colunas de valor de cada obra do lote (com os outros filtros ativos).
+    /// As medicoes ficam fora porque sao do contrato inteiro, e um contrato pode ter escolas de outro lote.
+    /// </summary>
+    private void AtualizarLote(FiltroObras filtro)
+    {
+        TotaisDoLote.Clear();
+        if (string.IsNullOrWhiteSpace(Lote))
+        {
+            TituloDoLote = "";
+            OnPropertyChanged(nameof(TemLote));
+            return;
+        }
+
+        var obras = _base.Buscar(filtro, int.MaxValue).Obras;
+        decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
+        TituloDoLote = $"{Lote} · {Formato.Plural(obras.Count, "obra", "obras")} · {Formato.Plural(obras.Select(o => o.Empreendimento).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "escola", "escolas")}";
+        TotaisDoLote.Add(new ItemCronograma("Contratado c/ aditamento", FormatoBase.Reais(Soma(o => o.ValorContratadoComAditamento))));
+        TotaisDoLote.Add(new ItemCronograma("Medido", FormatoBase.Reais(Soma(o => o.ValorMedido))));
+        TotaisDoLote.Add(new ItemCronograma("Pago", FormatoBase.Reais(Soma(o => o.ValorPago))));
+        TotaisDoLote.Add(new ItemCronograma("Saldo a medir", FormatoBase.Reais(Soma(o => o.SaldoAMedir))));
+        TotaisDoLote.Add(new ItemCronograma("Saldo a pagar", FormatoBase.Reais(Soma(o => o.SaldoAPagar))));
+        OnPropertyChanged(nameof(TemLote));
     }
 
     /// <summary>

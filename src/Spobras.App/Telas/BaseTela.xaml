@@ -39,8 +39,19 @@
             </StackPanel>
         </DockPanel>
 
+        <!-- Filtros recolhidos: uma linha so, com o que esta filtrado -->
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,10"
+                Visibility="{Binding FiltrosRecolhidos, Converter={StaticResource Visivel}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar filtros" MinHeight="36" Command="{Binding AlternarFiltrosCommand}" />
+                <TextBlock Text="Filtros:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding FiltrosAtivos}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding FiltrosAtivos}" />
+            </DockPanel>
+        </Border>
+
         <!-- Filtros: cada escolha atualiza o resultado e as opcoes dos outros campos -->
-        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14"
+                Visibility="{Binding FiltrosRecolhidos, Converter={StaticResource VisivelSeNao}}">
             <StackPanel>
                 <DockPanel Margin="0,0,0,12" Visibility="{Binding PodeSalvarConsultas, Converter={StaticResource Visivel}}">
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLink}" Content="Tirar da lista" Margin="12,0,0,0" VerticalAlignment="Center"
@@ -52,6 +63,8 @@
                               AutomationProperties.Name="Consulta salva" IsEnabled="{Binding TemConsultas}" ToolTip="Escolha uma consulta salva para aplicar os filtros dela" />
                 </DockPanel>
                 <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Recolher" MinHeight="44" Margin="12,0,0,0" Command="{Binding AlternarFiltrosCommand}"
+                            ToolTip="Recolhe os filtros numa linha para a lista e a ficha ficarem maiores" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Limpar filtros" Margin="12,0,0,0" Command="{Binding LimparFiltrosCommand}" />
                     <TextBlock DockPanel.Dock="Left" Text="Procurar" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
                     <TextBox Text="{Binding Texto, UpdateSourceTrigger=PropertyChanged, Delay=300}" AutomationProperties.Name="Procurar por contrato, escola, contratada, lote ou processo"
@@ -78,6 +91,13 @@
                         <DockPanel>
                             <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="escola" AutomationProperties.Name="Limpar o filtro de escola" />
                             <ComboBox ItemsSource="{Binding Escolas}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Escola}" AutomationProperties.Name="Escola" />
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Margin="6,0">
+                        <TextBlock Text="Lote" Style="{StaticResource Rotulo}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="lote" AutomationProperties.Name="Limpar o filtro de lote" />
+                            <ComboBox ItemsSource="{Binding Lotes}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Lote}" AutomationProperties.Name="Lote" />
                         </DockPanel>
                     </StackPanel>
                 </UniformGrid>
@@ -148,15 +168,40 @@
             </StackPanel>
         </Border>
 
-        <Grid Grid.Row="2" Margin="0,16,0,0">
+        <DockPanel Grid.Row="2" Margin="0,16,0,0">
+        <!-- Totais do lote escolhido -->
+        <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Padding="20,10" Margin="0,0,0,12"
+                Visibility="{Binding TemLote, Converter={StaticResource Visivel}}">
+            <StackPanel>
+                <TextBlock Text="{Binding TituloDoLote}" FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding TotaisDoLote}" Focusable="False" Margin="0,6,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock Text="{Binding Rotulo}" Style="{StaticResource Texto2}" FontSize="13" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Valor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Valor}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+        <Grid x:Name="Divisao">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition x:Name="ColunaLista" Width="2*" MinWidth="280" />
+                <ColumnDefinition x:Name="ColunaDivisoria" Width="16" />
+                <ColumnDefinition x:Name="ColunaFicha" Width="3*" MinWidth="340" />
             </Grid.ColumnDefinitions>
 
+            <GridSplitter x:Name="Divisoria" Grid.Column="1" Width="16" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE"
+                          ResizeBehavior="PreviousAndNext" DragCompleted="AoSoltarDivisoria" Focusable="False"
+                          ToolTip="Arraste para mudar o tamanho da lista e da ficha" AutomationProperties.Name="Divisória entre a lista e a ficha" />
+
             <!-- Resultados -->
-            <Border Style="{StaticResource Painel}" Padding="10">
+            <Border x:Name="PainelLista" Style="{StaticResource Painel}" Padding="10">
                 <DockPanel>
                     <Grid DockPanel.Dock="Top" Margin="10,4,26,6">
                         <Grid.ColumnDefinitions>
@@ -234,6 +279,19 @@
                             </Style>
                         </DockPanel.Style>
                         <DockPanel DockPanel.Dock="Top" Margin="20,14,20,0">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" MinHeight="40" Margin="8,0,0,0" Command="{Binding AlternarAmpliarCommand}"
+                                    ToolTip="A ficha ocupa a área toda; clique de novo para voltar para o lado da lista">
+                                <TextBlock>
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="⤢ Ampliar" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FichaAmpliada}" Value="True"><Setter Property="Text" Value="⤡ Voltar à lista" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Button>
                             <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Editar dados" MinHeight="40" Margin="8,0,0,0" Command="{Binding EditarObraCommand}"
                                     ToolTip="Mude qualquer dado desta obra no app. A planilha mestra não é alterada." />
                             <TextBlock Text="{Binding Selecionada.Marca}" Foreground="{StaticResource Azul}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -251,13 +309,28 @@
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar em modelo Excel" Margin="0,8,0,0" Command="{Binding UsarEmModeloCommand}"
                                     ToolTip="Acrescenta esta obra à lista do modelo Excel selecionado, nos campos ligados à Base de dados" />
                         </StackPanel>
-                            <ItemsControl ItemsSource="{Binding Selecionada.Campos}" Focusable="False">
+                            <!-- Ficha em blocos, duas colunas por bloco -->
+                            <ItemsControl ItemsSource="{Binding Selecionada.Grupos}" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <StackPanel Margin="0,0,0,8">
-                                            <TextBlock Text="{Binding Key}" Style="{StaticResource Texto2}" FontSize="13" />
-                                            <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontWeight="SemiBold" />
-                                        </StackPanel>
+                                        <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10,0,4">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Titulo}" FontWeight="Bold" FontSize="14" Margin="0,0,0,6" />
+                                                <ItemsControl ItemsSource="{Binding Campos}" Focusable="False">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Margin="0,0,16,8">
+                                                                <TextBlock Text="{Binding Key}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                                                <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -325,6 +398,7 @@
                 </Grid>
             </Border>
         </Grid>
+        </DockPanel>
 
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <DockPanel>

@@ -20,6 +20,9 @@ public sealed record Preferencias
 
     /// <summary>O aviso "o app continua na bandeja" ja foi mostrado uma vez.</summary>
     public bool AvisouBandeja { get; init; }
+
+    /// <summary>Quanto da largura a ficha da obra ocupa na Base de dados (0,6 = 60%), como o usuario deixou.</summary>
+    public double ProporcaoDaFichaBase { get; init; } = 0.6;
 }
 
 public sealed class ServicoPreferencias

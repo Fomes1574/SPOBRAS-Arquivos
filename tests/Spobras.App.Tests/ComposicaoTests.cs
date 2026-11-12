@@ -204,6 +204,40 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
+    public async Task Base_filtra_por_lote_mostra_os_totais_do_lote_e_a_ficha_em_blocos()
+    {
+        using var app = await AppComBase();
+        app.Principal.Navegar(BaseVm.Modulo);
+        var b = (BaseVm)app.Principal.PaginaAtual!;
+        Assert.Equal(["LOTE 01", "LOTE 07"], b.Lotes);
+        Assert.False(b.TemLote);
+
+        b.Lote = "LOTE 01";
+        Assert.True(b.TemLote);
+        Assert.Equal(4, b.Obras.Count); // a EMEF Alfa do lote 07 fica de fora
+        Assert.StartsWith("LOTE 01 · 4 obras", b.TituloDoLote);
+        Assert.Equal(["Contratado c/ aditamento", "Medido", "Pago", "Saldo a medir", "Saldo a pagar"], b.TotaisDoLote.Select(t => t.Rotulo));
+        decimal pago = b.Obras.Sum(o => o.Obra.ValorPago ?? 0m);
+        Assert.Equal(FormatoBase.Reais(pago), b.TotaisDoLote.Single(t => t.Rotulo == "Pago").Valor);
+        Assert.Contains("LOTE 01", b.FiltrosAtivos);
+
+        // Ficha em blocos; o Ampliar e os filtros recolhidos so mudam a tela.
+        b.Selecionada = b.Obras[0];
+        Assert.Equal(["Identificação", "Prazo", "Valores", "Orçamento", "Escopo"], b.Selecionada.Grupos.Select(g => g.Titulo));
+        b.AlternarAmpliarCommand.Execute(null);
+        b.AlternarFiltrosCommand.Execute(null);
+        Assert.True(b.FichaAmpliada && b.FiltrosRecolhidos);
+
+        Assert.Equal(0.6, b.ProporcaoDaFicha);
+        b.GuardarProporcaoDaFicha(0.95);
+        Assert.Equal(0.8, b.ProporcaoDaFicha); // limite para a lista nao sumir
+
+        b.LimparCommand.Execute("lote");
+        Assert.False(b.TemLote);
+        Assert.Equal(5, b.Obras.Count);
+    }
+
+    [Fact]
     public async Task Inicio_mostra_a_planilha_mestra_e_leva_a_base()
     {
         using var app = await AppComBase();

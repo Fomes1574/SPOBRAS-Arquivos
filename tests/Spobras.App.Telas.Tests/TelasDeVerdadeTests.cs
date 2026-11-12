@@ -352,6 +352,17 @@ public class TelasDeVerdadeTests
             baseDados.EditarObraCommand.Execute(null);
             Fotografar(janela, saida, "55-base-editar-obra");
             baseDados.CancelarEdicaoCommand.Execute(null);
+
+            // Lote escolhido (faixa de totais), filtros recolhidos e ficha ampliada
+            baseDados.Lote = baseDados.Lotes.First();
+            baseDados.Selecionada = baseDados.Obras.First();
+            Fotografar(janela, saida, "58-base-lote-e-totais");
+            baseDados.AlternarFiltrosCommand.Execute(null);
+            baseDados.AlternarAmpliarCommand.Execute(null);
+            Fotografar(janela, saida, "59-base-ficha-ampliada");
+            baseDados.AlternarAmpliarCommand.Execute(null);
+            baseDados.AlternarFiltrosCommand.Execute(null);
+            baseDados.LimparFiltrosCommand.Execute(null);
             principal.Navegar(FontesVm.Modulo);
             var telaFontes = (FontesVm)principal.PaginaAtual!;
             telaFontes.EditarVinculoCommand.Execute(telaFontes.Vinculos.First());
