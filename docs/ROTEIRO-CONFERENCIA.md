@@ -31,16 +31,15 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] Digite um número de contrato na etapa Dados (pode usar hífen no lugar da barra): o resto se completa. Se o contrato tiver várias escolas, o app pede para escolher.
 - [ ] Na Base, escolha uma obra e clique **Usar no relatório**: os dados entram na etapa Dados.
 - [ ] Adicione fotos de celular (em pé e deitadas), escreva algumas legendas, gere em Excel e em PDF.
-- [ ] Abra o Excel gerado e **imprima uma página** (ou veja a visualização de impressão): fotos inteiras, sem corte, cabeçalho em todas as páginas, "Página X de Y".
-- [ ] O logo: cadastre em **Configurações → Logo dos documentos** e gere de novo.
+- [ ] Abra o Excel gerado: ele já abre mostrando as folhas A4. Fotos inteiras, todas do mesmo tamanho e sem encostar uma na outra; cabeçalho em grade em todas as páginas; "Página X de Y".
+- [ ] O logo: em **Configurações → Logo dos documentos**, use **Tirar de um relatório…** com o relatório do Jardim Paulistano. Ele aparece no menu, no relatório e nas planilhas exportadas.
 
 ### Cronograma padrão
 
-- [ ] Cadastre o modelo (**Cronograma_revisado.xlsx**). O app guarda uma cópia; o seu arquivo não muda.
-- [ ] Na Base, use **Usar no cronograma** em duas obras; preencha valor e fim.
-- [ ] Gere com **Gerar também o PDF** marcado. A mensagem deve dizer "gerado e conferido no Excel" com o total.
-- [ ] Abra o arquivo gerado no Excel: fórmulas intactas, meses distribuídos, e em **Parametros** a célula do resumo dizendo **RESUMO OK**.
-- [ ] As datas aparecem só como mês (nov/26). Mude a **Remuneração** para outro percentual e confira a coluna de remuneração no arquivo gerado.
+- [ ] Na Base, use **Usar no cronograma** em duas obras (ou cole linhas do Excel); preencha valor e fim. Embaixo de cada linha aparecem a remuneração, o total e a dotação completa achada na base.
+- [ ] Em **Ajustes por mês**, coloque 5% em out/26, 7% em nov/26 e 8% em dez/26: em **Como fica**, os outros meses dividem o resto. Teste também um valor em reais num mês só para uma obra.
+- [ ] Gere com **Gerar também o PDF** marcado. Abra o Excel: logo, título, meses como "out/26", total de cada ano, total solicitado e, embaixo, a tabela por dotação (obra e remuneração).
+- [ ] Mude a **Remuneração** para outro percentual e gere de novo.
 
 ### Modelos Excel
 
@@ -65,7 +64,8 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 ### Geral
 
 - [ ] Telas sem texto cortado no seu monitor, inclusive com a janela menor (o menu se recolhe abaixo de certa largura).
-- [ ] Com uma planilha sua aberta no Excel, gere um cronograma: o seu Excel não fecha nem muda.
+- [ ] Com uma planilha sua aberta no Excel, gere um cronograma com PDF: o seu Excel não fecha nem muda.
+- [ ] Datas: digite 10112026 num campo de data e veja virar 10/11/2026.
 - [ ] Em **Configurações → Cópias de segurança**, clique **Fazer cópia agora**.
 
 ## 3. O que ainda depende de você

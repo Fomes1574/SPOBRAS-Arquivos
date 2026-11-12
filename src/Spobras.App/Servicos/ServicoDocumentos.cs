@@ -22,26 +22,6 @@ public sealed class SemExportadorPdf : IExportadorPdf
         throw new InvalidOperationException("O Excel não foi encontrado neste computador; o PDF não pôde ser gerado.");
 }
 
-/// <summary>O que o Excel calculou no cronograma gerado (para conferir contra o que foi digitado).</summary>
-public sealed record ConferenciaCronograma(
-    decimal? TotalParaObras, decimal? TotalGeral, decimal? SomaDosMeses, string Resumo, int Erros, string? Pdf);
-
-/// <summary>Abre o cronograma gerado no Excel instalado, recalcula, le os totais e salva com os resultados.</summary>
-public interface IVerificadorCronograma
-{
-    bool Disponivel { get; }
-
-    ConferenciaCronograma Conferir(string caminho, string aba, string? pdf);
-}
-
-public sealed class SemVerificadorCronograma : IVerificadorCronograma
-{
-    public bool Disponivel => false;
-
-    public ConferenciaCronograma Conferir(string caminho, string aba, string? pdf) =>
-        throw new InvalidOperationException("O Excel não foi encontrado neste computador.");
-}
-
 /// <summary>
 /// Cadastro central do logo e cache de miniaturas, dentro da pasta de dados do app
 /// (fora de Downloads e do OneDrive). O logo nunca vai para o instalador nem para o repositorio.

@@ -13,7 +13,7 @@ public sealed class Composicao : IDisposable
     public Composicao(
         string pastaDados, string pastaTrabalhoPadrao, IDialogos dialogos, IInterface @interface, string versao,
         IExportadorPdf? exportadorPdf = null, Func<string, Spobras.Core.Planilhas.ILeitorPlanilha>? abrirPlanilha = null, bool eventosDasFontes = true,
-        IVerificadorCronograma? verificadorCronograma = null, Spobras.Documentos.Pdf.IOcr? ocr = null)
+        Spobras.Documentos.Pdf.IOcr? ocr = null)
     {
         PastaDados = pastaDados;
         var arquivos = new ArquivosDisco();
@@ -50,7 +50,7 @@ public sealed class Composicao : IDisposable
                 "M5 3h14v18H5zM12 3v10M10 15h4v3h-4z"),
             new ModuloVm(RelatorioVm.Modulo, "Relatório fotográfico", "50 fotos ou mais no modelo SPOBRAS, em Excel ou PDF.",
                 "M3 6h18v13H3zM3 16l5-5 4 4 3-3 6 5"),
-            new ModuloVm(CronogramaVm.Modulo, "Cronograma padrão", "Cronograma novo a partir do modelo, com as fórmulas intactas.",
+            new ModuloVm(CronogramaVm.Modulo, "Cronograma padrão", "Meses, anos, remuneração e dotações calculados, prontos para enviar.",
                 "M3 5h18v15H3zM3 10h18M8 3v4M16 3v4"),
             new ModuloVm(ModelosVm.Modulo, "Modelos Excel", "Preenche as suas planilhas modelo, uma ou várias de uma vez.",
                 "M4 4h16v16H4zM4 9h16M4 14h16M10 4v16"),
@@ -71,7 +71,7 @@ public sealed class Composicao : IDisposable
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias, () => Modelos.Logo, ocr),
             [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
-                verificadorCronograma ?? new SemVerificadorCronograma(), relogio, () => Base.Apelidos()),
+                exportadorPdf ?? new SemExportadorPdf(), relogio, () => Base.Vinculos()),
             [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, indice,

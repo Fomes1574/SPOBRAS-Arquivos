@@ -61,26 +61,6 @@ public sealed class ExportadorFalso : IExportadorPdf
     }
 }
 
-/// <summary>Faz de conta que e o Excel recalculando o cronograma: devolve os totais combinados no teste.</summary>
-public sealed class VerificadorFalso : IVerificadorCronograma
-{
-    public bool Disponivel { get; set; } = true;
-    public Func<string, ConferenciaCronograma>? Resposta { get; set; }
-    public List<(string Caminho, string Aba, string? Pdf)> Chamadas { get; } = [];
-
-    public ConferenciaCronograma Conferir(string caminho, string aba, string? pdf)
-    {
-        Chamadas.Add((caminho, aba, pdf));
-        if (pdf is not null)
-        {
-            File.WriteAllText(pdf, "%PDF de teste");
-        }
-
-        return (Resposta?.Invoke(caminho) ?? new ConferenciaCronograma(null, null, null, "RESUMO OK", 0, null)) with { Pdf = pdf };
-    }
-}
-
-/// <summary>O app inteiro sem tela: disco real numa pasta temporaria, banco SQLite real, janelas falsas.</summary>
 public abstract class ComApp : IDisposable
 {
     protected string Raiz { get; } = Directory.CreateTempSubdirectory("spobras-app-").FullName;
@@ -149,12 +129,11 @@ public abstract class ComApp : IDisposable
     protected RelatorioVm NovoRelatorio() =>
         new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
-    protected VerificadorFalso Verificador { get; } = new();
     protected FerramentasVm NovoFerramentas() => new(Dialogos, Operacoes, Preferencias, new Spobras.Dados.Busca.IndiceSqlite(Banco), Exportador, Relogio);
     protected ServicoModelosExcel ModelosExcel => new(Em("dados"), new ConfigRepositorio(Banco));
     protected ModelosVm NovoModelos() => new(Dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected CronogramaVm NovoCronograma() =>
-        new(Dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Verificador, Relogio, () => Base.Apelidos());
+        new(Dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio, () => Base.Vinculos());
 
     private Spobras.Dados.Base.BaseRepositorio? _base;
     private ServicoFontes? _fontes;

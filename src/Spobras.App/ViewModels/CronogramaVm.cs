@@ -9,6 +9,7 @@ using Spobras.Core.Cronograma;
 using Spobras.Core.Nomes;
 using Spobras.Core.Tarefas;
 using Spobras.Dados.Configuracao;
+using Spobras.Documentos.Cronograma;
 using Spobras.Documentos.Modelos;
 using Spobras.Documentos.Planilhas;
 
@@ -17,7 +18,77 @@ namespace Spobras.App.ViewModels;
 public sealed record LinhaRascunho(
     string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs);
 
-public sealed record RascunhoCronograma(List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "", string Remuneracao = "10");
+public sealed record AjusteRascunho(string Mes, bool EmReais, string Quantia, int Para);
+
+public sealed record RascunhoCronograma(
+    List<LinhaRascunho> Linhas, bool AjustarInicio, bool GerarPdf, string NomeCronograma = "", string Remuneracao = "10", List<AjusteRascunho>? Ajustes = null);
+
+/// <summary>Um valor ou percentual fixado num mes; os outros meses dividem o resto.</summary>
+public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObject
+{
+    private int _para;
+
+    [ObservableProperty]
+    private string _mes = "";
+
+    /// <summary>0 = percentual do total da obra; 1 = valor em reais.</summary>
+    [ObservableProperty]
+    private int _tipo;
+
+    [ObservableProperty]
+    private string _quantia = "";
+
+    [ObservableProperty]
+    private string _aviso = "";
+
+    /// <summary>0 = todas as obras; n = obra n da lista. A lista de opcoes e refeita quando as obras mudam: -1 e ignorado.</summary>
+    public int Para
+    {
+        get => _para;
+        set
+        {
+            if (value >= 0 && SetProperty(ref _para, value))
+            {
+                aoMudar();
+            }
+        }
+    }
+
+    partial void OnMesChanged(string value) => aoMudar();
+
+    partial void OnTipoChanged(int value) => aoMudar();
+
+    partial void OnQuantiaChanged(string value) => aoMudar();
+
+    public void Avisar() => OnPropertyChanged(nameof(Para));
+
+    /// <summary>O ajuste como o calculo entende, ou o motivo de nao valer.</summary>
+    public (AjusteMensal? Ajuste, string Problema) Ler()
+    {
+        if (Mes.Trim().Length == 0 && Quantia.Trim().Length == 0)
+        {
+            return (null, "");
+        }
+
+        if (ColagemCronograma.MesDe(Mes) is not { } mes)
+        {
+            return (null, "Mês não entendido. Use nov/26 ou 11/2026.");
+        }
+
+        decimal? quantia = Tipo == 1
+            ? Normalizacao.LerReais(Quantia)
+            : decimal.TryParse(Quantia.Replace("%", "").Trim(), System.Globalization.NumberStyles.Number, Formato.PtBr, out decimal p) ? p : null;
+        if (quantia is not { } q || q < 0 || (Tipo == 0 && q > 100))
+        {
+            return (null, Tipo == 1 ? "Valor não entendido. Use o formato 1.000,00." : "Percentual de 0 a 100, como 5 ou 7,5.");
+        }
+
+        return (new AjusteMensal(mes, Tipo == 1 ? TipoAjuste.Valor : TipoAjuste.Percentual, q, Para == 0 ? null : Para - 1), "");
+    }
+}
+
+/// <summary>Uma linha do resumo do calculo (mes, ano ou dotacao).</summary>
+public sealed record ItemCronograma(string Rotulo, string Valor, string Detalhe = "", bool Destaque = false);
 
 public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
 {
@@ -56,13 +127,17 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     [ObservableProperty]
     private string _numero = "";
 
+    /// <summary>Remuneracao, total e meses, para conferir antes de gerar.</summary>
+    [ObservableProperty]
+    private string _calculo = "";
+
     public OrigemInicio Origem { get; set; }
     public DateOnly? DataOsDaBase { get; set; }
 
     protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero)))
+        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero) or nameof(Calculo)))
         {
             if (e.PropertyName == nameof(Inicio) && Origem == OrigemInicio.OrdemDeServico)
             {
@@ -84,7 +159,7 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     public bool InicioInvalido => Inicio.Trim().Length > 0 && ColagemCronograma.MesDe(Inicio) is null;
     public bool FimInvalido => Fim.Trim().Length > 0 && ColagemCronograma.MesDe(Fim) is null;
 
-    /// <summary>So o mes importa: inicio e fim vao para a planilha como dia 1 do mes (o modelo mostra "nov-26").</summary>
+    /// <summary>So o mes importa: inicio e fim vao para a planilha como dia 1 do mes (aparece "nov/26").</summary>
     public ObraCronograma ParaObra() => new()
     {
         Portaria = ColagemCronograma.Portaria(Portaria),
@@ -100,38 +175,41 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     };
 }
 
-/// <summary>Cronograma padrao: linhas de obras, conferencia e geracao a partir do modelo oficial.</summary>
+/// <summary>
+/// Cronograma feito pelo app, sem modelo: as obras, a remuneracao, os ajustes por mes e, ao gerar, a planilha
+/// com meses, totais por ano, total solicitado e tabela por dotacao completa.
+/// </summary>
 public sealed partial class CronogramaVm : TelaVm
 {
     public const string Modulo = "cronograma";
     private const string ChaveRascunho = "cronograma-atual";
+    private const string TodasAsObras = "Todas as obras";
 
     private readonly IDialogos _dialogos;
     private readonly ServicoOperacoes _operacoes;
     private readonly ServicoPreferencias _preferencias;
     private readonly ServicoModelos _modelos;
     private readonly RascunhoRepositorio _rascunhos;
-    private readonly IVerificadorCronograma _verificador;
+    private readonly IExportadorPdf _exportador;
     private readonly IRelogio _relogio;
-    private readonly Func<IReadOnlyDictionary<string, string>> _apelidos;
-    private ModeloCronogramaLido? _modelo;
+    private readonly Func<IReadOnlyList<VinculoBase>> _vinculos;
+    private CronogramaCalculado? _calculo;
     private bool _restaurando;
     private string? _ultimoResultado;
 
     public CronogramaVm(
         IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias, ServicoModelos modelos, RascunhoRepositorio rascunhos,
-        IVerificadorCronograma verificador, IRelogio relogio, Func<IReadOnlyDictionary<string, string>>? apelidos = null)
+        IExportadorPdf exportador, IRelogio relogio, Func<IReadOnlyList<VinculoBase>>? vinculos = null)
     {
         _dialogos = dialogos;
         _operacoes = operacoes;
         _preferencias = preferencias;
         _modelos = modelos;
         _rascunhos = rascunhos;
-        _verificador = verificador;
+        _exportador = exportador;
         _relogio = relogio;
-        _apelidos = apelidos ?? (() => new Dictionary<string, string>());
+        _vinculos = vinculos ?? (() => []);
         _pastaDestino = preferencias.DestinoDe(Modulo);
-        CarregarModelo();
         Restaurar();
         Conferir();
     }
@@ -139,19 +217,17 @@ public sealed partial class CronogramaVm : TelaVm
     public override string Titulo => "Cronograma padrão";
 
     public ObservableCollection<LinhaCronogramaVm> Linhas { get; } = [];
+    public ObservableCollection<AjusteCronogramaVm> Ajustes { get; } = [];
     public ObservableCollection<AvisoVm> Avisos { get; } = [];
-    public ObservableCollection<string> Abas { get; } = [];
-    public ObservableCollection<string> Dotacoes { get; } = [];
 
-    [ObservableProperty]
-    private string _estadoDoModelo = "";
+    /// <summary>"Todas as obras" e as obras da lista, para escolher a quem vale cada ajuste.</summary>
+    public ObservableCollection<string> OpcoesDeObra { get; } = [TodasAsObras];
 
-    [ObservableProperty]
-    private bool _temModelo;
+    public ObservableCollection<ItemCronograma> Meses { get; } = [];
+    public ObservableCollection<ItemCronograma> Anos { get; } = [];
+    public ObservableCollection<ItemCronograma> Dotacoes { get; } = [];
 
-    [ObservableProperty]
-    private string? _aba;
-
+    public IReadOnlyList<string> TiposDeAjuste { get; } = ["% do total", "R$"];
 
     [ObservableProperty]
     private bool _gerarPdf;
@@ -160,19 +236,9 @@ public sealed partial class CronogramaVm : TelaVm
     [ObservableProperty]
     private string _nomeCronograma = "";
 
-    /// <summary>Percentual de remuneracao. Padrao 10%, o do modelo.</summary>
+    /// <summary>Percentual de remuneracao sobre o valor da obra. Padrao 10%.</summary>
     [ObservableProperty]
     private string _remuneracao = "10";
-
-    partial void OnRemuneracaoChanged(string value) => Conferir();
-
-    /// <summary>0,10 para "10"; null se o texto nao for um percentual valido (0 a 100).</summary>
-    public decimal? PercentualRemuneracao =>
-        decimal.TryParse(Remuneracao.Replace("%", "").Trim(), System.Globalization.NumberStyles.Number, Formato.PtBr, out decimal p) && p >= 0 && p <= 100
-            ? Math.Round(p / 100m, 4)
-            : null;
-
-    partial void OnNomeCronogramaChanged(string value) => Conferir();
 
     [ObservableProperty]
     private string _pastaDestino;
@@ -181,46 +247,31 @@ public sealed partial class CronogramaVm : TelaVm
     private string _resumo = "";
 
     [ObservableProperty]
-    private string _textoBotao = "Gerar cronograma";
+    private string _totais = "";
+
+    [ObservableProperty]
+    private bool _temCalculo;
 
     [ObservableProperty]
     private bool _podeAbrirResultado;
 
-    public bool ExcelDisponivel => _verificador.Disponivel;
-    public string TextoDotacoes => Dotacoes.Count == 0 ? "" : "Dotações do modelo: " + string.Join(", ", Dotacoes);
+    public string TextoBotao => "Gerar cronograma";
 
-    public override void AoEntrar()
-    {
-        CarregarModelo();
-        Conferir();
-    }
+    public bool PdfDisponivel => _exportador.Disponivel;
 
+    partial void OnRemuneracaoChanged(string value) => Conferir();
+
+    partial void OnNomeCronogramaChanged(string value) => Conferir();
 
     partial void OnGerarPdfChanged(bool value) => Conferir();
 
-    [RelayCommand]
-    private void EscolherModelo()
-    {
-        string? arquivo = _dialogos.EscolherArquivos("Escolha o modelo do cronograma", "Planilhas do Excel|*.xlsx;*.xlsm", _preferencias.Atual.PastaPlanilhasBase).FirstOrDefault();
-        if (arquivo is null)
-        {
-            return;
-        }
+    /// <summary>0,10 para "10"; null se o texto nao for um percentual valido (0 a 100).</summary>
+    public decimal? PercentualRemuneracao =>
+        decimal.TryParse(Remuneracao.Replace("%", "").Trim(), System.Globalization.NumberStyles.Number, Formato.PtBr, out decimal p) && p >= 0 && p <= 100
+            ? Math.Round(p / 100m, 4)
+            : null;
 
-        try
-        {
-            _modelos.DefinirModeloCronograma(arquivo);
-            Resultado = "Modelo cadastrado. O app guarda uma cópia; o seu arquivo não é alterado.";
-            ResultadoComFalha = false;
-        }
-        catch (Exception ex) when (ex is PlanilhaInvalidaException or IOException or UnauthorizedAccessException)
-        {
-            _dialogos.Avisar("Modelo do cronograma", ex.Message);
-        }
-
-        CarregarModelo();
-        Conferir();
-    }
+    public override void AoEntrar() => Conferir();
 
     [RelayCommand]
     private void NovaLinha()
@@ -232,16 +283,47 @@ public sealed partial class CronogramaVm : TelaVm
     [RelayCommand]
     private void RemoverLinha(LinhaCronogramaVm linha)
     {
+        int indice = Linhas.IndexOf(linha) + 1;
         Linhas.Remove(linha);
+
+        // Ajuste que era so desta obra sai junto; os das obras de baixo acompanham a nova posicao.
+        foreach (var ajuste in Ajustes.ToList())
+        {
+            if (ajuste.Para == indice)
+            {
+                Ajustes.Remove(ajuste);
+            }
+            else if (ajuste.Para > indice)
+            {
+                ajuste.Para--;
+            }
+        }
+
+        Conferir();
+    }
+
+    [RelayCommand]
+    private void NovoAjuste()
+    {
+        Ajustes.Add(new AjusteCronogramaVm(Conferir));
+        Conferir();
+    }
+
+    [RelayCommand]
+    private void RemoverAjuste(AjusteCronogramaVm ajuste)
+    {
+        Ajustes.Remove(ajuste);
         Conferir();
     }
 
     [RelayCommand]
     private void Limpar()
     {
-        if (Linhas.Count == 0 || _dialogos.Confirmar("Começar outro cronograma", "Limpar as linhas deste rascunho? Os cronogramas já gerados não são apagados.", "Limpar"))
+        if (Linhas.Count + Ajustes.Count == 0
+            || _dialogos.Confirmar("Começar outro cronograma", "Limpar as obras e os ajustes deste rascunho? Os cronogramas já gerados não são apagados.", "Limpar"))
         {
             Linhas.Clear();
+            Ajustes.Clear();
             Resultado = "";
             Conferir();
         }
@@ -275,7 +357,7 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
-    /// <summary>Cola linhas copiadas do Excel, nas colunas do modelo.</summary>
+    /// <summary>Cola linhas copiadas do Excel: Portaria, Lote, Dotação, Nome da Obra, Breve escopo, Valor, Início, Fim.</summary>
     [RelayCommand]
     private void ColarDoExcel()
     {
@@ -313,7 +395,6 @@ public sealed partial class CronogramaVm : TelaVm
     /// </summary>
     public void AdicionarDaBase(ObraLida obra)
     {
-        // Portaria como a planilha mestra identifica (com o ano), no formato do cronograma: "Nº 03 (2021)".
         string portaria = ColagemCronograma.Portaria(obra.Portaria ?? "");
         string lote = obra.Lote ?? "";
         lote = lote.StartsWith("LOTE ", StringComparison.OrdinalIgnoreCase) ? lote["LOTE ".Length..] : lote;
@@ -330,8 +411,7 @@ public sealed partial class CronogramaVm : TelaVm
             DataOsDaBase = obra.DataOs,
         });
         Conferir();
-        Resultado = $"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.";
-        ResultadoComFalha = false;
+        Orientar($"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.");
     }
 
     [RelayCommand]
@@ -344,50 +424,57 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
-    private bool PodeGerar() => _modelo is not null && Aba is not null && !Ocupado && PercentualRemuneracao is not null && Validar().PodeGerar && !Linhas.Any(l => l.ValorInvalido || l.InicioInvalido || l.FimInvalido);
+    private bool PodeGerar() => !Ocupado && _calculo is { PodeGerar: true } && PercentualRemuneracao is not null
+        && !Linhas.Any(l => l.ValorInvalido || l.InicioInvalido || l.FimInvalido) && Ajustes.All(a => a.Aviso.Length == 0);
 
     [RelayCommand(CanExecute = nameof(PodeGerar))]
     private async Task GerarAsync()
     {
-        string modelo = _modelos.ModeloCronograma!;
-        string aba = Aba!;
-        string extensao = Path.GetExtension(modelo);
+        var calculo = _calculo!;
+        var obras = calculo.Obras.Select(o => o.Obra).ToList();
         string destino = PastaDestino;
-        var grupos = ValidadorCronograma.Dividir(Obras());
-        bool pdf = GerarPdf && _verificador.Disponivel;
-        string nomeEscolhido = NomeArquivo.Corrigir(NomeCronograma.Trim()).Trim();
-        decimal percentual = PercentualRemuneracao ?? ModeloCronograma.PadraoRemuneracao;
-        var criados = new List<string>();
-        var notas = new List<string>();
-        bool falha = false;
+        string escolhido = NomeArquivo.Corrigir(NomeCronograma.Trim()).Trim();
+        string nome = escolhido.Length > 0 ? escolhido : ModeloCronograma.NomeSugerido(obras);
+        string saida = Path.Combine(destino, NomeArquivo.Livre(nome + ".xlsx", n => File.Exists(Path.Combine(destino, n))));
+        string titulo = GeradorCronograma.TituloSugerido(obras);
+        bool pdf = GerarPdf && _exportador.Disponivel;
+        string? logo = _modelos.Logo;
+        string? caminhoPdf = null;
+        string? problemaPdf = null;
+        string? erro = null;
 
         Ocupado = true;
         GerarCommand.NotifyCanExecuteChanged();
         try
         {
-            var tarefa = _operacoes.Fila.Enfileirar($"Cronograma: {Formato.Plural(grupos.Count, "arquivo", "arquivos")}", (progresso, cancelamento) =>
+            var tarefa = _operacoes.Fila.Enfileirar($"Cronograma: {Path.GetFileName(saida)}", (progresso, cancelamento) =>
             {
-                for (int g = 0; g < grupos.Count && !cancelamento.IsCancellationRequested; g++)
+                try
                 {
-                    progresso.Report(new ProgressoTarefa(g, grupos.Count, _verificador.Disponivel ? "Aguardando o Excel calcular" : null));
-                    string nome = nomeEscolhido.Length == 0
-                        ? ModeloCronograma.NomeSugerido(grupos[g], g, grupos.Count)
-                        : grupos.Count == 1 ? nomeEscolhido : $"{nomeEscolhido} - parte {g + 1} de {grupos.Count}";
-                    string saida = Path.Combine(destino, NomeArquivo.Livre(nome + extensao, n => File.Exists(Path.Combine(destino, n))));
+                    GeradorCronograma.Gerar(calculo, saida, titulo, logo);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    erro = ex.Message;
+                    return Task.FromResult<string?>(null);
+                }
+
+                if (pdf)
+                {
+                    progresso.Report(new ProgressoTarefa(1, 2, "Fazendo o PDF no Excel"));
+                    string alvo = Path.ChangeExtension(saida, ".pdf");
                     try
                     {
-                        ModeloCronograma.Gerar(modelo, aba, grupos[g], saida, percentual);
-                        criados.Add(saida);
-                        notas.Add(ConferirNoExcel(saida, aba, grupos[g], pdf, criados, ref falha));
+                        _exportador.Exportar(saida, alvo);
+                        caminhoPdf = alvo;
                     }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlanilhaInvalidaException or EscritaBloqueadaException)
+                    catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or System.Runtime.InteropServices.COMException)
                     {
-                        falha = true;
-                        notas.Add($"{nome}: não foi gerado. {ex.Message}");
+                        problemaPdf = ex.Message;
                     }
                 }
 
-                return Task.FromResult<string?>(Formato.Plural(criados.Count, "arquivo criado", "arquivos criados"));
+                return Task.FromResult<string?>("1 arquivo criado");
             });
             await FilaTarefas.Aguardar(tarefa);
         }
@@ -397,21 +484,21 @@ public sealed partial class CronogramaVm : TelaVm
             GerarCommand.NotifyCanExecuteChanged();
         }
 
-        if (criados.Count > 0)
+        if (erro is not null)
         {
-            var planilhas = criados.Where(c => !c.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)).ToList();
-            string comPdf = planilhas.Count < criados.Count ? " (com PDF)" : "";
-            _operacoes.RegistrarCriados(
-                planilhas.Count == 1
-                    ? $"Gerou “{Path.GetFileName(planilhas[0])}”{comPdf}"
-                    : $"Gerou {planilhas.Count} arquivos de cronograma em {Path.GetFileName(destino.TrimEnd('\\', '/'))}{comPdf}",
-                criados);
-            _ultimoResultado = criados[0];
-            PodeAbrirResultado = true;
+            ResultadoComFalha = true;
+            Resultado = "O cronograma não foi gerado. " + erro;
+            return;
         }
 
-        ResultadoComFalha = falha;
-        Resultado = string.Join(" ", notas);
+        List<string> criados = caminhoPdf is null ? [saida] : [saida, caminhoPdf];
+        _operacoes.RegistrarCriados($"Gerou “{Path.GetFileName(saida)}”" + (caminhoPdf is null ? "" : " (com PDF)"), criados);
+        _ultimoResultado = saida;
+        PodeAbrirResultado = true;
+        ResultadoComFalha = problemaPdf is not null;
+        Resultado = $"Pronto! “{Path.GetFileName(saida)}” criado, total solicitado {FormatoBase.Reais(calculo.Total)}"
+                    + (caminhoPdf is not null ? ", com PDF." : ".")
+                    + (problemaPdf is not null ? $" O PDF não saiu: {problemaPdf}" : "");
     }
 
     [RelayCommand]
@@ -420,61 +507,6 @@ public sealed partial class CronogramaVm : TelaVm
         if (_ultimoResultado is not null)
         {
             _dialogos.MostrarNaPasta(_ultimoResultado);
-        }
-    }
-
-    /// <summary>Recalcula no Excel e compara com o que foi digitado. Sem Excel, diz que a conferencia nao foi feita.</summary>
-    private string ConferirNoExcel(string saida, string aba, IReadOnlyList<ObraCronograma> obras, bool pdf, List<string> criados, ref bool falha)
-    {
-        string nome = Path.GetFileName(saida);
-        if (!_verificador.Disponivel)
-        {
-            return $"{nome}: gerado. O Excel não foi encontrado para conferir os totais; eles serão calculados quando você abrir o arquivo.";
-        }
-
-        try
-        {
-            string? caminhoPdf = pdf ? Path.ChangeExtension(saida, ".pdf") : null;
-            var c = _verificador.Conferir(saida, aba, caminhoPdf);
-            if (c.Pdf is not null)
-            {
-                criados.Add(c.Pdf);
-            }
-
-            var problemas = new List<string>();
-            decimal esperado = ValidadorCronograma.TotalParaObras(obras);
-            if (c.TotalParaObras is not { } total || Math.Abs(total - esperado) > 0.01m)
-            {
-                problemas.Add($"o total para obras no Excel ({FormatoBase.Reais(c.TotalParaObras)}) é diferente da soma digitada ({FormatoBase.Reais(esperado)})");
-            }
-
-            if (c.TotalGeral is { } geral && c.SomaDosMeses is { } meses && Math.Abs(geral - meses) > 0.01m)
-            {
-                problemas.Add($"a soma dos meses ({FormatoBase.Reais(meses)}) é diferente do total ({FormatoBase.Reais(geral)}): alguma obra tem parte fora dos meses distribuídos");
-            }
-
-            if (c.Erros > 0)
-            {
-                problemas.Add($"{Formato.Plural(c.Erros, "célula com erro", "células com erro")} de cálculo");
-            }
-
-            if (c.Resumo.Length > 0 && !c.Resumo.Equals("RESUMO OK", StringComparison.OrdinalIgnoreCase))
-            {
-                problemas.Add($"o Resumo pedido do modelo indica \"{c.Resumo}\"");
-            }
-
-            if (problemas.Count > 0)
-            {
-                falha = true;
-                return $"{nome}: gerado, mas CONFIRA: {string.Join("; ", problemas)}.";
-            }
-
-            return $"{nome}: gerado e conferido no Excel (total {FormatoBase.Reais(c.TotalGeral)})" + (c.Pdf is not null ? ", com PDF." : ".");
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or System.Runtime.InteropServices.COMException or TimeoutException)
-        {
-            falha = true;
-            return $"{nome}: gerado, mas o Excel não conseguiu conferir ({ex.Message}). Abra o arquivo e confira os totais.";
         }
     }
 
@@ -495,50 +527,6 @@ public sealed partial class CronogramaVm : TelaVm
         Linhas.Add(linha);
     }
 
-    private List<ObraCronograma> Obras() => [.. Linhas.Select(l => l.ParaObra())];
-
-    private CronogramaValidado Validar() => ValidadorCronograma.Validar(Obras(), [.. Dotacoes]);
-
-    private void CarregarModelo()
-    {
-        _modelo = null;
-        string? aba = Aba;
-        Abas.Clear();
-        Dotacoes.Clear();
-        if (_modelos.ModeloCronograma is not { } caminho)
-        {
-            EstadoDoModelo = "Ainda não há modelo de cronograma. Escolha o arquivo do modelo (o app guarda uma cópia e usa sempre ela).";
-            TemModelo = false;
-        }
-        else
-        {
-            try
-            {
-                _modelo = ModeloCronograma.Analisar(caminho);
-                foreach (string a in _modelo.AbasDeCronograma)
-                {
-                    Abas.Add(a);
-                }
-
-                foreach (string d in _modelo.Dotacoes)
-                {
-                    Dotacoes.Add(d);
-                }
-
-                Aba = aba is not null && Abas.Contains(aba) ? aba : _modelo.AbaPrincipal;
-                EstadoDoModelo = $"Modelo cadastrado, com {Formato.Plural(Abas.Count, "aba de cronograma", "abas de cronograma")}. As fórmulas do modelo fazem todos os cálculos.";
-                TemModelo = true;
-            }
-            catch (PlanilhaInvalidaException ex)
-            {
-                EstadoDoModelo = "O modelo cadastrado não pôde ser usado: " + ex.Message;
-                TemModelo = false;
-            }
-        }
-
-        OnPropertyChanged(nameof(TextoDotacoes));
-    }
-
     private void Conferir()
     {
         if (_restaurando)
@@ -546,13 +534,29 @@ public sealed partial class CronogramaVm : TelaVm
             return;
         }
 
+        AtualizarOpcoesDeObra();
         Avisos.Clear();
-        var obras = Obras();
-        var validado = ValidadorCronograma.Validar(obras, [.. Dotacoes]);
+        var obras = Linhas.Select(l => l.ParaObra()).ToList();
+        var ajustes = new List<AjusteMensal>();
+        foreach (var a in Ajustes)
+        {
+            var (ajuste, problema) = a.Ler();
+            a.Aviso = problema;
+            if (ajuste is not null)
+            {
+                ajustes.Add(ajuste);
+            }
+        }
+
+        var vinculos = _vinculos();
+        _calculo = CalculoCronograma.Calcular(obras, PercentualRemuneracao ?? CalculoCronograma.PadraoRemuneracao, ajustes,
+            o => CalculoCronograma.Resolver(o, vinculos));
+
+        int k = 0;
         for (int i = 0; i < Linhas.Count; i++)
         {
             var linha = Linhas[i];
-            var avisos = validado.Linhas.Where(a => a.Linha == i + 1).Select(a => a.Aviso).ToList();
+            var avisos = _calculo.AvisosDasObras.Where(a => a.Linha == i + 1).Select(a => a.Aviso).ToList();
             var textos = avisos.Select(a => a.Mensagem).ToList();
             if (linha.ValorInvalido)
             {
@@ -564,12 +568,20 @@ public sealed partial class CronogramaVm : TelaVm
                 textos.Insert(0, "Mês não entendido. Use nov/26 ou 11/2026.");
             }
 
-            linha.Numero = (i + 1).ToString();
+            linha.Numero = (i + 1).ToString(Formato.PtBr);
             linha.Avisos = string.Join(" ", textos);
             linha.Impedida = avisos.Any(a => a.Gravidade == Gravidade.ImpedeGerar) || linha.ValorInvalido || linha.InicioInvalido || linha.FimInvalido;
+
+            // Remuneracao, total e meses de cada obra calculada (a lista calculada so tem as obras sem pendencia).
+            var calculada = k < _calculo.Obras.Count && ReferenceEquals(_calculo.Obras[k].Obra, obras[i]) ? _calculo.Obras[k++] : null;
+            linha.Calculo = calculada is null
+                ? ""
+                : $"Remuneração {FormatoBase.Reais(calculada.Remuneracao)} · total {FormatoBase.Reais(calculada.Total)} · "
+                  + Formato.Plural(calculada.Meses.Count, "mês", "meses")
+                  + (calculada.Dotacoes is { } d ? $" · dotação {d.Obra}" : "");
         }
 
-        foreach (var aviso in validado.Gerais.Where(a => Linhas.Count > 0 || a.Gravidade != Gravidade.ImpedeGerar))
+        foreach (var aviso in _calculo.Avisos.Where(a => Linhas.Count > 0 || a.Gravidade != Gravidade.ImpedeGerar))
         {
             Avisos.Add(new AvisoVm(aviso));
         }
@@ -578,27 +590,81 @@ public sealed partial class CronogramaVm : TelaVm
         {
             Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, "Remuneração: use um percentual de 0 a 100, como 10 ou 12,5."));
         }
-        else if (pct != ModeloCronograma.PadraoRemuneracao)
+        else if (pct != CalculoCronograma.PadraoRemuneracao)
         {
-            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"Remuneração de {(pct * 100).ToString("0.##", Formato.PtBr)}% (o padrão é 10%). O cronograma gerado usa esse percentual."));
+            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"Remuneração de {(pct * 100).ToString("0.##", Formato.PtBr)}% (o padrão é 10%)."));
         }
 
-        if (GerarPdf && !_verificador.Disponivel)
+        if (GerarPdf && !_exportador.Disponivel)
         {
             Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, "O PDF é feito pelo Excel, que não foi encontrado neste computador. Será gerado só o arquivo Excel."));
         }
 
-        int validas = obras.Count(o => !o.Vazia);
-        int grupos = ValidadorCronograma.Dividir(obras).Count;
-        Resumo = validas == 0
-            ? "Adicione as obras: linha por linha, colando do Excel ou a partir da Base de dados."
-            : $"{Formato.Plural(validas, "obra", "obras")} · valor para obras {FormatoBase.Reais(ValidadorCronograma.TotalParaObras(obras))}"
-              + (grupos > 1 ? $" · {grupos} cronogramas" : "");
-        TextoBotao = grupos > 1 ? $"Gerar {grupos} cronogramas" : "Gerar cronograma";
+        MostrarCalculo(ajustes);
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
             [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase))],
-            true, GerarPdf, NomeCronograma, Remuneracao), _relogio.Agora);
+            true, GerarPdf, NomeCronograma, Remuneracao,
+            [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))]), _relogio.Agora);
+    }
+
+    /// <summary>O que vai para a planilha: total de cada mes e de cada ano e a tabela por dotacao.</summary>
+    private void MostrarCalculo(IReadOnlyList<AjusteMensal> ajustes)
+    {
+        var c = _calculo!;
+        Meses.Clear();
+        Anos.Clear();
+        Dotacoes.Clear();
+        int validas = Linhas.Count(l => !l.ParaObra().Vazia);
+        TemCalculo = c.Obras.Count > 0;
+        if (!TemCalculo)
+        {
+            Resumo = validas == 0 ? "Adicione as obras: linha por linha, colando do Excel ou a partir da Base de dados." : "Complete as obras marcadas em vermelho para ver o cronograma.";
+            Totais = "";
+            return;
+        }
+
+        var ajustados = ajustes.Select(a => a.Mes).ToHashSet();
+        foreach (var mes in c.Meses)
+        {
+            Meses.Add(new ItemCronograma(ColagemCronograma.Mes(mes), FormatoBase.Reais(c.DoMes(mes)), ajustados.Contains(mes) ? "ajustado" : "", ajustados.Contains(mes)));
+        }
+
+        foreach (int ano in c.Anos)
+        {
+            Anos.Add(new ItemCronograma($"Total {ano}", FormatoBase.Reais(c.DoAno(ano))));
+        }
+
+        foreach (var d in c.Dotacoes)
+        {
+            Dotacoes.Add(new ItemCronograma(d.Dotacao, FormatoBase.Reais(d.Valor), d.DaRemuneracao ? "Remuneração" : "Obra"));
+        }
+
+        string pendentes = c.Obras.Count < validas ? $" ({validas - c.Obras.Count} com pendência, fora da conta)" : "";
+        Resumo = $"{Formato.Plural(c.Obras.Count, "obra", "obras")}{pendentes} · total solicitado {FormatoBase.Reais(c.Total)}";
+        Totais = $"Obras {FormatoBase.Reais(c.TotalObra)} + remuneração {FormatoBase.Reais(c.TotalRemuneracao)} = {FormatoBase.Reais(c.Total)}";
+    }
+
+    /// <summary>Refaz a lista "Todas as obras, 1 - Escola..." so quando ela muda, e devolve a escolha de cada ajuste.</summary>
+    private void AtualizarOpcoesDeObra()
+    {
+        var novas = new List<string> { TodasAsObras };
+        novas.AddRange(Linhas.Select((l, i) => $"{i + 1} - " + (l.Nome.Trim().Length > 0 ? l.Nome.Trim() : "(sem nome)")));
+        if (novas.SequenceEqual(OpcoesDeObra))
+        {
+            return;
+        }
+
+        OpcoesDeObra.Clear();
+        foreach (string o in novas)
+        {
+            OpcoesDeObra.Add(o);
+        }
+
+        foreach (var a in Ajustes)
+        {
+            a.Avisar();
+        }
     }
 
     private void Restaurar()
@@ -627,6 +693,12 @@ public sealed partial class CronogramaVm : TelaVm
                 linha.Fim = l.Fim;
             });
             Linhas.Add(linha);
+        }
+
+        foreach (var a in r.Ajustes ?? [])
+        {
+            var ajuste = new AjusteCronogramaVm(Conferir) { Mes = a.Mes, Tipo = a.EmReais ? 1 : 0, Quantia = a.Quantia, Para = a.Para };
+            Ajustes.Add(ajuste);
         }
 
         _restaurando = false;

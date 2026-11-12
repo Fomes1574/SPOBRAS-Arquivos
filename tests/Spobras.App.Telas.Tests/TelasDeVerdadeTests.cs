@@ -224,31 +224,42 @@ public class TelasDeVerdadeTests
             pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
             Fotografar(janela, saida, "48-pdf-para-excel");
 
-            // Cronograma: sem modelo, com modelo e linhas, com linha impedida
+            // Cronograma: vazio, com linhas (uma impedida) e ajustes por mes
             principal.Navegar(CronogramaVm.Modulo);
             var cronograma = (CronogramaVm)principal.PaginaAtual!;
-            Fotografar(janela, saida, "41-cronograma-sem-modelo");
+            Fotografar(janela, saida, "41-cronograma-vazio");
             string modeloCronograma = Path.Combine(raiz, "Base", "Cronograma modelo.xlsx");
             Spobras.Testes.XlsxSintetico.GravarModeloCronograma(modeloCronograma);
-            composicao.Modelos.DefinirModeloCronograma(modeloCronograma);
-            cronograma.AoEntrar();
-            Fotografar(janela, saida, "42-cronograma-com-modelo-vazio");
             for (int n = 1; n <= 3; n++)
             {
                 cronograma.NovaLinhaCommand.Execute(null);
                 var linha = cronograma.Linhas[n - 1];
                 linha.Portaria = "3";
                 linha.Lote = "12";
-                linha.Dotacao = "3362";
+                linha.Dotacao = "16.10.12.365.3025.3362.4490.5100.00";
                 linha.Nome = n == 2 ? "EMEF Professora Fulana de Tal da Silva Sauro - Unidade II" : $"Escola Exemplo {n}";
                 linha.Escopo = "Reforma geral";
                 linha.Valor = n == 3 ? "abc" : "1.250.000,00";
-                linha.Inicio = "10/11/2026";
-                linha.Fim = "02/2027";
+                linha.Inicio = "out/26";
+                linha.Fim = "jun/27";
             }
 
             cronograma.NomeCronograma = "Cronograma de novembro";
-            Fotografar(janela, saida, "43-cronograma-linhas-e-avisos");
+            Fotografar(janela, saida, "42-cronograma-linhas-e-avisos");
+            cronograma.Linhas[2].Valor = "980.000,00";
+            foreach (var (mes, pct) in new[] { ("out/26", "5"), ("nov/26", "7"), ("dez/26", "8") })
+            {
+                cronograma.NovoAjusteCommand.Execute(null);
+                cronograma.Ajustes[^1].Mes = mes;
+                cronograma.Ajustes[^1].Quantia = pct;
+            }
+
+            cronograma.NovoAjusteCommand.Execute(null);
+            cronograma.Ajustes[^1].Mes = "jan/27";
+            cronograma.Ajustes[^1].Tipo = 1;
+            cronograma.Ajustes[^1].Quantia = "50.000,00";
+            cronograma.Ajustes[^1].Para = 2;
+            Fotografar(janela, saida, "43-cronograma-ajustes-e-como-fica");
 
             // Modelos Excel: vazio, cadastro com problema, preenchimento
             principal.Navegar(ModelosVm.Modulo);

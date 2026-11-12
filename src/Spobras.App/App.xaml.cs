@@ -58,7 +58,7 @@ public partial class App : Application
         {
             var dialogos = new DialogosWpf(() => _janela);
             _composicao = new Composicao(pastaDados, PastasWindows.Downloads(), dialogos, new InterfaceWpf(Dispatcher), Versao(), new ExportadorPdfExcel(),
-                verificadorCronograma: new VerificadorCronogramaExcel(), ocr: new OcrWindows());
+                ocr: new OcrWindows());
         }
         catch (Exception ex)
         {

@@ -4,50 +4,19 @@
     <Grid Margin="40,32,40,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="150" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <StackPanel>
             <TextBlock Text="Cronograma padrão" Style="{StaticResource TituloPagina}" />
-            <TextBlock Text="Você informa as obras; o app preenche uma cópia do seu modelo. As fórmulas e o modelo original não são alterados."
+            <TextBlock Text="Você informa as obras; o app calcula a remuneração, os meses, o total de cada ano e a tabela por dotação, e gera a planilha pronta."
                        Style="{StaticResource Texto2}" Margin="0,4,0,0" TextWrapping="Wrap" />
         </StackPanel>
 
-        <!-- Modelo em uso -->
-        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14">
-            <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Margin="12,0,0,0" VerticalAlignment="Center" Command="{Binding EscolherModeloCommand}">
-                    <Button.Content>
-                        <TextBlock>
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="Escolher o modelo" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding TemModelo}" Value="True"><Setter Property="Text" Value="Trocar o modelo" /></DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </Button.Content>
-                </Button>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0"
-                            Visibility="{Binding TemModelo, Converter={StaticResource Visivel}}">
-                    <TextBlock Text="Aba" Style="{StaticResource Texto2}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ComboBox ItemsSource="{Binding Abas}" SelectedItem="{Binding Aba}" Width="220" ItemTemplate="{StaticResource OpcaoTexto}"
-                              AutomationProperties.Name="Aba do modelo a preencher" />
-                </StackPanel>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding EstadoDoModelo}" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding TextoDotacoes}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,0"
-                               Visibility="{Binding TextoDotacoes, Converter={StaticResource VisivelSe}}" />
-                </StackPanel>
-            </DockPanel>
-        </Border>
-
         <!-- Obras -->
-        <Border Grid.Row="2" Style="{StaticResource Painel}" Margin="0,16,0,0">
+        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0">
             <DockPanel>
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Limpar tudo" Margin="8,0,0,0" MinHeight="44" Command="{Binding LimparCommand}"
@@ -55,7 +24,7 @@
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Importar de uma planilha" Margin="8,0,0,0" MinHeight="44" Command="{Binding ImportarPlanilhaCommand}"
                             ToolTip="Lê as obras de uma planilha sua, achando as colunas pelos títulos" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Colar do Excel" Margin="8,0,0,0" Command="{Binding ColarDoExcelCommand}"
-                            ToolTip="Copie as linhas no Excel, na ordem das colunas abaixo, e clique aqui" />
+                            ToolTip="Copie no Excel as colunas Portaria, Lote, Dotação, Nome da Obra, Breve escopo, Valor, Início e Fim, e clique aqui" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Adicionar obra" Margin="8,0,0,0" Command="{Binding NovaLinhaCommand}" />
                     <TextBlock Text="Obras do cronograma" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
                 </DockPanel>
@@ -75,10 +44,10 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock Grid.Column="1" Text="Portaria" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="2" Text="Lote" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
-                    <TextBlock Grid.Column="3" Text="Dotação" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                    <TextBlock Grid.Column="3" Text="Dotação" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" ToolTip="A resumida (3360) ou a completa. A completa e a da remuneração vêm da base de dotações." />
                     <TextBlock Grid.Column="4" Text="Escola / obra" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="5" Text="Escopo" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
-                    <TextBlock Grid.Column="6" Text="Valor (R$)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
+                    <TextBlock Grid.Column="6" Text="Valor obra (R$)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="7" Text="Início (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                     <TextBlock Grid.Column="8" Text="Fim (mês)" Style="{StaticResource Texto2}" FontSize="13" Margin="4,0" />
                 </Grid>
@@ -111,6 +80,7 @@
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
                                             <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
                                         </Grid.RowDefinitions>
                                         <TextBlock Text="{Binding Numero}" Style="{StaticResource Texto2}" VerticalAlignment="Center" />
                                         <TextBox Grid.Column="1" Margin="2,0" Text="{Binding Portaria, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Portaria" />
@@ -137,6 +107,9 @@
                                                 </Style>
                                             </TextBlock.Style>
                                         </TextBlock>
+                                        <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="8" Text="{Binding Calculo}" Style="{StaticResource Texto2}" FontSize="13"
+                                                   TextTrimming="CharacterEllipsis" Margin="4,2,4,0" ToolTip="{Binding Calculo}"
+                                                   Visibility="{Binding Calculo, Converter={StaticResource VisivelSe}}" />
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -146,6 +119,115 @@
             </DockPanel>
         </Border>
 
+        <!-- Ajustes por mes e como fica -->
+        <Grid Grid.Row="2" Margin="0,12,0,0" MaxHeight="270">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource Painel}" Padding="18,12">
+                <DockPanel>
+                    <DockPanel DockPanel.Dock="Top">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Adicionar ajuste" MinHeight="36" Command="{Binding NovoAjusteCommand}" />
+                        <TextBlock Text="Ajustes por mês" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,8"
+                               Text="Fixe um percentual ou um valor num mês, para todas as obras ou uma só. Os outros meses dividem o restante em partes iguais." />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding Ajustes}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="84" />
+                                                <ColumnDefinition Width="112" />
+                                                <ColumnDefinition Width="104" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="48" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Margin="0,0,4,0" Text="{Binding Mes, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Mês do ajuste" ToolTip="Mês e ano, como nov/26" />
+                                            <ComboBox Grid.Column="1" Margin="0,0,4,0" SelectedIndex="{Binding Tipo}" AutomationProperties.Name="Tipo do ajuste"
+                                                      ItemsSource="{Binding DataContext.TiposDeAjuste, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
+                                            <TextBox Grid.Column="2" Margin="0,0,4,0" Text="{Binding Quantia, UpdateSourceTrigger=PropertyChanged}" TextAlignment="Right" AutomationProperties.Name="Percentual ou valor do ajuste" />
+                                            <ComboBox Grid.Column="3" SelectedIndex="{Binding Para}" AutomationProperties.Name="Obra do ajuste"
+                                                      ItemsSource="{Binding DataContext.OpcoesDeObra, RelativeSource={RelativeSource AncestorType=UserControl}}" ItemTemplate="{StaticResource OpcaoTexto}" />
+                                            <Button Grid.Column="4" Style="{StaticResource BotaoLink}" Content="Tirar" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    AutomationProperties.Name="Tirar este ajuste"
+                                                    Command="{Binding DataContext.RemoverAjusteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        </Grid>
+                                        <TextBlock Text="{Binding Aviso}" Foreground="{StaticResource Vermelho}" FontSize="13" FontWeight="SemiBold" Margin="2,2,0,0"
+                                                   Visibility="{Binding Aviso, Converter={StaticResource VisivelSe}}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource Painel}" Padding="18,12">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="Como fica" Style="{StaticResource TituloPainel}" />
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding Totais}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,8"
+                               Visibility="{Binding Totais, Converter={StaticResource VisivelSe}}" />
+                    <TextBlock DockPanel.Dock="Top" Text="Os meses, os anos e a tabela por dotação aparecem aqui quando as obras estiverem completas."
+                               Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Visibility="{Binding TemCalculo, Converter={StaticResource VisivelSeNao}}" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False" Visibility="{Binding TemCalculo, Converter={StaticResource Visivel}}">
+                        <StackPanel>
+                            <ItemsControl ItemsSource="{Binding Meses}" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border x:Name="Caixa" BorderBrush="{StaticResource BordaClara}" BorderThickness="1" CornerRadius="6" Padding="8,4" Margin="0,0,6,6" MinWidth="104"
+                                                ToolTip="{Binding Detalhe}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Rotulo}" Style="{StaticResource Texto2}" FontSize="12" />
+                                                <TextBlock Text="{Binding Valor}" FontSize="13" FontWeight="SemiBold" />
+                                            </StackPanel>
+                                        </Border>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding Destaque}" Value="True">
+                                                <Setter TargetName="Caixa" Property="BorderBrush" Value="{StaticResource Vermelho}" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Anos}" Focusable="False" Margin="0,2,0,6">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Margin="0,0,20,0" FontSize="13">
+                                            <Run Text="{Binding Rotulo, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=": " /><Run Text="{Binding Valor, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding Dotacoes}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,0,0,2">
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Valor}" FontSize="13" Margin="12,0,0,0" />
+                                            <TextBlock DockPanel.Dock="Left" Text="{Binding Detalhe}" Style="{StaticResource Texto2}" FontSize="13" Width="96" />
+                                            <TextBlock Text="{Binding Rotulo}" FontSize="13" TextTrimming="CharacterEllipsis" ToolTip="{Binding Rotulo}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+
         <!-- Rodape -->
         <StackPanel Grid.Row="3" Margin="0,14,0,0">
             <WrapPanel Margin="0,0,0,10">
@@ -153,7 +235,7 @@
                 <TextBox Text="{Binding Remuneracao, UpdateSourceTrigger=PropertyChanged}" Width="64" TextAlignment="Right" AutomationProperties.Name="Percentual de remuneração"
                          ToolTip="Percentual sobre o valor para obras. O padrão é 10%." />
                 <TextBlock Text="%" VerticalAlignment="Center" Margin="4,0,28,0" />
-                <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding ExcelDisponivel}" Margin="0,0,28,0" />
+                <CheckBox IsChecked="{Binding GerarPdf}" Content="Gerar também o PDF" IsEnabled="{Binding PdfDisponivel}" Margin="0,0,28,0" VerticalAlignment="Center" />
                 <TextBlock Text="Nome do arquivo" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <TextBox Text="{Binding NomeCronograma, UpdateSourceTrigger=PropertyChanged}" Width="280" AutomationProperties.Name="Nome do arquivo do cronograma"
                          ToolTip="Em branco, o app usa “Cronograma - Portaria … - Lote …”" />

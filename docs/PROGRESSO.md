@@ -104,6 +104,15 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Edição no app: qualquer campo de uma obra (o valor da planilha fica guardado, é reaplicado a cada leitura, há aviso se a planilha mudar o campo editado e "Voltar ao da planilha"); incluir e tirar obra que não está na planilha; incluir, editar e tirar portarias e dotações, com exportação para o Excel. A planilha nunca é alterada.
 - OCR: "PDF para Excel" lê páginas escaneadas e fotos de documento pelo OCR do Windows (Windows.Media.Ocr), local, sem instalar nada. O app passou a exigir Windows 10 versão 1809 ou mais nova (o PC do trabalho é Windows 11).
 
+### Depois do primeiro teste no PC do trabalho (12/11/2026)
+
+- Janela: abre do tamanho do monitor onde está o mouse (num monitor menor, abre maximizada); a barra de título nunca fica fora da tela.
+- "Gerar a planilha" continua desativado depois de gerar (a lista é limpa, por desenho) e agora mostra "Pronto!" com o que foi criado. Resultados com selo: verde (deu certo), vermelho (problema) e azul (orientação).
+- Datas: as barras entram sozinhas (10112026 vira 10/11/2026; 1011 completa o ano atual) em Relatório, Base e Modelos Excel.
+- Logo: aparece no menu, abaixo de "Arquivos SPOBRAS"; pode ser tirado de um relatório já pronto (Configurações → "Tirar de um relatório…"); vai no topo de todas as planilhas exportadas (Base, vínculos, juntar planilhas, PDF para Excel).
+- Relatório fotográfico: as fotos se sobrepunham no Excel porque a largura das colunas era gravada sem a margem interna da célula (cada coluna saía 5 px mais estreita). Agora a largura é gravada pela conta do próprio Excel (teste confere coluna a coluna), todas as fotos ficam no mesmo quadro, inteiras e centralizadas, com 12 px entre elas. Cabeçalho em grade como o do Jardim Paulistano: logo, título, caixa "SÃO PAULO OBRAS - SPOBRAS / DATA / CONTRATADA" e uma linha por campo (Unidade educacional, Contrato, Lote, Portaria, Processo SEI, Data da OS, Objeto, Responsável; vazio não aparece). Abre em "Visualização da quebra de página", escala de impressão 80% em A4.
+- **Cronograma próprio do app, sem modelo.** O app calcula: remuneração (padrão 10%, editável) sobre o valor da obra, total, valor de cada mês do início ao fim, total de cada ano (2026, 2027, 2028…), total solicitado e a tabela por dotação completa (obra e remuneração separadas, dotações iguais somadas). Ajustes por mês: percentual ou valor num mês, para todas as obras ou uma só; os outros meses dividem o resto. Tudo arredondado para cima no centavo, a sobra fica no último mês. A dotação completa vem da base de dotações pela resumida (3360) ou pode ser digitada; a da remuneração troca 5100 por 3900 (as que já terminam em 3900, como 2830, 2878 e 2879, servem às duas). A planilha tem logo, título, meses como "out/26" e as somas como fórmulas (com o resultado gravado). Um arquivo só, sem limite de 15 obras nem de 20 meses. O cadastro do modelo e a conferência pelo Excel saíram.
+
 ## Testado (automático, Linux e CI Windows)
 
 `dotnet test`: 285 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
@@ -121,8 +130,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 | T09 | `RelatorioTests`, `RelatorioFotograficoTests`, `RelatorioVmTests` | 100 fotos em ordem, horizontais/verticais/quadradas sem distorção nem corte (proporção conferida no arquivo), orientação EXIF aplicada, uma foto por vez na memória. Falta conferir com fotos reais de celular. |
 | T10 | `RelatorioTests`, `RelatorioFotograficoTests` | 1/2/4/6/8 fotos, descrições longas, campos vazios sem rótulo, assinaturas, várias páginas, fonte fixa em 11 pt. Prova visual no LibreOffice: páginas do PDF iguais ao plano. Falta a impressão real pelo Excel. |
 | T11 | `RelatorioVmTests` | Rascunho restaurado (dados, ordem, legendas, rotação, opções); foto que mudou de lugar é indicada, impede gerar e pode ser localizada. |
-| T12 | `CronogramaTests`, `CronogramaVmTests` | 1, 15 e 16 obras (16 viram dois arquivos, nenhuma fica de fora), troca de ano, início no meio do mês. Cálculo do modelo conferido pelo Excel só no CI/PC com Excel. |
-| T13 | `CronogramaTests`, `CronogramaVmTests` | Valor e datas inválidos, fim antes do início, dotação fora do modelo impedem gerar com o motivo na linha; conferência de totais que não batem é avisada. |
+| T12 | `CalculoCronogramaTests`, `GeradorCronogramaTests`, `CronogramaVmTests` | Remuneração e meses arredondados para cima com a sobra no último mês; 5%/7%/8% e o resto igual (como o Lote 239); valor num mês para uma obra e para todas; totais por ano; 16 obras num arquivo só; planilha válida com somas em fórmula. Visual conferido no LibreOffice. |
+| T13 | `CalculoCronogramaTests`, `CronogramaVmTests` | Valor e meses inválidos, fim antes do início, ajustes acima do total e dotação fora da base aparecem na linha; com pendência não gera. |
 | T14 | `ModelosExcelTests`, `ModelosVmTests` | Preenche cópia de .xlsx mantendo as fórmulas; PDF pelo exportador. Falta .xlsm real com VBA (nenhum modelo do usuário tem macro). |
 | T15 | `ModelosExcelTests`, `ModelosVmTests`, `CronogramaTests` | Escrita sobre fórmula e célula mesclada bloqueadas; modelo com estrutura mudada pede revisão; troca de versão. "Aba nova em arquivo existente" não foi feita (ver pendências). |
 | T16 | `ServicoFontesTests`, `BaseTests` | Mestra salva (relê sozinha), ocupada, ausente por instantes, ausente de vez e com coluna faltando: base anterior mantida, erro específico. |
@@ -151,7 +160,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - PDF para Excel: colunas separadas por espaço largo entre palavras (cerca de dois caracteres). Funciona bem em relatórios de sistema alinhados; tabela com célula quebrada em duas linhas sai em duas linhas e precisa de conferência.
 - Texto escrito em PDF (numeração) usa as fontes do computador pelo SkiaSharp (Segoe UI/Arial no Windows).
 - Cronograma: portaria, lote e dotação só com algarismos são gravados como número (igual a digitar no Excel); com zero à esquerda, letras ou pontos ficam como texto.
-- Cronograma: a conferência pelo Excel salva o arquivo gerado já calculado (para abrir com os valores certos mesmo em visualizadores).
+- Cronograma: o app gera a planilha inteira (sem modelo). Os valores vêm calculados; as somas (total da obra, linha TOTAL, anos, total solicitado e tabela por dotação) vão como fórmulas com o resultado gravado, para continuarem certas se alguém mexer num mês no Excel.
+- Relatório: largura de coluna gravada como Trunc(pixels × 256 / 7) / 256 (Calibri 11), a conta inversa da que o Excel usa para desenhar.
 - Fonte da interface: "Inter, Segoe UI". A Inter não vai no pacote; no PC sem ela o Windows usa Segoe UI.
 - A prévia do relatório é desenhada pelo próprio plano de páginas (mesmas contas do gerador), não por uma imagem ilustrativa.
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
@@ -160,11 +170,14 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
+- [ ] Dotação 3363 (Portaria 2 de 2024): na planilha de dotações a da obra termina em 3900. Pela regra, deveria ser 5100? Enquanto não houver resposta, o app usa a que está na planilha.
 - [ ] **Extração de Restos a Pagar e Anexo I Tabela SME** (o usuário vai mandar exemplos quando estiver no trabalho) (especificação 4.8, item 5): o conversor geral já funciona, mas a extração com colunas certas (data, NE, ano, SEI, valor a liquidar, dotação; unidade, DRE, orçamento) precisa de um PDF de exemplo de cada. Se puder, envie um de cada (pode ser com valores alterados).
 
 ## Decidido pelo usuário
 
-- **Cronograma:** só o mês importa (nada de dia); portaria no formato "Nº 03 (2021)"; remuneração com padrão de 10% e opção de mudar; um arquivo novo por cronograma basta (sem "aba nova em arquivo existente"). As fórmulas do modelo podem até não existir se os valores vierem certos; o app mantém as fórmulas do modelo e confere os totais no Excel.
+- **Cronograma:** só o mês importa (nada de dia); portaria no formato "Nº 03 (2021)"; remuneração com padrão de 10% e opção de mudar; um arquivo novo por cronograma basta. O app faz o cronograma inteiro (sem modelo): uma ou várias escolas, breve escopo digitado, total por ano, total solicitado, ajuste de valor ou percentual num mês com os seguintes recalculados, tabela por dotação completa. Arredondar sempre para cima no centavo; a sobra fica no último mês.
+- **Dotações:** remuneração termina em 3900 e obra em 5100, menos 2830, 2878 e 2879, em que a 3900 serve às duas.
+- **Relatório:** foto inteira (sem cortar), mas sem uma encostar na outra.
 - **Edição no app:** qualquer dado pode ser mudado no app; o dado da planilha vem por padrão e o usuário pode mudar.
 - **Macros:** nenhum modelo precisa rodar macro depois de preenchido.
 - **Bases:** a planilha mestra (Escolas_Contratos_Com_Relatorio, com as tabelas do SGCOE e de contratos) e a de Dotações Completas. Nenhuma planilha complementar. O relatório do Jardim Paulistano (fotos que nunca se encostam) e o Cronograma revisado são os modelos de referência.
@@ -184,8 +197,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - PDF do relatório pelo Excel real e impressão em papel: dependem do PC do trabalho (T10 e T22 parciais).
 - Relatório com fotos reais de celular (EXIF variado, HEIC) e 100 fotos grandes: testado só com fotos sintéticas.
 - T04 "entre volumes" é simulado; pen drive e pasta sincronizada reais ficam para o roteiro de conferência.
-- Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
-- Cronograma gerado a partir do `Cronograma_revisado.xlsx` real e recalculado localmente no LibreOffice: remuneração, totais por obra, total geral, meses e totais por ano batem. O bloco "Resumo pedido" (e `Parametros!B20`) usa ORDENAR/ÚNICO/FILTRO/PROCX, que o LibreOffice daqui não calcula: **conferir no Excel do PC do trabalho**. Essa conferência mostrou que a dotação precisava ir como número (a aba `Dotacoes` guarda número); corrigido.
+- Modelos Excel e o PDF do cronograma pelo Excel real: o código existe, mas só roda com Excel; no Linux e no CI é usado um exportador de teste.
+- Cronograma novo aberto no Excel real (formato "out/26" em português e as fórmulas recalculando): conferido só no LibreOffice.
 - Busca, repetidos e organizador por conteúdo em pastas grandes da rede/OneDrive (arquivos só na nuvem são baixados ao ler o conteúdo): medir no PC do trabalho.
 - OCR no PC do trabalho: no CI o teste usa o OCR do Windows Server; no PC, o resultado depende do pacote de idioma português do Windows (sem ele, o app usa o idioma do usuário e avisa qual). Conferir com um PDF escaneado real.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).
