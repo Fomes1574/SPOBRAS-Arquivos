@@ -119,20 +119,30 @@ public class PdfExtrasTests : IDisposable
             new("EMEF", 100, 190, 120, 30), new("Alfa", 200, 270, 121, 30), new("50.000,00", 900, 1080, 119, 30),
         ];
 
-        public IReadOnlyList<PalavraPosicionada> LerPaginaPdf(string pdf, int pagina)
+        public IReadOnlyList<PalavraPosicionada> LerImagem(string imagem)
         {
-            PaginasLidas.Add(pagina);
+            PaginasLidas.Add(PaginasLidas.Count + 1);
+            Assert.True(File.Exists(imagem));
             return Tabela();
         }
-
-        public IReadOnlyList<PalavraPosicionada> LerImagem(string imagem) => Tabela();
     }
 
     [Fact]
     public void Pdf_digitalizado_e_foto_sao_lidos_pelo_ocr_e_marcados_para_conferir()
     {
         var ocr = new OcrFalso();
-        string pdf = PdfEmBranco("escaneado.pdf", 2);
+        // "Escaneado": duas paginas que sao so foto (como sai do scanner)
+        var fotos = Enumerable.Range(1, 2).Select(n =>
+        {
+            string f = Em($"scan{n}.jpg");
+            using var b = new SkiaSharp.SKBitmap(800, 1100);
+            b.Erase(SkiaSharp.SKColors.White);
+            using var img = SkiaSharp.SKImage.FromBitmap(b);
+            File.WriteAllBytes(f, img.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 80).ToArray());
+            return f;
+        }).ToList();
+        string pdf = Em("escaneado.pdf");
+        FerramentasPdf.FotosEmPdf(fotos, pdf);
         string saida = Em("escaneado.xlsx");
 
         var lido = TextoPdf.ParaExcel(pdf, saida, ocr: ocr);
@@ -152,9 +162,13 @@ public class PdfExtrasTests : IDisposable
         TextoPdf.Extrair(comTexto, ocr: ocr2);
         Assert.Empty(ocr2.PaginasLidas);
 
+        // PDF em branco (sem texto e sem imagem) nao chama o OCR
+        var ocr3 = new OcrFalso();
+        Assert.True(TextoPdf.Extrair(PdfEmBranco("branco.pdf", 1), ocr: ocr3).SemTextoNenhum);
+        Assert.Empty(ocr3.PaginasLidas);
+
         // Foto de uma tabela
-        string foto = Em("foto.jpg");
-        File.WriteAllBytes(foto, [0xFF, 0xD8, 0xFF]);
+        string foto = fotos[0];
         var daFoto = TextoPdf.ParaExcel(foto, Em("foto.xlsx"), ocr: ocr);
         Assert.Equal(["Unidade", "Orçamento"], daFoto.Linhas[0].Colunas);
         Assert.Throws<PdfInvalidoException>(() => TextoPdf.ParaExcel(foto, Em("foto2.xlsx")));

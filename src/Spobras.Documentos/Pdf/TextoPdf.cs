@@ -33,9 +33,6 @@ public interface IOcr
     /// <summary>Idioma usado, para o usuario saber (ex.: "Português (Brasil)").</summary>
     string Idioma { get; }
 
-    /// <summary>Palavras de uma pagina do PDF (1 = primeira), lida como imagem.</summary>
-    IReadOnlyList<PalavraPosicionada> LerPaginaPdf(string pdf, int pagina);
-
     /// <summary>Palavras de uma foto ou imagem escaneada.</summary>
     IReadOnlyList<PalavraPosicionada> LerImagem(string imagem);
 }
@@ -79,9 +76,20 @@ public static partial class TextoPdf
                 var palavras = pagina.GetWords().Where(p => !string.IsNullOrWhiteSpace(p.Text))
                     .Select(w => new PalavraPosicionada(w.Text, w.BoundingBox.Left, w.BoundingBox.Right, altura - w.BoundingBox.Top, w.BoundingBox.Height))
                     .ToList();
-                if (palavras.Count == 0 && ocr is { Disponivel: true })
+                if (palavras.Count == 0 && ocr is { Disponivel: true } && ImagemDaPagina(pagina) is { } imagem)
                 {
-                    palavras = [.. ocr.LerPaginaPdf(caminho, pagina.Number).Where(p => !string.IsNullOrWhiteSpace(p.Texto))];
+                    // Pagina escaneada: a foto do scanner esta dentro do PDF. Ela vai para o OCR num arquivo temporario.
+                    string temporario = Path.Combine(Path.GetTempPath(), $"spobras-ocr-{Guid.NewGuid():N}{imagem.Extensao}");
+                    try
+                    {
+                        File.WriteAllBytes(temporario, imagem.Dados);
+                        palavras = [.. ocr.LerImagem(temporario).Where(p => !string.IsNullOrWhiteSpace(p.Texto))];
+                    }
+                    finally
+                    {
+                        File.Delete(temporario);
+                    }
+
                     if (palavras.Count > 0)
                     {
                         porOcr.Add(pagina.Number);
@@ -103,6 +111,26 @@ public static partial class TextoPdf
 
             return new TextoExtraido(doc.NumberOfPages, linhas, semTexto, porOcr);
         }
+    }
+
+    /// <summary>A maior imagem da pagina (em pagina escaneada, a propria pagina), como JPEG ou PNG.</summary>
+    private static (byte[] Dados, string Extensao)? ImagemDaPagina(Page pagina)
+    {
+        foreach (var imagem in pagina.GetImages().Where(i => !i.IsImageMask).OrderByDescending(i => (long)i.WidthInSamples * i.HeightInSamples))
+        {
+            byte[] bruto = imagem.RawMemory.ToArray();
+            if (bruto.Length > 3 && bruto[0] == 0xFF && bruto[1] == 0xD8)
+            {
+                return (bruto, ".jpg");
+            }
+
+            if (imagem.TryGetPng(out byte[]? png) && png is not null)
+            {
+                return (png, ".png");
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Palavras na mesma altura formam uma linha (de cima para baixo); espaco largo separa colunas.</summary>

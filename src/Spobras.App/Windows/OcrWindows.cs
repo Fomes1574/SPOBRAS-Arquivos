@@ -4,14 +4,13 @@ using Windows.Media.Ocr;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using IdiomaWindows = Windows.Globalization.Language;
-using PdfWindows = Windows.Data.Pdf.PdfDocument;
 
 namespace Spobras.App.Windows;
 
 /// <summary>
-/// OCR do proprio Windows (Windows.Media.Ocr), local e sem instalar nada. A pagina do PDF vira imagem
-/// pela leitura de PDF do Windows (Windows.Data.Pdf). Usa o portugues se o pacote de idioma estiver
-/// instalado; senao, o idioma do usuario.
+/// OCR do proprio Windows (Windows.Media.Ocr), local e sem instalar nada. Em PDF escaneado, o app tira
+/// a imagem de dentro do PDF e manda para ca. Usa o portugues se o pacote de idioma estiver instalado;
+/// senao, o idioma do usuario.
 /// </summary>
 public sealed class OcrWindows : IOcr
 {
@@ -46,22 +45,6 @@ public sealed class OcrWindows : IOcr
             return null; // Windows sem OCR (por exemplo, versao reduzida): o app explica e segue sem
         }
     }
-
-    public IReadOnlyList<PalavraPosicionada> LerPaginaPdf(string pdf, int pagina) => Rodar(async () =>
-    {
-        var arquivo = await StorageFile.GetFileFromPathAsync(Path.GetFullPath(pdf));
-        var documento = await PdfWindows.LoadFromFileAsync(arquivo);
-        using var pagina1 = documento.GetPage((uint)(pagina - 1));
-        using var fluxo = new InMemoryRandomAccessStream();
-        // Cerca de 200 dpi numa A4: nitido para o OCR sem passar do tamanho maximo de imagem dele.
-        double escala = Math.Min(3.0, 2400 / Math.Max(pagina1.Size.Width, pagina1.Size.Height));
-        await pagina1.RenderToStreamAsync(fluxo, new global::Windows.Data.Pdf.PdfPageRenderOptions
-        {
-            DestinationWidth = (uint)(pagina1.Size.Width * escala),
-            DestinationHeight = (uint)(pagina1.Size.Height * escala),
-        });
-        return await Ler(fluxo);
-    });
 
     public IReadOnlyList<PalavraPosicionada> LerImagem(string imagem) => Rodar(async () =>
     {
