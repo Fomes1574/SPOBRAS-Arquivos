@@ -99,6 +99,8 @@ Resumos, relatórios e tabelas dinâmicas montados pelo próprio Excel. Não sã
 - A aba `PORTARIAS` tem três tabelas (`Tabela13`, `Tabela3`, `Tabela14`), duas delas com colunas genéricas: uso a confirmar.
 - `CONTRATADO_LIQUIDADO` não tem tabela nomeada: cabeçalhos na linha 3 (colunas B a O) ao lado de tabelas dinâmicas; layout a confirmar antes de importar.
 - O arquivo tem segmentações de dados e mais de 200 nomes definidos (`Rel…`), usados pelas abas de relatório.
+- Granularidade (conferida na leitura real): uma linha por par (`CONTRATO`, `EMPREENDIMENTO`); um contrato pode ter várias escolas. Cada contrato tem uma só portaria e uma só data em `INÍCIO EXECUÇÃO`.
+- O contrato de receita vem das medições, por contrato, e pode vir combinado ("015/SIURB/2025, 128/SIURB/2021"); o app mostra como está.
 
 ## Fonte B: `Dotações Completas.xlsx`
 
@@ -110,6 +112,6 @@ Sem tabelas nomeadas. Ler pela posição dos cabeçalhos (localizar o texto, nã
 
 ## Modelos recebidos (não são fontes; ficam só no PC do usuário)
 
-- `Cronograma_revisado.xlsx`: abas `Cronograma Joaninha`, `Cronograma Palimercio`, `Parametros`, `Dotacoes` (tabela `Tabela1`: `Dotação Completa Remuneração` · `Dotação Completa` · `Descrição` · `Dotação Resumida`). Obras nas linhas 3 a 17, total na 18; cabeçalhos na linha 2 (`Portaria`, `Lote`, `Dotação`, `Nome da Obra`, `Breve escopo`, `Valores para Obras`, `Valores de Remuneração`, `Valores Total`, `Início`, `Fim`, meses de L a AE, totais por ano em AF e AG). Detalhar no passo 6.
+- `Cronograma_revisado.xlsx`: abas `Cronograma Joaninha`, `Cronograma Palimercio`, `Parametros`, `Dotacoes` (tabela `Tabela1`: `Dotação Completa Remuneração` · `Dotação Completa` · `Descrição` · `Dotação Resumida`). Obras nas linhas 3 a 17, total na 18; cabeçalhos na linha 2 (`Portaria`, `Lote`, `Dotação`, `Nome da Obra`, `Breve escopo`, `Valores para Obras`, `Valores de Remuneração`, `Valores Total`, `Início`, `Fim`, meses de L a AE, totais por ano em AF e AG). Entradas preenchidas pelo app: B a G, J e K das linhas 3 a 17; o resto é fórmula. A aba principal é a que a `Parametros` usa para o resumo (`Parametros!B20`). Quando `Início` não é dia 1º, o modelo não distribui valor naquele mês.
 - Relatório fotográfico de exemplo: uma aba por bloco de páginas, área de impressão `C2:L58`, retrato, cabeçalho repetido a cada 57 linhas. Detalhar no passo 4.
 

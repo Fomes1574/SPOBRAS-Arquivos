@@ -1,8 +1,8 @@
 # Progresso
 
-Passo atual: **5. Dados: fontes A e B, base, filtros vinculados, telas Base de dados e Fontes de dados** (seção 10 da arquitetura).
+Passo atual: **7. Organizador por conteúdo, consultas salvas, ficha da obra, exportações, extras de PDF, busca, juntar planilhas, duplicados** (seção 10 da arquitetura).
 
-Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
+Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
 
 ## Feito
 
@@ -51,9 +51,28 @@ Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Telas: Relatório fotográfico em três etapas (Dados, Fotos e legendas, Conferência e geração) com rascunho automático, prévia das páginas desenhada com as mesmas medidas do arquivo, fotos faltando indicadas e localizáveis; PDF com a ferramenta escolhida primeiro. Logo cadastrado em Configurações (cópia em `%LOCALAPPDATA%\ArquivosSPOBRAS\modelos`).
 - PDF do relatório: feito pelo Excel instalado (`ExportadorPdfExcel`, instância invisível, planilha aberta só para leitura).
 
+### Passo 5: Dados (fontes A e B, base, filtros vinculados, telas Base de dados e Fontes de dados)
+
+- `Core/Planilhas` e `Documentos/Planilhas/LeitorXlsx`: leitura de tabelas nomeadas e de abas por Open XML, sem abrir o Excel e sem escrever na origem. Arquivo aberto, ocupado ou só na nuvem vira mensagem específica.
+- `Core/Base/Normalizacao`: dotação (pontos no lugar de espaços, original guardado), portaria (número e ano lidos do texto; "SEM PORTARIA - 96 Quadras" não vira portaria 96), busca sem acento/caixa, valores em reais.
+- `Dados/Base`: importadores da mestra e das dotações (falham inteiros, sem gravar meia base), `BaseRepositorio` com troca atômica da base, filtros vinculados (cada lista só mostra o que combina com os outros filtros), medições, empenhos, vínculos portaria → contrato de receita → dotação e apelidos de portaria.
+- `ServicoFontes`: lê ao abrir, vigia o arquivo na pasta sincronizada e relê sozinho quando ele é salvo (espera a gravação terminar; arquivo some por instantes durante o salvamento sem derrubar a base). A última base válida fica em uso se a leitura falhar.
+- Telas: Base de dados (filtros por portaria, contrato, escola, contrato de receita, dotação, lote, situação, Data da OS e faixa de valor; ficha da obra ao lado com medições, empenhos e portarias; "Usar no relatório", "Usar no cronograma", "Usar em modelo Excel") e Fontes de dados (onde está cada planilha, quando foi lida, erro explicado, ler de novo).
+- Leitura real feita em local (sem guardar nada no repositório): mestra lida em cerca de 3 s e gravada em 0,3 s; consultas em 10 a 16 ms.
+
+### Passo 6: Cronograma e Modelos Excel
+
+- `Core/Cronograma`: validação das obras (valor, datas, fim antes do início, mais de 20 meses, dotação que não está no modelo), divisão em partes de 15 obras sem deixar nenhuma de fora, leitura de linhas coladas do Excel (datas "11/2026", "fev/27").
+- `Documentos/Modelos/EditorXlsx`: edição restrita de uma cópia: recusa escrever sobre fórmula, mantém o formato da célula, apaga resultados antigos das fórmulas e marca o arquivo para o Excel recalcular ao abrir.
+- `ModeloCronograma`: reconhece o modelo (abas de cronograma, aba principal usada pela `Parametros`, dotações da aba `Dotacoes`) e preenche as entradas B–G, J e K das linhas 3 a 17. Linhas que sobram ficam limpas.
+- Tela Cronograma padrão: modelo cadastrado uma vez (o app guarda cópia), linhas digitadas, coladas do Excel ou trazidas da Base de dados (início = Data da OS, identificado na linha; o valor fica em branco para o usuário informar), rascunho automático, nome do arquivo sugerido por portaria e lote.
+- Conferência pelo Excel (`VerificadorCronogramaExcel`): abre o gerado na instância invisível do app, recalcula, compara total para obras, total geral e soma dos meses, conta células com erro, lê o resumo da `Parametros`, salva e, se pedido, exporta o PDF da aba. Sem Excel, o arquivo é gerado e a mensagem diz que não foi conferido.
+- Início no meio do mês: o modelo só distribui valor a partir do mês seguinte quando o início não é dia 1º. A opção "Começar a contar no dia 1º do mês de início" (ligada por padrão) grava o dia 1º e cada linha mostra a data que vai para a planilha. Ver pendências.
+- Tela Modelos Excel: cadastro de qualquer planilha (.xlsx/.xlsm) com campos → célula (tipo texto, número ou data, obrigatório, ligado ou não a um dado da Base de dados), nome dos arquivos com `{Campo}`. Preenche um ou vários arquivos (uma linha por arquivo, colar do Excel, obra da Base), PDF opcional pelo Excel, atualizar outro arquivo de mesma estrutura numa cópia. Bloqueia célula com fórmula e célula mesclada (indica a primeira do grupo). Se o arquivo do modelo mudar de estrutura, pede revisão antes de gerar.
+
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 171 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 235 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -68,6 +87,14 @@ Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 | T09 | `RelatorioTests`, `RelatorioFotograficoTests`, `RelatorioVmTests` | 100 fotos em ordem, horizontais/verticais/quadradas sem distorção nem corte (proporção conferida no arquivo), orientação EXIF aplicada, uma foto por vez na memória. Falta conferir com fotos reais de celular. |
 | T10 | `RelatorioTests`, `RelatorioFotograficoTests` | 1/2/4/6/8 fotos, descrições longas, campos vazios sem rótulo, assinaturas, várias páginas, fonte fixa em 11 pt. Prova visual no LibreOffice: páginas do PDF iguais ao plano. Falta a impressão real pelo Excel. |
 | T11 | `RelatorioVmTests` | Rascunho restaurado (dados, ordem, legendas, rotação, opções); foto que mudou de lugar é indicada, impede gerar e pode ser localizada. |
+| T12 | `CronogramaTests`, `CronogramaVmTests` | 1, 15 e 16 obras (16 viram dois arquivos, nenhuma fica de fora), troca de ano, início no meio do mês. Cálculo do modelo conferido pelo Excel só no CI/PC com Excel. |
+| T13 | `CronogramaTests`, `CronogramaVmTests` | Valor e datas inválidos, fim antes do início, dotação fora do modelo impedem gerar com o motivo na linha; conferência de totais que não batem é avisada. |
+| T14 | `ModelosExcelTests`, `ModelosVmTests` | Preenche cópia de .xlsx mantendo as fórmulas; PDF pelo exportador. Falta .xlsm real com VBA (nenhum modelo do usuário tem macro). |
+| T15 | `ModelosExcelTests`, `ModelosVmTests`, `CronogramaTests` | Escrita sobre fórmula e célula mesclada bloqueadas; modelo com estrutura mudada pede revisão; troca de versão. "Aba nova em arquivo existente" não foi feita (ver pendências). |
+| T16 | `ServicoFontesTests`, `BaseTests` | Mestra salva (relê sozinha), ocupada, ausente por instantes, ausente de vez e com coluna faltando: base anterior mantida, erro específico. |
+| T17, T18 | `BaseTests` | Contrato com várias escolas e portarias; várias medições e empenhos por contrato sem duplicar valores. |
+| T27, T29, T31 | `BaseTests`, `BaseEFontesTests` | Filtros vinculados em qualquer ordem, limpar um filtro, Data da OS por período, faixa de valor com valor ausente. |
+| T32 | `CronogramaVmTests` | Início vindo da OS identificado; início previsto identificado; data trocada à mão mostra divergência sem mexer na base. |
 | T20 | `PdfTests`, `PdfVmTests` | Reduzir PDF com fotos (original preservado), PDF já otimizado (avisa e não cria cópia), protegido por senha (mensagem), assinado (aviso antes). |
 | T24 | `TelasDeVerdadeTests` (CI) | Todas as telas a 1024x768 e 900x700, sem texto ou botão cortado, com nomes para leitor de tela. Falta conferir no monitor real e nas escalas 125% e 150%. |
 
@@ -79,7 +106,10 @@ Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Zip por limite: a conta usa o pior caso (arquivo que não comprime), então o zip final nunca passa do limite. Para arquivos que comprimem muito (planilhas, texto) podem sair mais partes do que o mínimo possível. Os arquivos ficam na ordem recebida.
 - Mover entre volumes: copia para `nome.spobras-parcial`, confere tamanho e hash, publica o nome final e só então tira a origem.
 - Histórico: `ModificadoEm` é guardado em ticks para o Desfazer comparar com o disco sem erro de arredondamento.
-- `{obra}`, `{lote}` e `{tarefa}` no destino das regras dependem da base (passo 5); por enquanto só `{ano}` e `{mes}`.
+- `{obra}`, `{lote}` e `{tarefa}` no destino das regras do organizador ainda não foram feitos: só `{ano}` e `{mes}`.
+- Base: uma obra é o par (CONTRATO, EMPREENDIMENTO) da mestra. Os filtros mostram os nomes de coluna da própria planilha; o app não decide sozinho qual valor é "o valor do contrato".
+- Modelos Excel: o app guarda uma cópia de cada modelo e grava a "assinatura" da estrutura (abas e número de fórmulas). Se mudar, pede revisão. Macros não são executadas.
+- Cronograma: a conferência pelo Excel salva o arquivo gerado já calculado (para abrir com os valores certos mesmo em visualizadores).
 - Fonte da interface: "Inter, Segoe UI". A Inter não vai no pacote; no PC sem ela o Windows usa Segoe UI.
 - A prévia do relatório é desenhada pelo próprio plano de páginas (mesmas contas do gerador), não por uma imagem ilustrativa.
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
@@ -90,6 +120,12 @@ Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
 - [ ] Confirmar o uso da aba `PORTARIAS` e o layout de `CONTRATADO_LIQUIDADO` na planilha mestra (passo 5; ver `docs/FONTES.md`).
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
+
+- [ ] **Início no meio do mês (cronograma):** o modelo não distribui valor no mês de início quando a data não é dia 1º. O app grava o dia 1º por padrão (e mostra isso na linha). Confirmar se é isso que você quer ou se prefere a data exata (o valor daquele mês fica para o mês seguinte, como o modelo faz hoje).
+- [ ] Algum modelo Excel precisa de macro depois de preenchido? Hoje nenhum modelo recebido tem VBA, então "rodar macro cadastrada" não foi feito.
+- [ ] Cronograma em **aba nova de um arquivo já existente** (especificação T15): confirmar se você usa assim ou se um arquivo novo por cronograma basta.
+- [ ] Editar portarias e dotações dentro do app e "Exportar para o Excel": hoje a Base de dados só lê; dá para dar apelido à portaria. Confirmar se precisa editar no app ou se a planilha de dotações continua sendo o lugar.
+- [ ] Planilhas complementares (arquitetura 5.4, T30): não feitas. Dizer se há alguma outra planilha que deve entrar na base.
 
 ## Decidido pelo usuário
 
@@ -108,6 +144,7 @@ Passos 1 a 4 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - Relatório com fotos reais de celular (EXIF variado, HEIC) e 100 fotos grandes: testado só com fotos sintéticas.
 - T04 "entre volumes" é simulado; pen drive e pasta sincronizada reais ficam para o roteiro de conferência.
 - Reduzir fotos antes de compactar (especificação 4.3, item 5): ainda não ligado à tela Compactar.
-- Filtros vinculados por portaria, contrato e escola na etapa Dados do relatório: dependem da base (passo 5).
+- Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
+- Cronograma gerado conferido contra o `Cronograma_revisado.xlsx` real: feito localmente com LibreOffice (as fórmulas recalcularam igual); falta conferir no Excel do PC do trabalho.
 - Duplicados por conteúdo e reconhecimento por conteúdo: passo 7.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).
