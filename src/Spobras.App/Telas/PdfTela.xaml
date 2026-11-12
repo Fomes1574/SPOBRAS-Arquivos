@@ -17,33 +17,47 @@
         </StackPanel>
 
         <!-- Ferramenta primeiro -->
-        <UniformGrid Grid.Row="1" Rows="1" Margin="-6,16,-6,0">
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0"
+        <UniformGrid Grid.Row="1" Columns="3" Margin="-6,16,-6,-12">
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Juntar}">
                 <StackPanel>
                     <TextBlock Text="Juntar PDFs" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Vários PDFs viram um só, na ordem que você escolher." Style="{StaticResource Texto2}" FontSize="13" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Separar}">
                 <StackPanel>
                     <TextBlock Text="Separar PDF" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Tira páginas ou trechos de um PDF para arquivos próprios." Style="{StaticResource Texto2}" FontSize="13" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=FotosEmPdf}">
                 <StackPanel>
                     <TextBlock Text="Fotos em PDF" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Cada foto vira uma página, inteira e na posição certa." Style="{StaticResource Texto2}" FontSize="13" />
                 </StackPanel>
             </RadioButton>
-            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0"
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
                          IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=Reduzir}">
                 <StackPanel>
                     <TextBlock Text="Reduzir tamanho" FontWeight="Bold" TextWrapping="Wrap" />
                     <TextBlock Text="Deixa o PDF mais leve para enviar, numa cópia." Style="{StaticResource Texto2}" FontSize="13" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=LogoENumeracao}">
+                <StackPanel>
+                    <TextBlock Text="Logo e numeração" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Número de página e logo numa cópia de um PDF pronto." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+            <RadioButton Style="{StaticResource CartaoOpcao}" GroupName="FerramentaPdf" Margin="6,0,6,12"
+                         IsChecked="{Binding Ferramenta, Converter={StaticResource EnumIgual}, ConverterParameter=ParaExcel}">
+                <StackPanel>
+                    <TextBlock Text="PDF para Excel" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="Texto e tabelas do PDF numa planilha, para conferir." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
                 </StackPanel>
             </RadioButton>
         </UniformGrid>
@@ -78,6 +92,32 @@
                                 <TextBox Text="{Binding Intervalos, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Páginas a separar" />
                                 <TextBlock Text="Exemplo: 1-3, 5, 8-  (cada trecho vira um arquivo; “8-” vai até o fim)." Style="{StaticResource Texto2}" FontSize="13" Margin="0,6,0,0" />
                             </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding EhCarimbo, Converter={StaticResource Visivel}}">
+                            <CheckBox Content="Numerar as páginas" IsChecked="{Binding Numerar}" />
+                            <StackPanel Visibility="{Binding Numerar, Converter={StaticResource Visivel}}" Margin="0,6,0,0">
+                                <TextBlock Text="Onde vai o número" Style="{StaticResource Rotulo}" />
+                                <ComboBox ItemsSource="{Binding Posicoes}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding PosicaoNumero}"
+                                          AutomationProperties.Name="Posição do número da página" />
+                                <TextBlock Text="Fica assim: “Página 2 de 10”." Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <CheckBox Content="Colocar o logo" IsChecked="{Binding ComLogo}" IsEnabled="{Binding TemLogo}" Margin="0,12,0,0" />
+                            <TextBlock Text="Cadastre o logo em Configurações para usar esta opção." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap"
+                                       Visibility="{Binding TemLogo, Converter={StaticResource VisivelSeNao}}" />
+                            <StackPanel Visibility="{Binding ComLogo, Converter={StaticResource Visivel}}" Margin="0,6,0,0">
+                                <TextBlock Text="Onde vai o logo" Style="{StaticResource Rotulo}" />
+                                <ComboBox ItemsSource="{Binding Posicoes}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding PosicaoLogo}"
+                                          AutomationProperties.Name="Posição do logo" />
+                            </StackPanel>
+                            <TextBlock Text="A partir da página" Style="{StaticResource Rotulo}" Margin="0,12,0,0" />
+                            <TextBox Text="{Binding APartirDa, UpdateSourceTrigger=PropertyChanged}" Width="80" HorizontalAlignment="Left" AutomationProperties.Name="A partir da página" />
+                            <TextBlock Text="Use 2 para deixar a capa sem marca." Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding EhParaExcel, Converter={StaticResource Visivel}}">
+                            <TextBlock TextWrapping="Wrap" Style="{StaticResource Texto2}"
+                                       Text="Cada PDF vira uma planilha com o mesmo nome. Valores em reais e datas viram número e data do Excel; NE, SEI e dotações ficam como texto. Confira antes de usar." />
                         </StackPanel>
 
                         <StackPanel Margin="0,12,0,0">

@@ -216,6 +216,13 @@ public class TelasDeVerdadeTests
             pdf.Ferramenta = FerramentaPdf.Reduzir;
             pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
             Fotografar(janela, saida, "33-pdf-reduzir");
+            pdf.Ferramenta = FerramentaPdf.LogoENumeracao;
+            pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
+            pdf.APartirDa = "2";
+            Fotografar(janela, saida, "47-pdf-logo-e-numeracao");
+            pdf.Ferramenta = FerramentaPdf.ParaExcel;
+            pdf.Adicionar(Directory.GetFiles(trabalho, "Fotos*.pdf"));
+            Fotografar(janela, saida, "48-pdf-para-excel");
 
             // Cronograma: sem modelo, com modelo e linhas, com linha impedida
             principal.Navegar(CronogramaVm.Modulo);

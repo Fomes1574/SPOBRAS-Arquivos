@@ -17,6 +17,8 @@ public enum FerramentaPdf
     Separar,
     FotosEmPdf,
     Reduzir,
+    LogoENumeracao,
+    ParaExcel,
 }
 
 public sealed record EntradaPdfVm(string Caminho, string Detalhe)
@@ -32,10 +34,21 @@ public sealed partial class PdfVm : TelaVm
     private readonly IDialogos _dialogos;
     private readonly ServicoOperacoes _operacoes;
     private readonly ServicoPreferencias _preferencias;
+    private readonly Func<string?> _logo;
     private string? _ultimoResultado;
 
-    public PdfVm(IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias)
+    public static IReadOnlyList<KeyValuePair<PosicaoCarimbo, string>> Posicoes { get; } =
+    [
+        new(PosicaoCarimbo.RodapeDireita, "Rodapé, à direita"),
+        new(PosicaoCarimbo.RodapeCentro, "Rodapé, no centro"),
+        new(PosicaoCarimbo.RodapeEsquerda, "Rodapé, à esquerda"),
+        new(PosicaoCarimbo.TopoDireita, "Topo, à direita"),
+        new(PosicaoCarimbo.TopoEsquerda, "Topo, à esquerda"),
+    ];
+
+    public PdfVm(IDialogos dialogos, ServicoOperacoes operacoes, ServicoPreferencias preferencias, Func<string?>? logo = null)
     {
+        _logo = logo ?? (() => null);
         _dialogos = dialogos;
         _operacoes = operacoes;
         _preferencias = preferencias;
@@ -81,6 +94,25 @@ public sealed partial class PdfVm : TelaVm
     [ObservableProperty]
     private bool _podeAbrirResultado;
 
+    [ObservableProperty]
+    private bool _numerar = true;
+
+    [ObservableProperty]
+    private bool _comLogo;
+
+    [ObservableProperty]
+    private PosicaoCarimbo _posicaoNumero = PosicaoCarimbo.RodapeDireita;
+
+    [ObservableProperty]
+    private PosicaoCarimbo _posicaoLogo = PosicaoCarimbo.TopoEsquerda;
+
+    [ObservableProperty]
+    private string _aPartirDa = "1";
+
+    public bool EhCarimbo => Ferramenta == FerramentaPdf.LogoENumeracao;
+    public bool EhParaExcel => Ferramenta == FerramentaPdf.ParaExcel;
+    public bool TemLogo => _logo() is not null;
+
     public bool EhJuntar => Ferramenta == FerramentaPdf.Juntar;
     public bool EhSeparar => Ferramenta == FerramentaPdf.Separar;
     public bool EhFotos => Ferramenta == FerramentaPdf.FotosEmPdf;
@@ -96,7 +128,7 @@ public sealed partial class PdfVm : TelaVm
         Entradas.Clear();
         NomeSaida = "";
         Resultado = "";
-        foreach (string nome in new[] { nameof(EhJuntar), nameof(EhSeparar), nameof(EhFotos), nameof(EhReduzir), nameof(PedeNome), nameof(PodeOrdenar) })
+        foreach (string nome in new[] { nameof(EhJuntar), nameof(EhSeparar), nameof(EhFotos), nameof(EhReduzir), nameof(PedeNome), nameof(PodeOrdenar), nameof(EhCarimbo), nameof(EhParaExcel), nameof(TemLogo) })
         {
             OnPropertyChanged(nome);
         }
@@ -113,6 +145,25 @@ public sealed partial class PdfVm : TelaVm
     partial void OnIntervalosChanged(string value) => Atualizar();
 
     partial void OnNomeSaidaChanged(string value) => Atualizar();
+
+    partial void OnNumerarChanged(bool value) => Atualizar();
+
+    partial void OnComLogoChanged(bool value) => Atualizar();
+
+    partial void OnAPartirDaChanged(string value) => Atualizar();
+
+    public override void AoEntrar()
+    {
+        OnPropertyChanged(nameof(TemLogo)); // o logo pode ter sido cadastrado em Configuracoes
+        if (ComLogo && !TemLogo)
+        {
+            ComLogo = false;
+        }
+
+        Atualizar();
+    }
+
+    private int? PaginaInicial() => int.TryParse(APartirDa.Trim(), out int n) && n >= 1 ? n : null;
 
     [RelayCommand]
     private void AdicionarArquivos()
@@ -233,12 +284,21 @@ public sealed partial class PdfVm : TelaVm
         string destino = PastaDestino;
         var ferramenta = Ferramenta;
 
-        if (ferramenta == FerramentaPdf.Reduzir && Entradas.Any(e => e.Detalhe.Contains("assinado")) &&
+        if (ferramenta is FerramentaPdf.Reduzir or FerramentaPdf.LogoENumeracao && Entradas.Any(e => e.Detalhe.Contains("assinado")) &&
             !_dialogos.Confirmar("PDF assinado digitalmente",
-                "Há PDF com assinatura digital na lista. A cópia reduzida deixa de ter a assinatura válida; o original não é alterado.\n\nContinuar mesmo assim?", "Reduzir a cópia"))
+                "Há PDF com assinatura digital na lista. A cópia alterada deixa de ter a assinatura válida; o original não é alterado.\n\nContinuar mesmo assim?", "Alterar a cópia"))
         {
             return;
         }
+
+        var carimbo = new OpcoesCarimbo
+        {
+            Numerar = Numerar,
+            PosicaoNumero = PosicaoNumero,
+            Logo = ComLogo ? _logo() : null,
+            PosicaoLogo = PosicaoLogo,
+            APartirDa = PaginaInicial() ?? 1,
+        };
 
         string Livre(string nome) => Path.Combine(destino, NomeArquivo.Livre(nome, n => File.Exists(Path.Combine(destino, n))));
         var (lado, qualidade) = Qualidade switch { QualidadeFotos.Alta => (2000, 85), QualidadeFotos.Media => (1400, 70), _ => (1000, 55) };
@@ -271,6 +331,39 @@ public sealed partial class PdfVm : TelaVm
                             FerramentasPdf.FotosEmPdf(entradas, fotos, lado, qualidade,
                                 new Progresso(n => progresso.Report(new ProgressoTarefa(n, entradas.Count, null))), cancelamento);
                             criados.Add(fotos);
+                            break;
+                        case FerramentaPdf.LogoENumeracao:
+                        case FerramentaPdf.ParaExcel:
+                            for (int i = 0; i < entradas.Count; i++)
+                            {
+                                cancelamento.ThrowIfCancellationRequested();
+                                progresso.Report(new ProgressoTarefa(i, entradas.Count, Path.GetFileName(entradas[i])));
+                                string original = Path.GetFileName(entradas[i]);
+                                try
+                                {
+                                    if (ferramenta == FerramentaPdf.LogoENumeracao)
+                                    {
+                                        string saida = Livre(Path.GetFileNameWithoutExtension(entradas[i]) + (carimbo.Logo is null ? " (numerado).pdf" : " (com logo).pdf"));
+                                        int paginas = CarimboPdf.Carimbar(entradas[i], saida, carimbo);
+                                        criados.Add(saida);
+                                        notas.Add($"{original}: {Formato.Plural(paginas, "página marcada", "páginas marcadas")}");
+                                    }
+                                    else
+                                    {
+                                        string saida = Livre(Path.GetFileNameWithoutExtension(entradas[i]) + ".xlsx");
+                                        var lido = TextoPdf.ParaExcel(entradas[i], saida, cancelamento);
+                                        criados.Add(saida);
+                                        notas.Add($"{original}: {Formato.Plural(lido.Linhas.Count, "linha lida", "linhas lidas")}"
+                                                  + (lido.PaginasSemTexto.Count > 0 ? $" ({Formato.Plural(lido.PaginasSemTexto.Count, "página sem texto", "páginas sem texto")}, ficou de fora)" : ""));
+                                    }
+                                }
+                                catch (Exception ex) when (ex is PdfInvalidoException or IOException or UnauthorizedAccessException)
+                                {
+                                    erro = "Alguns arquivos não foram feitos.";
+                                    notas.Add($"{original}: {ex.Message}");
+                                }
+                            }
+
                             break;
                         default:
                             for (int i = 0; i < entradas.Count; i++)
@@ -320,7 +413,7 @@ public sealed partial class PdfVm : TelaVm
         }
 
         ResultadoComFalha = erro is not null;
-        Resultado = (ferramenta == FerramentaPdf.Reduzir && notas.Count > 0
+        Resultado = (ferramenta is FerramentaPdf.Reduzir or FerramentaPdf.LogoENumeracao or FerramentaPdf.ParaExcel && notas.Count > 0
                         ? string.Join("; ", notas) + "."
                         : $"{Formato.Plural(criados.Count, "arquivo criado", "arquivos criados")}" + (criados.Count == 1 ? $": {Path.GetFileName(criados[0])}." : "."))
                     + (erro is not null ? " " + erro : "");
@@ -373,6 +466,8 @@ public sealed partial class PdfVm : TelaVm
             FerramentaPdf.Juntar => ("PDFs na ordem em que vão ficar", "Arraste os PDFs para cá", "Adicionar PDFs"),
             FerramentaPdf.Separar => ("PDF que vai ser separado", "Arraste um PDF para cá", "Escolher o PDF"),
             FerramentaPdf.FotosEmPdf => ("Fotos na ordem das páginas", "Arraste as fotos para cá", "Adicionar fotos"),
+            FerramentaPdf.LogoENumeracao => ("PDFs que vão receber logo ou número", "Arraste os PDFs para cá", "Adicionar PDFs"),
+            FerramentaPdf.ParaExcel => ("PDFs para passar para o Excel", "Arraste os PDFs para cá", "Adicionar PDFs"),
             _ => ("PDFs para reduzir", "Arraste os PDFs para cá", "Adicionar PDFs"),
         };
 
@@ -381,6 +476,8 @@ public sealed partial class PdfVm : TelaVm
             FerramentaPdf.Juntar => n > 1 ? $"Juntar {n} PDFs" : "Juntar PDFs",
             FerramentaPdf.Separar => "Separar o PDF",
             FerramentaPdf.FotosEmPdf => n > 0 ? $"Criar PDF com {Formato.Plural(n, "foto", "fotos")}" : "Criar PDF com as fotos",
+            FerramentaPdf.LogoENumeracao => n > 1 ? $"Marcar {n} PDFs" : "Marcar o PDF",
+            FerramentaPdf.ParaExcel => n > 1 ? $"Gerar {n} planilhas" : "Gerar a planilha",
             _ => n > 0 ? $"Reduzir {Formato.Plural(n, "PDF", "PDFs")}" : "Reduzir PDFs",
         };
 
@@ -414,6 +511,44 @@ public sealed partial class PdfVm : TelaVm
                 {
                     Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, ex.Message));
                 }
+            }
+
+            if (Ferramenta == FerramentaPdf.LogoENumeracao)
+            {
+                if (!Numerar && !ComLogo)
+                {
+                    Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, "Escolha numerar as páginas, colocar o logo ou os dois."));
+                }
+                else if (PaginaInicial() is not { } inicio)
+                {
+                    Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, "Em “A partir da página”, use um número a partir de 1."));
+                }
+                else
+                {
+                    foreach (var entrada in Entradas)
+                    {
+                        try
+                        {
+                            var (primeira, ultima, total) = CarimboPdf.Atingidas(FerramentasPdf.Ler(entrada.Caminho).Paginas, new OpcoesCarimbo { APartirDa = inicio });
+                            Avisos.Add(total == 0
+                                ? new AvisoVm(Gravidade.ImpedeGerar, $"{entrada.Nome}: não tem a página {inicio}.")
+                                : new AvisoVm(Gravidade.Informacao, $"{entrada.Nome}: páginas {primeira} a {ultima} ({total}) recebem a marca; a cópia sai com outro nome."));
+                        }
+                        catch (PdfInvalidoException ex)
+                        {
+                            Avisos.Add(new AvisoVm(Gravidade.ImpedeGerar, ex.Message));
+                        }
+                    }
+
+                    Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir,
+                        "A marca vai na margem, pequena, por cima do que houver ali. Confira a cópia antes de enviar. Documento de outro órgão continua sendo dele: o logo não o torna emitido pela SPOBRAS."));
+                }
+            }
+
+            if (Ferramenta == FerramentaPdf.ParaExcel)
+            {
+                Avisos.Add(new AvisoVm(Gravidade.Informacao,
+                    "Uma planilha por PDF, com a página e a linha de origem de cada dado. Funciona com PDF gerado por sistema; PDF digitalizado (foto do papel) não tem texto e precisa de OCR, que ainda não faz parte do app."));
             }
 
             if (Ferramenta == FerramentaPdf.Reduzir)

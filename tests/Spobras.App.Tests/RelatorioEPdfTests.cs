@@ -293,6 +293,55 @@ public class PdfVmTests : ComApp
     }
 
     [Fact]
+    public async Task Logo_e_numeracao_mostra_as_paginas_atingidas_e_cria_copia()
+    {
+        string pdf = CriarPdf("relatorio.pdf", 3);
+        var vm = NovoPdf();
+        vm.Ferramenta = FerramentaPdf.LogoENumeracao;
+        Assert.False(vm.TemLogo); // sem logo cadastrado
+        vm.Adicionar([pdf]);
+        Assert.Contains(vm.Avisos, a => a.Texto == "relatorio.pdf: páginas 1 a 3 (3) recebem a marca; a cópia sai com outro nome.");
+
+        vm.APartirDa = "x";
+        Assert.Contains(vm.Avisos, a => a.Impede && a.Texto.Contains("A partir da página"));
+        vm.APartirDa = "5";
+        Assert.Contains(vm.Avisos, a => a.Impede && a.Texto == "relatorio.pdf: não tem a página 5.");
+        vm.APartirDa = "2";
+        vm.Numerar = false;
+        Assert.Contains(vm.Avisos, a => a.Impede && a.Texto.StartsWith("Escolha numerar"));
+        Assert.False(vm.ExecutarCommand.CanExecute(null));
+        vm.Numerar = true;
+
+        await vm.ExecutarCommand.ExecuteAsync(null);
+
+        Assert.False(vm.ResultadoComFalha, vm.Resultado);
+        Assert.Equal("relatorio.pdf: 2 páginas marcadas.", vm.Resultado);
+        Assert.True(File.Exists(Em("Downloads", "relatorio (numerado).pdf")));
+        Assert.Equal(3, Paginas(Em("Downloads", "relatorio (numerado).pdf")));
+    }
+
+    [Fact]
+    public async Task Pdf_para_excel_gera_uma_planilha_por_pdf_e_explica_o_digitalizado()
+    {
+        string comTexto = Em("Downloads", "numerado.pdf");
+        Spobras.Documentos.Pdf.CarimboPdf.Carimbar(CriarPdf("base.pdf", 2), comTexto, new Spobras.Documentos.Pdf.OpcoesCarimbo());
+        string digitalizado = CriarPdf("digitalizado.pdf", 1);
+        var vm = NovoPdf();
+        vm.Ferramenta = FerramentaPdf.ParaExcel;
+        vm.Adicionar([comTexto, digitalizado]);
+        Assert.Equal("Gerar 2 planilhas", vm.TextoBotao);
+
+        await vm.ExecutarCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ResultadoComFalha);
+        Assert.Contains("numerado.pdf: 2 linhas lidas", vm.Resultado);
+        Assert.Contains("digitalizado.pdf: \"digitalizado.pdf\" não tem texto", vm.Resultado);
+        Assert.True(File.Exists(Em("Downloads", "numerado.xlsx")));
+        Assert.False(File.Exists(Em("Downloads", "digitalizado.xlsx")));
+        Assert.Equal("Gerou “numerado.xlsx”", Operacoes.Ultimos()[0].Descricao);
+    }
+
+    [Fact]
     public async Task Juntar_pede_dois_pdfs_respeita_a_ordem_e_registra()
     {
         string a = CriarPdf("a.pdf", 2), b = CriarPdf("b.pdf", 3);

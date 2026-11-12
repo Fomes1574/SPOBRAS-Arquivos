@@ -237,7 +237,7 @@ public static class FerramentasPdf
         return true;
     }
 
-    private static PdfDocument Abrir(string caminho, PdfDocumentOpenMode modo)
+    internal static PdfDocument Abrir(string caminho, PdfDocumentOpenMode modo)
     {
         try
         {
@@ -258,7 +258,7 @@ public static class FerramentasPdf
     }
 
     /// <summary>PDF com campo de assinatura digital: alterar pode invalidar a assinatura.</summary>
-    private static bool Assinado(PdfDocument doc)
+    internal static bool Assinado(PdfDocument doc)
     {
         try
         {
@@ -272,7 +272,7 @@ public static class FerramentasPdf
     }
 
     /// <summary>Grava num temporario e so publica o nome final se der certo. Nunca sobrescreve.</summary>
-    private static int Publicar(string saida, Func<string, int> gravar)
+    internal static int Publicar(string saida, Func<string, int> gravar)
     {
         if (File.Exists(saida))
         {

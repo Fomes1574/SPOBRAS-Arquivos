@@ -7,5 +7,6 @@
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="PDFsharp" />
+    <PackageReference Include="PdfPig" />
   </ItemGroup>
 </Project>
