@@ -15,11 +15,24 @@ namespace Spobras.App.Windows;
 /// </summary>
 public sealed class OcrWindows : IOcr
 {
-    private readonly Lazy<OcrEngine?> _motor = new(Criar);
+    // Nada do Windows fica guardado entre uma leitura e outra: so o nome do idioma e se ha OCR.
+    private readonly Lazy<string?> _idioma = new(() => Rodar(() =>
+    {
+        string? nome = Criar()?.RecognizerLanguage.DisplayName;
+        return Task.FromResult(nome);
+    }));
 
-    public bool Disponivel => _motor.Value is not null;
+    public bool Disponivel => _idioma.Value is not null;
 
-    public string Idioma => _motor.Value?.RecognizerLanguage.DisplayName ?? "indisponível";
+    public string Idioma => _idioma.Value ?? "indisponível";
+
+    /// <summary>Solta os objetos do Windows que ainda estejam pendentes (chamado ao fechar o app).</summary>
+    public static void Liberar()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
 
     private static OcrEngine? Criar()
     {
@@ -59,7 +72,7 @@ public sealed class OcrWindows : IOcr
 
     private async Task<IReadOnlyList<PalavraPosicionada>> Ler(IRandomAccessStream fluxo)
     {
-        var motor = _motor.Value ?? throw new PdfInvalidoException("O OCR do Windows não está disponível neste computador.");
+        var motor = Criar() ?? throw new PdfInvalidoException("O OCR do Windows não está disponível neste computador.");
         var decodificador = await BitmapDecoder.CreateAsync(fluxo);
         uint maior = Math.Max(decodificador.PixelWidth, decodificador.PixelHeight);
         var transformacao = new BitmapTransform();
@@ -77,7 +90,7 @@ public sealed class OcrWindows : IOcr
             new PalavraPosicionada(w.Text, w.BoundingRect.X, w.BoundingRect.X + w.BoundingRect.Width, w.BoundingRect.Y, w.BoundingRect.Height))];
     }
 
-    private static IReadOnlyList<PalavraPosicionada> Rodar(Func<Task<IReadOnlyList<PalavraPosicionada>>> trabalho)
+    private static T Rodar<T>(Func<Task<T>> trabalho)
     {
         try
         {
@@ -86,6 +99,10 @@ public sealed class OcrWindows : IOcr
         catch (Exception ex) when (ex is not PdfInvalidoException)
         {
             throw new PdfInvalidoException("O OCR do Windows não conseguiu ler este arquivo: " + ex.Message);
+        }
+        finally
+        {
+            Liberar(); // libera ja os objetos do Windows desta leitura, em vez de deixar para o fim do processo
         }
     }
 }

@@ -11,6 +11,7 @@ public class OcrWindowsTests : IDisposable
 
     public void Dispose()
     {
+        OcrWindows.Liberar();
         try
         {
             Directory.Delete(_pasta, recursive: true);

@@ -111,6 +111,7 @@ public partial class App : Application
         _composicao?.Dispose();
         _sinalMostrar?.Dispose();
         _instancia?.Dispose();
+        OcrWindows.Liberar();
         base.OnExit(e);
     }
 
