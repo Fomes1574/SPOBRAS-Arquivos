@@ -21,11 +21,13 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] Em **Base de dados**, escolha a Portaria 3: as listas de contrato e escola passam a mostrar só o que combina. Limpe um filtro pelo ✕ e veja as listas voltarem.
 - [ ] Clique numa obra: a ficha ao lado mostra contrato, contrato de receita, portaria, dotação, **Data da OS** (a coluna INÍCIO EXECUÇÃO) e as medições do contrato. Confira com a planilha.
 - [ ] **Salvar consulta** com um nome, mude os filtros, depois escolha a consulta salva: os filtros voltam.
+- [ ] **Conferir uma planilha**: escolha uma planilha sua com portarias e dotações e veja as propostas. A correção sai numa cópia "(padronizada)".
 - [ ] **Exportar para Excel**: abra a planilha gerada e veja se datas e valores estão como data e número, e se a aba "Sobre esta consulta" diz os filtros.
 - [ ] Salve a planilha mestra na pasta da rede (pode ser sem mudar nada) e espere uns segundos: o app relê sozinho e a data da leitura muda.
 
 ### Relatório fotográfico
 
+- [ ] Digite um número de contrato na etapa Dados (pode usar hífen no lugar da barra): o resto se completa. Se o contrato tiver várias escolas, o app pede para escolher.
 - [ ] Na Base, escolha uma obra e clique **Usar no relatório**: os dados entram na etapa Dados.
 - [ ] Adicione fotos de celular (em pé e deitadas), escreva algumas legendas, gere em Excel e em PDF.
 - [ ] Abra o Excel gerado e **imprima uma página** (ou veja a visualização de impressão): fotos inteiras, sem corte, cabeçalho em todas as páginas, "Página X de Y".
@@ -74,7 +76,8 @@ Estão também em `docs/PROGRESSO.md`, em "Pendências com o usuário":
 3. Você faz cronograma em **aba nova de um arquivo que já existe**, ou um arquivo novo por cronograma basta?
 4. Precisa **editar portarias e dotações dentro do app**, ou a planilha de dotações continua sendo o lugar disso?
 5. Há outra planilha que deveria entrar na base, além da mestra e das dotações?
-6. Pode mandar um PDF de **Restos a Pagar** e um do **Anexo I Tabela SME** (com valores trocados, se preferir) para eu fazer a leitura com as colunas certas?
+6. No cronograma, a coluna Portaria leva só o número ("3") ou "Nº 03 (2021)"? E quer mudar o percentual de remuneração pelo app?
+7. Pode mandar um PDF de **Restos a Pagar** e um do **Anexo I Tabela SME** (com valores trocados, se preferir) para eu fazer a leitura com as colunas certas?
 
 ## 4. Como devolver
 

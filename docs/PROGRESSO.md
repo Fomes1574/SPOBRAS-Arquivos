@@ -86,9 +86,20 @@ Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - [Roteiro de conferência](ROTEIRO-CONFERENCIA.md) com o que testar em cada módulo, as perguntas pendentes e como devolver.
 - Compactar: **reduzir as fotos** (especificação 4.3, item 5). Cópias reduzidas das fotos JPG (qualidade alta, média ou leve) numa pasta temporária do app; a prévia mostra o tamanho antes e depois, o limite por zip considera o tamanho reduzido, e as originais não mudam.
 
+### Revisão contra a conversa e o modelo de interface
+
+Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. Entraram as funções que faltavam e não dependiam de resposta:
+
+- Relatório: digitar o contrato completa escola, contratada, lote, portaria, SEI e Data da OS pela Base; contrato com várias escolas pede a escolha.
+- Início: quadro da planilha mestra (nome, última leitura, "Ver base de dados").
+- Cronograma: "Importar de uma planilha" (acha as colunas pelos títulos) e "Nome do arquivo".
+- Base de dados: "Conferir uma planilha" (portarias e dotações fora do padrão, original → proposta, ambíguo fica para conferir, correção só numa cópia). O padrão de portaria é o da planilha mestra.
+- Organizar: atalho "Procurar duplicados". Modelos Excel: atalhos para Cronograma e Relatório.
+- Excel para PDF em lote ficou em **Ferramentas** (o protótipo o punha na tela PDF; a especificação o lista entre as funções complementares).
+
 ## Testado (automático, Linux e CI Windows)
 
-`dotnet test`: 264 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
+`dotnet test`: 270 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
 
 | Caso | Onde | Situação |
 | --- | --- | --- |
@@ -151,6 +162,10 @@ Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - [ ] Planilhas complementares (arquitetura 5.4, T30): não feitas. Dizer se há alguma outra planilha que deve entrar na base.
 
 - [ ] **Extração de Restos a Pagar e Anexo I Tabela SME** (especificação 4.8, item 5): o conversor geral já funciona, mas a extração com colunas certas (data, NE, ano, SEI, valor a liquidar, dotação; unidade, DRE, orçamento) precisa de um PDF de exemplo de cada. Se puder, envie um de cada (pode ser com valores alterados).
+
+- [ ] **Portaria no cronograma:** o app grava só o número ("3"), como na Base de dotações. O protótipo mostrava "Nº 03 (2021)". Qual forma o seu cronograma usa na coluna Portaria?
+- [ ] **Remuneração no cronograma:** o protótipo tinha um campo "Remuneração". Hoje o app usa o percentual que já está no modelo (aba Parametros). Quer poder mudar esse percentual pelo app?
+- [ ] **Abas Contratos, Escolas e Empenhos com edição** (protótipo da Base): hoje a Base mostra tudo pela ficha da obra e não edita (a planilha mestra é só leitura). Junto com a pergunta de editar portarias e dotações: precisa de edição no app?
 
 ## Decidido pelo usuário
 
