@@ -66,11 +66,9 @@ public static class GeradorRelatorio
 
     private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento)
     {
-        int extras = plano.LinhasExtrasDoCabecalho;
-        int corpo = GradeRelatorio.LinhasDoCorpo - extras;
-        var alturas = new List<int>(GradeRelatorio.LinhasDoCabecalho);
-        alturas[^1] += extras * (int)GradeRelatorio.AlturaDaLinha;
-        alturas.AddRange(GradeRelatorio.LinhasDoTitulo);
+        var cabecalho = plano.Cabecalho;
+        int corpo = cabecalho.LinhasDoCorpo;
+        var alturas = new List<int>(cabecalho.Alturas);
         int linhasFixas = alturas.Count;
         alturas.AddRange(Enumerable.Repeat((int)GradeRelatorio.AlturaDaLinha, corpo));
         int linhasPorPagina = alturas.Count;
@@ -151,7 +149,6 @@ public static class GeradorRelatorio
         }
 
         var dados = plano.Dados;
-        string linhaDeDados = CabecalhoRelatorio.LinhaDeDados(dados);
         int feitas = 0;
         const int c = PrimeiraColuna; // C=3 ... L=12
 
@@ -160,44 +157,40 @@ public static class GeradorRelatorio
             cancelamento.ThrowIfCancellationRequested();
             int b = (pagina.Numero - 1) * linhasPorPagina + 1; // primeira linha desta pagina
 
-            // ---- Cabecalho (repetido em cada pagina) ----
-            Caixa(b, c, b + 3, c + 2, ECaixa);
+            // ---- Cabecalho (repetido em cada pagina), em grade como no modelo de referencia ----
+            const int t = c + GradeRelatorio.ColunaDoTitulo, k = c + GradeRelatorio.ColunaDaCaixa, v = c + GradeRelatorio.ColunaDoValor;
+            Caixa(b, c, b + 3, t - 1, ECaixa);
             if (idLogo is not null)
             {
-                double larguraCaixa = GradeRelatorio.Colunas.Take(3).Sum(), alturaCaixa = alturas.Take(4).Sum();
+                double larguraCaixa = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoTitulo), alturaCaixa = alturas.Take(4).Sum();
                 Figura(b, PaginadorRelatorio.Encaixar(tamanhoLogo.Largura, tamanhoLogo.Altura, new Area(6, 6, larguraCaixa - 12, alturaCaixa - 12)), idLogo, "Logo");
             }
 
-            Caixa(b, c + 3, b + 3, c + 6, ETitulo, "RELATÓRIO FOTOGRÁFICO");
-            Caixa(b, c + 7, b, c + 9, EOrgao, "SÃO PAULO OBRAS - SPOBRAS");
+            Caixa(b, t, b + 3, k - 1, ETitulo, "RELATÓRIO FOTOGRÁFICO");
+            Caixa(b, k, b, c + 9, EOrgao, "SÃO PAULO OBRAS - SPOBRAS");
             if (dados.Data is { } data)
             {
-                Caixa(b + 1, c + 7, b + 1, c + 7, ERotulo, "DATA");
-                Caixa(b + 1, c + 8, b + 1, c + 9, EData, null, data.ToDateTime(TimeOnly.MinValue).ToOADate());
+                Caixa(b + 1, k, b + 1, k, ERotulo, "DATA");
+                Caixa(b + 1, c + GradeRelatorio.ColunaDoValorDaData, b + 1, c + 9, EData, null, data.ToDateTime(TimeOnly.MinValue).ToOADate());
             }
             else
             {
-                Caixa(b + 1, c + 7, b + 1, c + 9, ECaixa);
+                Caixa(b + 1, k, b + 1, c + 9, ECaixa);
             }
 
             bool temContratada = !string.IsNullOrWhiteSpace(dados.Contratada);
-            Caixa(b + 2, c + 7, b + 2, c + 9, temContratada ? ERotulo : ECaixa, temContratada ? "CONTRATADA" : null);
-            Caixa(b + 3, c + 7, b + 3, c + 9, temContratada ? EValor : ECaixa, temContratada ? dados.Contratada.Trim() : null);
+            Caixa(b + 2, k, b + 2, c + 9, temContratada ? ERotulo : ECaixa, temContratada ? "CONTRATADA" : null);
+            Caixa(b + 3, k, b + 3, c + 9, temContratada ? EValor : ECaixa, temContratada ? dados.Contratada.Trim() : null);
 
-            if (!string.IsNullOrWhiteSpace(dados.Unidade))
+            for (int i = 0; i < cabecalho.Campos.Count; i++)
             {
-                Caixa(b + 4, c, b + 4, c + 2, ERotuloEsq, "UNIDADE EDUCACIONAL");
-                Caixa(b + 4, c + 3, b + 4, c + 9, EValorEsq, dados.Unidade.Trim());
+                int linha = b + cabecalho.PrimeiroCampo + i;
+                Caixa(linha, c, linha, v - 1, ERotuloEsq, cabecalho.Campos[i].Rotulo);
+                Caixa(linha, v, linha, c + 9, EValorEsq, cabecalho.Campos[i].Valor);
             }
-            else
-            {
-                Caixa(b + 4, c, b + 4, c + 9, ECaixa);
-            }
-
-            Caixa(b + 5, c, b + 5, c + 9, EValorEsq, linhaDeDados.Length > 0 ? linhaDeDados : null);
 
             // ---- Faixa de titulo ----
-            Caixa(b + 7, c, b + 7, c + 9, EFaixa, "RELATÓRIO FOTOGRÁFICO");
+            Caixa(b + cabecalho.PrimeiroCampo + cabecalho.Campos.Count + 1, c, b + cabecalho.PrimeiroCampo + cabecalho.Campos.Count + 1, c + 9, EFaixa, "RELATÓRIO FOTOGRÁFICO");
 
             int corpo0 = b + linhasFixas; // linha da planilha da primeira linha do corpo
 
@@ -274,12 +267,12 @@ public static class GeradorRelatorio
         // ---- Planilha ----
         var xml = new StringBuilder();
         xml.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""");
-        xml.Append("""<sheetViews><sheetView showGridLines="0" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>""");
+        xml.Append("""<sheetViews><sheetView showGridLines="0" view="pageBreakPreview" zoomScale="85" zoomScaleNormal="85" zoomScaleSheetLayoutView="85" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>""");
         xml.Append("""<cols><col min="1" max="1" width="1.71" customWidth="1"/><col min="2" max="2" width="2.71" customWidth="1"/>""");
         for (int i = 0; i < GradeRelatorio.Colunas.Count; i++)
         {
-            // Largura em "caracteres" do Excel: (pixels - 5) / 7 para Calibri 11.
-            xml.Append(CultureInfo.InvariantCulture, $"""<col min="{c + i}" max="{c + i}" width="{(GradeRelatorio.Colunas[i] - 5) / 7.0:0.####}" customWidth="1"/>""");
+            // Largura gravada pela conta do proprio Excel (inclui a margem interna): a coluna fica com os pixels planejados.
+            xml.Append(CultureInfo.InvariantCulture, $"""<col min="{c + i}" max="{c + i}" width="{GradeRelatorio.LarguraNoExcel(GradeRelatorio.Colunas[i]):0.########}" customWidth="1"/>""");
         }
 
         xml.Append("</cols><sheetData>");
@@ -321,7 +314,7 @@ public static class GeradorRelatorio
 
         // Escala fixa (e nao "ajustar a pagina") para o Excel respeitar as quebras de pagina manuais.
         xml.Append("""<printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.5" bottom="0.6" header="0.3" footer="0.3"/>""");
-        xml.Append("""<pageSetup paperSize="9" scale="85" orientation="portrait"/>""");
+        xml.Append(CultureInfo.InvariantCulture, $"""<pageSetup paperSize="9" scale="{GradeRelatorio.EscalaDeImpressao}" orientation="portrait"/>""");
         xml.Append("""<headerFooter><oddFooter>&amp;C&amp;"Calibri,Regular"&amp;11Página &amp;P de &amp;N</oddFooter></headerFooter>""");
         if (plano.Paginas.Count > 1)
         {

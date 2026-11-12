@@ -17,30 +17,42 @@ public static class PaginadorRelatorio
         var avisos = new List<Aviso>();
         dados ??= new DadosRelatorio();
 
-        // Dados longos no cabecalho tomam linhas do corpo de todas as paginas (nada fica escondido).
-        int extras = CabecalhoRelatorio.LinhasExtras(dados);
-        int corpo = GradeRelatorio.LinhasDoCorpo - extras;
-        double topo = GradeRelatorio.AlturaDoCabecalho + extras * GradeRelatorio.AlturaDaLinha;
+        // Cada campo preenchido do cabecalho toma linhas do corpo de todas as paginas (nada fica escondido).
+        var cabecalho = CabecalhoRelatorio.Montar(dados);
+        int corpo = cabecalho.LinhasDoCorpo;
+        double topo = cabecalho.Altura;
         if (fotos.Count == 0)
         {
             avisos.Add(Aviso.Impede("Escolha pelo menos uma foto."));
-            return new PlanoRelatorio([], avisos, opcoes, dados, extras);
+            return new PlanoRelatorio([], avisos, opcoes, dados, cabecalho);
         }
 
         if (!OpcoesRelatorio.Capacidades.Contains(opcoes.FotosPorPagina))
         {
             avisos.Add(Aviso.Impede("Fotos por página deve ser 1, 2, 4, 6 ou 8."));
-            return new PlanoRelatorio([], avisos, opcoes, dados, extras);
+            return new PlanoRelatorio([], avisos, opcoes, dados, cabecalho);
         }
 
         int colunas = opcoes.FotosPorPagina <= 2 ? 1 : 2;
         int faixasPorPagina = opcoes.FotosPorPagina / colunas;
         int linhasDaFaixa = corpo / faixasPorPagina;
 
+        // Todas as fotos do relatorio no mesmo quadro (como no modelo de referencia): o quadro desconta o
+        // maior texto, mas nunca fica menor que 60% da faixa; faixa com texto maior so cresce para baixo.
+        int maiorTexto = 0;
+        for (int i = 0; i < fotos.Count; i += colunas)
+        {
+            maiorTexto = Math.Max(maiorTexto, fotos.Skip(i).Take(colunas)
+                .Select((f, c) => Texto(f, i + c + 1, fotos.Count, opcoes, GradeRelatorio.LarguraDoEspaco(c, colunas)).Linhas).Max());
+        }
+
+        int linhasDoQuadro = Math.Max(MinimoDeLinhasDaFoto,
+            Math.Max(linhasDaFaixa - maiorTexto, (int)Math.Ceiling(linhasDaFaixa * 0.6)));
+
         var paginas = new List<PaginaRelatorio>();
         var fotosDaPagina = new List<FotoNaPagina>();
         var continuacoes = new List<Continuacao>();
-        int linhaLivre = 0; // proxima linha livre do corpo (0 a LinhasDoCorpo)
+        int linhaLivre = 0; // proxima linha livre do corpo (0 a corpo)
         int faixasNaPagina = 0;
         int paginasComMenosFotos = 0;
         int textosContinuados = 0;
@@ -60,8 +72,7 @@ public static class PaginadorRelatorio
             var textos = daFaixa.Select((f, c) => Texto(f, i + c + 1, fotos.Count, opcoes, GradeRelatorio.LarguraDoEspaco(c, colunas))).ToList();
             int linhasDoTexto = textos.Max(t => t.Linhas);
 
-            // A foto cede espaco ao texto ate o minimo; passando disso, a faixa cresce.
-            int linhasDaFoto = Math.Max(MinimoDeLinhasDaFoto, linhasDaFaixa - linhasDoTexto);
+            int linhasDaFoto = Math.Min(linhasDoQuadro, Math.Max(MinimoDeLinhasDaFoto, corpo - linhasDoTexto));
             int necessario = linhasDaFoto + linhasDoTexto;
 
             // Texto maior que a pagina inteira: fica o que cabe e o resto continua na pagina seguinte.
@@ -147,7 +158,7 @@ public static class PaginadorRelatorio
             avisos.Add(Aviso.Conferir($"{textosContinuados} descrição(ões) são maiores que uma página e continuam na página seguinte."));
         }
 
-        return new PlanoRelatorio(paginas, avisos, opcoes, dados, extras);
+        return new PlanoRelatorio(paginas, avisos, opcoes, dados, cabecalho);
     }
 
     /// <summary>"Foto 01", "Foto 02"... com a largura do maior numero.</summary>
@@ -181,7 +192,7 @@ public static class PaginadorRelatorio
         var caixa = new Area(x + GradeRelatorio.Folga / 2, y + GradeRelatorio.Folga / 2, largura - GradeRelatorio.Folga, alturaDaFoto - GradeRelatorio.Folga);
         var areaDoTexto = new Area(x, y + alturaDaFoto, largura, linhasDoTexto * GradeRelatorio.AlturaDaLinha);
 
-        return new FotoNaPagina(foto, numero, espaco, Encaixar(foto.Largura, foto.Altura, caixa, encostarEmbaixo: true), areaDoTexto,
+        return new FotoNaPagina(foto, numero, espaco, Encaixar(foto.Largura, foto.Altura, caixa), areaDoTexto,
             linha, linhasDaFoto, linhasDoTexto, coluna, colunas, texto.Titulo, texto.Descricao);
     }
 

@@ -827,40 +827,37 @@ public sealed partial class RelatorioVm : TelaVm
         var e = new List<ElementoPrevia>();
         var dados = plano.Dados;
         double X(int coluna) => GradeRelatorio.XDaColuna(coluna);
-        var h = GradeRelatorio.LinhasDoCabecalho;
-        double y4 = h.Take(4).Sum(), y5 = h.Take(5).Sum();
-        double alturaDados = h[5] + plano.LinhasExtrasDoCabecalho * GradeRelatorio.AlturaDaLinha;
+        var cab = plano.Cabecalho;
+        var h = cab.Alturas;
+        double y4 = h.Take(4).Sum();
         double largura = GradeRelatorio.Largura;
+        double xt = X(GradeRelatorio.ColunaDoTitulo), xk = X(GradeRelatorio.ColunaDaCaixa), xd = X(GradeRelatorio.ColunaDoValorDaData), xv = X(GradeRelatorio.ColunaDoValor);
 
-        // Cabecalho
-        e.Add(new ElementoPrevia(0, 0, X(3), y4) { Borda = true, Imagem = _modelos.Logo });
-        e.Add(new ElementoPrevia(X(3), 0, X(7) - X(3), y4) { Borda = true, Texto = "RELATÓRIO FOTOGRÁFICO", Negrito = true, Fonte = 24, Centro = true, Meio = true });
-        e.Add(new ElementoPrevia(X(7), 0, largura - X(7), h[0]) { Borda = true, Texto = "SÃO PAULO OBRAS - SPOBRAS", Negrito = true, Fonte = 16, Centro = true, Meio = true });
+        // Cabecalho: logo, titulo e a caixa SPOBRAS / data / contratada; depois um campo por linha.
+        e.Add(new ElementoPrevia(0, 0, xt, y4) { Borda = true, Imagem = _modelos.Logo });
+        e.Add(new ElementoPrevia(xt, 0, xk - xt, y4) { Borda = true, Texto = "RELATÓRIO FOTOGRÁFICO", Negrito = true, Fonte = 24, Centro = true, Meio = true });
+        e.Add(new ElementoPrevia(xk, 0, largura - xk, h[0]) { Borda = true, Texto = "SÃO PAULO OBRAS - SPOBRAS", Negrito = true, Fonte = 16, Centro = true, Meio = true });
         if (dados.Data is not null)
         {
-            e.Add(new ElementoPrevia(X(7), h[0], X(8) - X(7), h[1]) { Borda = true, Texto = "DATA", Negrito = true, Centro = true, Meio = true });
-            e.Add(new ElementoPrevia(X(8), h[0], largura - X(8), h[1]) { Borda = true, Texto = CabecalhoRelatorio.Data(dados.Data), Negrito = true, Centro = true, Meio = true });
+            e.Add(new ElementoPrevia(xk, h[0], xd - xk, h[1]) { Borda = true, Texto = "DATA", Negrito = true, Centro = true, Meio = true });
+            e.Add(new ElementoPrevia(xd, h[0], largura - xd, h[1]) { Borda = true, Texto = CabecalhoRelatorio.Data(dados.Data), Negrito = true, Centro = true, Meio = true });
         }
         else
         {
-            e.Add(new ElementoPrevia(X(7), h[0], largura - X(7), h[1]) { Borda = true });
+            e.Add(new ElementoPrevia(xk, h[0], largura - xk, h[1]) { Borda = true });
         }
 
         bool temContratada = !string.IsNullOrWhiteSpace(dados.Contratada);
-        e.Add(new ElementoPrevia(X(7), h[0] + h[1], largura - X(7), h[2]) { Borda = true, Texto = temContratada ? "CONTRATADA" : "", Negrito = true, Centro = true, Meio = true });
-        e.Add(new ElementoPrevia(X(7), h[0] + h[1] + h[2], largura - X(7), h[3]) { Borda = true, Texto = temContratada ? dados.Contratada.Trim() : "", Centro = true, Meio = true });
-        if (!string.IsNullOrWhiteSpace(dados.Unidade))
+        e.Add(new ElementoPrevia(xk, h[0] + h[1], largura - xk, h[2]) { Borda = true, Texto = temContratada ? "CONTRATADA" : "", Negrito = true, Centro = true, Meio = true });
+        e.Add(new ElementoPrevia(xk, h[0] + h[1] + h[2], largura - xk, h[3]) { Borda = true, Texto = temContratada ? dados.Contratada.Trim() : "", Centro = true, Meio = true });
+        for (int i = 0; i < cab.Campos.Count; i++)
         {
-            e.Add(new ElementoPrevia(0, y4, X(3), h[4]) { Borda = true, Texto = "UNIDADE EDUCACIONAL", Negrito = true, Meio = true });
-            e.Add(new ElementoPrevia(X(3), y4, largura - X(3), h[4]) { Borda = true, Texto = dados.Unidade.Trim(), Meio = true });
-        }
-        else
-        {
-            e.Add(new ElementoPrevia(0, y4, largura, h[4]) { Borda = true });
+            double y = cab.YDoCampo(i), alt = h[cab.PrimeiroCampo + i];
+            e.Add(new ElementoPrevia(0, y, xv, alt) { Borda = true, Texto = cab.Campos[i].Rotulo, Negrito = true, Meio = true });
+            e.Add(new ElementoPrevia(xv, y, largura - xv, alt) { Borda = true, Texto = cab.Campos[i].Valor, Meio = true });
         }
 
-        e.Add(new ElementoPrevia(0, y5, largura, alturaDados) { Borda = true, Texto = CabecalhoRelatorio.LinhaDeDados(dados), Meio = true });
-        e.Add(new ElementoPrevia(0, y5 + alturaDados + GradeRelatorio.LinhasDoTitulo[0], largura, GradeRelatorio.LinhasDoTitulo[1])
+        e.Add(new ElementoPrevia(0, cab.YDoTitulo + GradeRelatorio.LinhasDoTitulo[0], largura, GradeRelatorio.LinhasDoTitulo[1])
         { Borda = true, Fundo = true, Texto = "RELATÓRIO FOTOGRÁFICO", Negrito = true, Centro = true, Meio = true });
 
         // Fotos e textos

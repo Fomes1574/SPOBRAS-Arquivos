@@ -14,26 +14,37 @@ public static class GradeRelatorio
 
     public static double Largura => Colunas.Sum();
 
-    /// <summary>Alturas das linhas do cabecalho (logo, titulo, data, contratada, unidade, dados), em pixels.</summary>
-    public static readonly IReadOnlyList<int> LinhasDoCabecalho = [27, 27, 27, 27, 27, 40];
+    /// <summary>Alturas das 4 linhas de cima do cabecalho: logo, titulo e a caixa SPOBRAS / data / contratada.</summary>
+    public static readonly IReadOnlyList<int> LinhasDoTopo = [27, 27, 27, 27];
 
     /// <summary>Linha em branco, faixa "RELATÓRIO FOTOGRÁFICO" e respiro antes das fotos.</summary>
     public static readonly IReadOnlyList<int> LinhasDoTitulo = [12, 34, 10];
 
-    public static double AlturaDoCabecalho => LinhasDoCabecalho.Sum() + LinhasDoTitulo.Sum();
+    /// <summary>Altura util de cada pagina (cabe em A4 em pe na escala de impressao de 80%: 1240 x 0,8 = 992 px de 1017).</summary>
+    public const double AlturaDaPagina = 1240;
 
-    /// <summary>Linhas de 20 px disponiveis para fotos, legendas e assinaturas em cada pagina.</summary>
-    public const int LinhasDoCorpo = 46;
+    /// <summary>Colunas (indices 0 a 9) do cabecalho: logo C-E, titulo F-H, caixa I-L; rotulo C-E e valor F-L.</summary>
+    public const int ColunaDoTitulo = 3, ColunaDaCaixa = 6, ColunaDoValorDaData = 7, ColunaDoValor = 3;
 
-    public static double AlturaDaPagina => AlturaDoCabecalho + LinhasDoCorpo * AlturaDaLinha;
+    /// <summary>Escala de impressao (%) usada no arquivo e na conta da altura da pagina.</summary>
+    public const int EscalaDeImpressao = 80;
 
-    /// <summary>Total de linhas da planilha ocupadas por uma pagina.</summary>
-    public static int LinhasPorPagina => LinhasDoCabecalho.Count + LinhasDoTitulo.Count + LinhasDoCorpo;
+    /// <summary>
+    /// Largura que o Excel grava para a coluna ter exatamente <paramref name="pixels"/> na tela (Calibri 11, 96 dpi).
+    /// A largura do arquivo inclui a margem interna da celula: pixels = Trunc(((256*w + Trunc(128/7))/256)*7).
+    /// </summary>
+    public static double LarguraNoExcel(int pixels) => Math.Truncate(pixels * 256.0 / 7) / 256;
+
+    /// <summary>Pixels que o Excel desenha para a largura gravada no arquivo (a conta do proprio Excel).</summary>
+    public static int PixelsNoExcel(double largura) => (int)Math.Truncate((256 * largura + Math.Truncate(128.0 / 7)) / 256 * 7);
 
     public const int LinhasDasAssinaturas = 6;
 
-    /// <summary>Espaco entre as duas colunas de fotos e entre a foto e a borda do seu espaco.</summary>
-    public const double Folga = 8;
+    /// <summary>
+    /// Espaco entre as duas colunas de fotos (e metade dele ate a borda). Folgado de proposito: com a tela do
+    /// Windows em 125% ou 150%, o Excel arredonda as larguras de coluna e nada pode chegar a encostar.
+    /// </summary>
+    public const double Folga = 12;
 
     /// <summary>
     /// Largura media de um caractere Calibri 11 pt, arredondada para cima: a conta de linhas de texto

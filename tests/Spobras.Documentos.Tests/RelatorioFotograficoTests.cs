@@ -198,7 +198,10 @@ public class RelatorioFotograficoTests : IDisposable
         Assert.Equal(6, textos.Count(t => t == "RELATÓRIO FOTOGRÁFICO")); // titulo + faixa, por pagina
         Assert.Equal(3, textos.Count(t => t == "EMEF Exemplo"));
         Assert.Equal(3, textos.Count(t => t == "Construtora Exemplo Ltda"));
-        Assert.Equal(3, textos.Count(t => t == "Contrato: 000/EXEMPLO/2026   ·   Lote: 12"));
+        Assert.Equal(3, textos.Count(t => t == "CONTRATO"));
+        Assert.Equal(3, textos.Count(t => t == "000/EXEMPLO/2026"));
+        Assert.Equal(3, textos.Count(t => t == "LOTE"));
+        Assert.DoesNotContain("PORTARIA", textos); // campo vazio nao aparece
         Assert.Contains("Foto 01 — Serviço 1 & <teste>", textos); // caracteres especiais preservados
         Assert.Contains("Foto 14 — Serviço 14 & <teste>", textos);
         Assert.DoesNotContain("Descrição do serviço executado.", textos); // modo legenda curta
@@ -209,8 +212,9 @@ public class RelatorioFotograficoTests : IDisposable
 
         // Quebras de pagina manuais, area de impressao e rodape.
         var quebras = planilha.Descendants(S + "brk").Select(b => (int)b.Attribute("id")!).ToList();
-        Assert.Equal([55, 110], quebras);
-        Assert.Contains("'Relatório'!$C$1:$L$165", Parte(caminho, "xl/workbook.xml").Descendants(S + "definedName").Single().Value);
+        int porPagina = plano.Cabecalho.Alturas.Count + plano.Cabecalho.LinhasDoCorpo;
+        Assert.Equal([porPagina, 2 * porPagina], quebras);
+        Assert.Contains($"'Relatório'!$C$1:$L${3 * porPagina}", Parte(caminho, "xl/workbook.xml").Descendants(S + "definedName").Single().Value);
         Assert.Contains("Página &P de &N", planilha.Descendants(S + "oddFooter").Single().Value);
         Assert.Equal("portrait", (string)planilha.Descendants(S + "pageSetup").Single().Attribute("orientation")!);
         Assert.Equal("9", (string)planilha.Descendants(S + "pageSetup").Single().Attribute("paperSize")!); // A4
@@ -255,16 +259,61 @@ public class RelatorioFotograficoTests : IDisposable
     public void Dados_longos_no_cabecalho_tomam_linhas_do_corpo_sem_esconder_texto()
     {
         string objeto = string.Join(" ", Enumerable.Repeat("reforma e ampliação da unidade educacional", 12));
-        var dados = new DadosRelatorio { Objeto = objeto };
+        var dados = new DadosRelatorio { Objeto = objeto, Contrato = "001/EX/2026" };
 
         var (plano, caminho) = Gerar(6, new OpcoesRelatorio(), dados, logo: false);
+        var curto = CabecalhoRelatorio.Montar(new DadosRelatorio { Contrato = "001/EX/2026" });
 
-        Assert.True(plano.LinhasExtrasDoCabecalho > 0);
-        Assert.Contains("Objeto: " + objeto, Textos(Parte(caminho, "xl/worksheets/sheet1.xml")));
+        Assert.True(plano.Cabecalho.Campos.Single(c => c.Rotulo == "OBJETO").Linhas > 1);
+        Assert.True(plano.Cabecalho.LinhasDoCorpo < curto.LinhasDoCorpo);
+        Assert.Contains(objeto, Textos(Parte(caminho, "xl/worksheets/sheet1.xml")));
         Assert.All(plano.Paginas.SelectMany(p => p.Fotos), f => Assert.True(f.Espaco.Base <= GradeRelatorio.AlturaDaPagina + 0.01));
-        // A pagina continua com 55 linhas: a linha de dados cresce e o corpo encolhe.
-        var linhas = Parte(caminho, "xl/worksheets/sheet1.xml").Descendants(S + "row").Count();
-        Assert.Equal(plano.Paginas.Count * (55 - plano.LinhasExtrasDoCabecalho), linhas);
+
+        // A soma das alturas de uma pagina nunca passa da altura util (cabe numa folha A4).
+        var alturas = Parte(caminho, "xl/worksheets/sheet1.xml").Descendants(S + "row")
+            .Select(r => double.Parse((string)r.Attribute("ht")!, System.Globalization.CultureInfo.InvariantCulture) / 0.75).ToList();
+        int porPagina = plano.Cabecalho.Alturas.Count + plano.Cabecalho.LinhasDoCorpo;
+        Assert.Equal(plano.Paginas.Count * porPagina, alturas.Count);
+        Assert.True(alturas.Take(porPagina).Sum() <= GradeRelatorio.AlturaDaPagina + 0.5);
+    }
+
+    [Fact]
+    public void Larguras_das_colunas_dao_no_excel_os_pixels_planejados_e_as_fotos_nao_se_encostam()
+    {
+        var (plano, caminho) = Gerar(8, new OpcoesRelatorio(), logo: false);
+        var planilha = Parte(caminho, "xl/worksheets/sheet1.xml");
+
+        // A conta do Excel (com a margem interna da celula) devolve exatamente a largura planejada.
+        var larguras = planilha.Descendants(S + "col").Skip(2)
+            .Select(c => double.Parse((string)c.Attribute("width")!, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        Assert.Equal(GradeRelatorio.Colunas, larguras.Select(GradeRelatorio.PixelsNoExcel).ToList());
+
+        // Abre na visualizacao de quebra de pagina (as folhas A4 aparecem), como o modelo de referencia.
+        var vista = planilha.Descendants(S + "sheetView").Single();
+        Assert.Equal("pageBreakPreview", (string)vista.Attribute("view")!);
+
+        foreach (var pagina in plano.Paginas)
+        {
+            // Mesmo quadro para todas as fotos: a da esquerda e a da direita nunca chegam perto uma da outra.
+            Assert.Single(pagina.Fotos.Select(f => f.LinhasDaFoto).Distinct());
+            foreach (var foto in pagina.Fotos)
+            {
+                Assert.True(foto.Imagem.X >= foto.Espaco.X + GradeRelatorio.Folga / 2 - 0.01);
+                Assert.True(foto.Imagem.Direita <= foto.Espaco.Direita - GradeRelatorio.Folga / 2 + 0.01);
+                Assert.True(foto.Imagem.Base <= foto.Texto.Y);
+            }
+
+            foreach (var faixa in pagina.Fotos.GroupBy(f => f.LinhaInicial).Where(g => g.Count() == 2))
+            {
+                Assert.True(faixa.Last().Imagem.X - faixa.First().Imagem.Direita >= GradeRelatorio.Folga - 0.01);
+            }
+        }
+
+        // Fotos deitadas e em pe da mesma faixa ficam centralizadas no mesmo quadro.
+        var primeira = plano.Paginas[0].Fotos;
+        var emPe = primeira.First(f => f.Foto.Altura > f.Foto.Largura);
+        var deitada = primeira.First(f => f.Foto.Altura < f.Foto.Largura && f.LinhaInicial == emPe.LinhaInicial);
+        Assert.Equal(emPe.Imagem.Y + emPe.Imagem.Altura / 2, deitada.Imagem.Y + deitada.Imagem.Altura / 2, 0);
     }
 
     [Fact]

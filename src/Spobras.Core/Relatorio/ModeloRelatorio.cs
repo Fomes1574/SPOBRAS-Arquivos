@@ -91,7 +91,7 @@ public sealed record PlanoRelatorio(
     IReadOnlyList<Aviso> Avisos,
     OpcoesRelatorio Opcoes,
     DadosRelatorio Dados,
-    int LinhasExtrasDoCabecalho)
+    CabecalhoMontado Cabecalho)
 {
     public bool PodeGerar => Paginas.Count > 0 && !Avisos.Any(a => a.Gravidade == Gravidade.ImpedeGerar);
     public int TotalDeFotos => Paginas.Sum(p => p.Fotos.Count);
