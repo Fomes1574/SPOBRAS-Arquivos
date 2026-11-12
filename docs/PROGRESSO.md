@@ -109,6 +109,7 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - `{obra}`, `{lote}` e `{tarefa}` no destino das regras do organizador ainda não foram feitos: só `{ano}` e `{mes}`.
 - Base: uma obra é o par (CONTRATO, EMPREENDIMENTO) da mestra. Os filtros mostram os nomes de coluna da própria planilha; o app não decide sozinho qual valor é "o valor do contrato".
 - Modelos Excel: o app guarda uma cópia de cada modelo e grava a "assinatura" da estrutura (abas e número de fórmulas). Se mudar, pede revisão. Macros não são executadas.
+- Cronograma: portaria, lote e dotação só com algarismos são gravados como número (igual a digitar no Excel); com zero à esquerda, letras ou pontos ficam como texto.
 - Cronograma: a conferência pelo Excel salva o arquivo gerado já calculado (para abrir com os valores certos mesmo em visualizadores).
 - Fonte da interface: "Inter, Segoe UI". A Inter não vai no pacote; no PC sem ela o Windows usa Segoe UI.
 - A prévia do relatório é desenhada pelo próprio plano de páginas (mesmas contas do gerador), não por uma imagem ilustrativa.
@@ -145,6 +146,6 @@ Passos 1 a 6 concluídos. O usuário autorizou seguir passo a passo até o fim, 
 - T04 "entre volumes" é simulado; pen drive e pasta sincronizada reais ficam para o roteiro de conferência.
 - Reduzir fotos antes de compactar (especificação 4.3, item 5): ainda não ligado à tela Compactar.
 - Cronograma e Modelos Excel com o Excel real (recalcular, PDF da aba, conferir totais): o código existe, mas só roda com Excel; no Linux e no CI é usado um verificador de teste.
-- Cronograma gerado conferido contra o `Cronograma_revisado.xlsx` real: feito localmente com LibreOffice (as fórmulas recalcularam igual); falta conferir no Excel do PC do trabalho.
+- Cronograma gerado a partir do `Cronograma_revisado.xlsx` real e recalculado localmente no LibreOffice: remuneração, totais por obra, total geral, meses e totais por ano batem. O bloco "Resumo pedido" (e `Parametros!B20`) usa ORDENAR/ÚNICO/FILTRO/PROCX, que o LibreOffice daqui não calcula: **conferir no Excel do PC do trabalho**. Essa conferência mostrou que a dotação precisava ir como número (a aba `Dotacoes` guarda número); corrigido.
 - Duplicados por conteúdo e reconhecimento por conteúdo: passo 7.
 - `Spobras.Excel.Tests`: só roda com Excel instalado (pulado no Linux e no CI).

@@ -146,9 +146,9 @@ public static class ModeloCronograma
                 {
                     int linha = PrimeiraLinha + i;
                     var o = i < obras.Count ? obras[i] : null;
-                    editor.Escrever(aba, "B" + linha, TextoOuNada(o?.Portaria));
-                    editor.Escrever(aba, "C" + linha, TextoOuNada(o?.Lote));
-                    editor.Escrever(aba, "D" + linha, TextoOuNada(o?.Dotacao));
+                    editor.Escrever(aba, "B" + linha, NumeroOuTexto(o?.Portaria));
+                    editor.Escrever(aba, "C" + linha, NumeroOuTexto(o?.Lote));
+                    editor.Escrever(aba, "D" + linha, NumeroOuTexto(o?.Dotacao));
                     editor.Escrever(aba, "E" + linha, TextoOuNada(o?.Nome));
                     editor.Escrever(aba, "F" + linha, TextoOuNada(o?.Escopo));
                     editor.Escrever(aba, "G" + linha, o?.Valor);
@@ -186,6 +186,22 @@ public static class ModeloCronograma
     }
 
     private static object? TextoOuNada(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
+
+    /// <summary>
+    /// Igual a digitar no Excel: so algarismos vira numero (a aba Dotacoes guarda a dotacao resumida como
+    /// numero e o resumo do modelo a procura assim); o resto fica como texto.
+    /// </summary>
+    private static object? NumeroOuTexto(string? texto)
+    {
+        if (TextoOuNada(texto) is not string t)
+        {
+            return null;
+        }
+
+        return t.Length <= 15 && t.All(char.IsAsciiDigit) && !(t.Length > 1 && t[0] == '0')
+            ? decimal.Parse(t, System.Globalization.CultureInfo.InvariantCulture)
+            : t;
+    }
 
     private static string? Texto(object? valor) => valor switch
     {

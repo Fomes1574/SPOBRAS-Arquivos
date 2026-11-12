@@ -70,21 +70,26 @@ public class CronogramaTests : IDisposable
     {
         var antes = File.ReadAllBytes(_modelo);
         string saida = Path.Combine(_pasta, "saida", "cronograma.xlsx");
-        var obras = new[] { Obra(1, 100000m), Obra(2, 50000.55m, "2878") };
+        var obras = new[] { Obra(1, 100000m), Obra(2, 50000.55m, "2878") with { Lote = "05", Portaria = "3A" }, Obra(3, 1m, "16.10.12.363.3010.2.828") };
 
         var gerado = ModeloCronograma.Gerar(_modelo, "Cronograma Dois", obras, saida);
 
-        Assert.Equal(2, gerado.Obras);
+        Assert.Equal(3, gerado.Obras);
         Assert.Equal(antes, File.ReadAllBytes(_modelo)); // o modelo fica intacto
         using var leitor = new LeitorXlsx(saida);
         var grade = leitor.LerAba("Cronograma Dois");
-        Assert.Equal("3", grade[2][1]);                 // portaria como texto
-        Assert.Equal("3362", grade[2][3]);              // dotacao como texto (zeros e pontos preservados)
+        // Como digitar no Excel: so algarismos vira numero (o resumo do modelo procura a dotacao como numero);
+        // zero a esquerda, letras e pontos ficam como texto.
+        Assert.Equal(3m, grade[2][1]);
+        Assert.Equal(12m, grade[2][2]);
+        Assert.Equal(3362m, grade[2][3]);
+        Assert.Equal(("3A", "05", 2878m), (grade[3][1], grade[3][2], grade[3][3]));
+        Assert.Equal("16.10.12.363.3010.2.828", grade[4][3]);
         Assert.Equal("Escola 1", grade[2][4]);
         Assert.Equal(100000m, grade[2][6]);
         Assert.Equal(50000.55m, grade[3][6]);           // decimal exato
         Assert.Equal((decimal)new DateTime(2026, 11, 1).ToOADate(), grade[2][9]);
-        Assert.Null(grade[4][4]);                       // linhas que sobram ficam vazias
+        Assert.Null(grade[5][4]);                       // linhas que sobram ficam vazias
 
         using var editor = new EditorXlsx(Copia(saida));
         Assert.Equal("IF($G3=\"\",\"\",$G3*0.1)", editor.Formula("Cronograma Dois", "H3")); // formula intacta
