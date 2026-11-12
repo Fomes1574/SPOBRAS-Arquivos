@@ -9,6 +9,36 @@ public class RelatorioTests
 
     private static List<FotoRelatorio> Fotos(int quantidade) => [.. Enumerable.Range(1, quantidade).Select(n => Horizontal(n, $"Serviço {n}"))];
 
+    /// <summary>Como no modelo do Jardim Paulistano: as fotos nunca se encostam, nem na horizontal nem na vertical.</summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(6)]
+    [InlineData(8)]
+    public void Fotos_nunca_se_encostam(int porPagina)
+    {
+        var fotos = Enumerable.Range(1, porPagina * 2)
+            .Select(n => new FotoRelatorio($"f{n}.jpg", n % 3 == 0 ? 3000 : 4000, n % 3 == 0 ? 4000 : n % 5 == 0 ? 4000 : 3000) { Legenda = n % 2 == 0 ? "Serviço com legenda" : "" })
+            .ToList();
+        var plano = PaginadorRelatorio.Paginar(fotos, new OpcoesRelatorio { FotosPorPagina = porPagina });
+
+        foreach (var pagina in plano.Paginas)
+        {
+            foreach (var a in pagina.Fotos)
+            {
+                // Dentro do proprio espaco, com folga em volta
+                Assert.True(a.Imagem.X >= a.Espaco.X + (GradeRelatorio.Folga / 2) - 0.01 && a.Imagem.X + a.Imagem.Largura <= a.Espaco.X + a.Espaco.Largura - (GradeRelatorio.Folga / 2) + 0.01, $"foto {a.Numero} encosta na lateral");
+                foreach (var b in pagina.Fotos.Where(b => b.Numero > a.Numero))
+                {
+                    double folgaX = Math.Max(b.Imagem.X - (a.Imagem.X + a.Imagem.Largura), a.Imagem.X - (b.Imagem.X + b.Imagem.Largura));
+                    double folgaY = Math.Max(b.Imagem.Y - (a.Imagem.Y + a.Imagem.Altura), a.Imagem.Y - (b.Imagem.Y + b.Imagem.Altura));
+                    Assert.True(Math.Max(folgaX, folgaY) >= GradeRelatorio.Folga - 0.01, $"fotos {a.Numero} e {b.Numero} estão a menos de {GradeRelatorio.Folga} pt");
+                }
+            }
+        }
+    }
+
     [Theory]
     [InlineData(1, 1, 1)]
     [InlineData(2, 1, 2)]
