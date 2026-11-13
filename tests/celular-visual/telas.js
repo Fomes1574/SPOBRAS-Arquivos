@@ -91,6 +91,10 @@ async function texto(page, seletor, contem) {
     if (await page.locator('a.obra', { hasText: 'Zeta' }).count() > 0) problemas.push('obra sob gestao da SIURB aparece na lista');
 
     await ir(page, urlPronto, 'relatorio'); await foto(page, '10-rel-dados', w, h, salvar);
+    for (const rotulo of ['Unidade educacional', 'Contrato', 'Data do relatório', 'Processo SEI', 'Data da OS', 'Objeto', 'Descrição geral']) {
+      if (await page.getByLabel(rotulo, { exact: true }).count() !== 1)
+        problemas.push(`${w}x${h} rotulo do relatorio incorreto: ${rotulo}`);
+    }
     await page.fill('input >> nth=1', ''); await page.locator('input >> nth=1').dispatchEvent('change'); await page.waitForTimeout(250);
     await page.fill('input >> nth=0', 'emei exemplo alfa'); await page.locator('input >> nth=0').dispatchEvent('change'); await page.waitForTimeout(450);
     await foto(page, '11-rel-escolha', w, h, salvar);

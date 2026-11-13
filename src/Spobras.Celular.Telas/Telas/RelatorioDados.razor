@@ -12,7 +12,7 @@
     {
         <Aviso>Digite a escola ou o contrato: o resto vem da base. Campo em branco não aparece no relatório.</Aviso>
     }
-    <CampoTexto Rotulo="Unidade educacional (escola)" Valor="@D.Unidade" AoMudar="EscolaMudou" />
+    <CampoTexto Rotulo="Unidade educacional" Valor="@D.Unidade" AoMudar="EscolaMudou" />
     <CampoTexto Rotulo="Contrato" Valor="@D.Contrato" Dica="000/EX/0000" AoMudar="ContratoMudou" />
     <div class="linha-btns">
         <CampoTexto Rotulo="Lote" Valor="@D.Lote" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Lote = v })" />
@@ -24,9 +24,9 @@
         <CampoTexto Rotulo="Data do relatório" Valor="@D.Data" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Data = v })" />
         <CampoTexto Rotulo="Fiscal" Valor="@D.Fiscal" Dica="Opcional" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Fiscal = v })" />
     </div>
-    <CampoTexto Rotulo="Processo SEI (opcional)" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
+    <CampoTexto Rotulo="Processo SEI" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
     <CampoTexto Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
-    <CampoTexto Rotulo="Descrição geral (opcional)" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
+    <CampoTexto Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
     <button class="btn linha" style="margin-bottom:10px" @onclick="Atualizar" disabled="@(!App.Base.TemDados)">Atualizar dados pela base</button>
     <a class="btn primario" href="relatorio/fotos">Continuar para as fotos</a>
     @if (!App.Rascunho.Vazio)

@@ -147,6 +147,7 @@ public class ComposicaoProtótipoTests : IDisposable
         using var app = await AppComBase();
         app.Principal.Navegar(RelatorioVm.Modulo);
         var relatorio = (RelatorioVm)app.Principal.PaginaAtual!;
+        Assert.Empty(relatorio.DataTexto);
         relatorio.Contrato = "004/EX/2025";
         Assert.Equal("7910.2024/0000001-0", relatorio.ProcessoSei);
 

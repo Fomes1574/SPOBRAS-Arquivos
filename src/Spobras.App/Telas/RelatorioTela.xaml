@@ -93,9 +93,8 @@
                     </DockPanel>
                     <TextBlock Text="Todos os campos são opcionais. Campo em branco não aparece no relatório, nem o nome dele." Style="{StaticResource Texto2}" Margin="0,4,0,12" TextWrapping="Wrap" />
 
-                    <TextBlock Text="Unidade educacional (escola)" Style="{StaticResource Rotulo}" />
-                    <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged, Delay=500}" AutomationProperties.Name="Unidade educacional"
-                             ToolTip="Digite o nome da escola: se ela estiver na Base, o app completa o resto (ou pede para escolher o contrato)" />
+                    <TextBlock Text="Unidade educacional" Style="{StaticResource Rotulo}" />
+                    <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged, Delay=500}" AutomationProperties.Name="Unidade educacional" />
                     <ItemsControl ItemsSource="{Binding ContratosDaEscola}" Focusable="False" Margin="0,6,0,0"
                                   Visibility="{Binding TemContratosParaEscolher, Converter={StaticResource Visivel}}">
                         <ItemsControl.ItemTemplate>
@@ -118,7 +117,7 @@
                             <TextBox Text="{Binding Contratada, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Contratada" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Data do relatório (dia/mês/ano)" Style="{StaticResource Rotulo}" />
+                            <TextBlock Text="Data do relatório" Style="{StaticResource Rotulo}" />
                             <TextBox Text="{Binding DataTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data do relatório" t:Mascaras.Data="True" />
                         </StackPanel>
                     </Grid>
@@ -132,7 +131,7 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Contrato (o app completa o resto pela Base)" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
                             <TextBox Text="{Binding Contrato, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Contrato"
                                      ToolTip="Digite o número do contrato como está na Base de dados, por exemplo 123/SIURB/2024" />
                             <ItemsControl ItemsSource="{Binding EscolasDoContrato}" Focusable="False" Margin="0,6,0,0"
@@ -165,11 +164,11 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Processo SEI (só se quiser no relatório)" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="Processo SEI" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
                             <TextBox Text="{Binding ProcessoSei, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Processo SEI" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Data da OS (início da obra)" Style="{StaticResource Rotulo}" />
+                            <TextBlock Text="Data da OS" Style="{StaticResource Rotulo}" />
                             <TextBox Text="{Binding DataOsTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data da OS" t:Mascaras.Data="True" />
                         </StackPanel>
                         <StackPanel Grid.Column="4">
@@ -178,10 +177,10 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Objeto / serviço" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
+                    <TextBlock Text="Objeto" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
                     <TextBox Text="{Binding Objeto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Objeto ou serviço" />
 
-                    <TextBlock Text="Descrição geral (opcional, vai no fim do cabeçalho)" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
+                    <TextBlock Text="Descrição geral" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
                     <TextBox Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição geral"
                              AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" VerticalContentAlignment="Top" />
 
