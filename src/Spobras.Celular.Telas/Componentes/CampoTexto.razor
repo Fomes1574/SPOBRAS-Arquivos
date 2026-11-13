@@ -1,0 +1,46 @@
+@* Campo do formulario que grava no rascunho a cada mudanca. *@
+<div class="campo" style="@Estilo">
+    <label for="@_id">@Rotulo</label>
+    @if (Linhas > 1)
+    {
+        <textarea id="@_id" rows="@Linhas" placeholder="@Dica" value="@Valor" @onchange="Mudou"></textarea>
+    }
+    else
+    {
+        <input id="@_id" type="text" inputmode="@(Data ? "numeric" : "text")" placeholder="@Dica" value="@Valor" class="@(Invalido ? "erro" : "")"
+               autocomplete="off" @onchange="Mudou" @oninput="Digitando" />
+    }
+    @if (Invalido)
+    {
+        <div class="ajuda erro">Data inválida. Use dd/mm/aaaa.</div>
+    }
+</div>
+
+@code {
+    private readonly string _id = "c" + Guid.NewGuid().ToString("N")[..8];
+
+    [Parameter, EditorRequired] public string Rotulo { get; set; } = "";
+    [Parameter] public string Valor { get; set; } = "";
+    [Parameter] public string? Dica { get; set; }
+    [Parameter] public int Linhas { get; set; } = 1;
+    [Parameter] public bool Data { get; set; }
+    [Parameter] public string? Estilo { get; set; }
+    [Parameter] public EventCallback<string> AoMudar { get; set; }
+    [Parameter] public EventCallback<string> AoDigitar { get; set; }
+
+    private bool Invalido => Data && Formato.LerData(Valor).Invalida;
+
+    private async Task Mudou(ChangeEventArgs e)
+    {
+        string v = e.Value?.ToString() ?? "";
+        if (Data && v.Trim().Length > 0)
+        {
+            v = Spobras.Core.MascaraData.Formatar(v);
+        }
+
+        Valor = v;
+        await AoMudar.InvokeAsync(v);
+    }
+
+    private Task Digitando(ChangeEventArgs e) => AoDigitar.InvokeAsync(e.Value?.ToString() ?? "");
+}

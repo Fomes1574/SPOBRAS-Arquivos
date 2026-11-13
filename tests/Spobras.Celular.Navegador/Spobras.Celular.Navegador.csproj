@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Host de TESTE do app do celular: as mesmas telas (Spobras.Celular.Telas) num navegador, com uma plataforma
+       de teste e dados inventados. Serve para os testes visuais em Linux e no CI. Nao e o app. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Spobras.Celular.Navegador</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../Compartilhado/**/*.cs" LinkBase="Compartilhado" />
+    <Compile Include="../CompartilhadoXlsx/**/*.cs" LinkBase="CompartilhadoXlsx" />
+    <Compile Include="../CompartilhadoCelular/**/*.cs" LinkBase="CompartilhadoCelular" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Spobras.Celular.Telas/Spobras.Celular.Telas.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- Telas e regras do app do celular (Blazor). Rodam no Android dentro do app (BlazorWebView) e no navegador,
+       no host de teste, para os testes visuais em Linux. A logica vem de Core, Dados e Documentos. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Spobras.Celular</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Spobras.Core\Spobras.Core.csproj" />
+    <ProjectReference Include="..\Spobras.Dados\Spobras.Dados.csproj" />
+    <ProjectReference Include="..\Spobras.Documentos\Spobras.Documentos.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Compartilhado/**/*.cs" LinkBase="Compartilhado" />
+    <Compile Include="../CompartilhadoXlsx/**/*.cs" LinkBase="CompartilhadoXlsx" />
+    <Compile Include="../CompartilhadoCelular/**/*.cs" LinkBase="CompartilhadoCelular" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <!-- So para os testes rodarem em Linux; no Windows o SkiaSharp ja traz a parte nativa. -->
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <ProjectReference Include="../../src/Spobras.Celular.Telas/Spobras.Celular.Telas.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

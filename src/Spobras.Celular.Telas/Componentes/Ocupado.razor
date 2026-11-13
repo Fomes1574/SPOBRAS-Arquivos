@@ -1,0 +1,12 @@
+@if (Texto is not null)
+{
+    <div class="ocupado" role="status" aria-live="polite"><div><div class="roda"></div><b>@Texto</b>@if (Detalhe is not null)
+            {
+                <div class="texto2" style="margin-top:6px">@Detalhe</div>
+            }</div></div>
+}
+
+@code {
+    [Parameter] public string? Texto { get; set; }
+    [Parameter] public string? Detalhe { get; set; }
+}

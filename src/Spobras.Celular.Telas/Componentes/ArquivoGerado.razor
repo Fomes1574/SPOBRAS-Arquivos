@@ -1,0 +1,14 @@
+@inject AppCelular App
+<div class="arquivo">
+    <span class="ext @(Pdf ? "p" : "x")">@(Pdf ? "PDF" : "XLSX")</span>
+    <div><b>@Path.GetFileNameWithoutExtension(Arquivo.Nome)</b><span>@Formato.Tamanho(Arquivo.Tamanho) · @Arquivo.Onde</span></div>
+    <button class="btn pequeno linha" style="flex:none" @onclick="Abrir" aria-label="Abrir @Arquivo.Nome">Abrir</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Salvo Arquivo { get; set; } = default!;
+
+    private bool Pdf => Arquivo.Nome.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+
+    private Task Abrir() => App.Plataforma.AbrirAsync(Arquivo);
+}

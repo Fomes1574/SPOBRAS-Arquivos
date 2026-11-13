@@ -1,0 +1,9 @@
+<div class="aviso @Tipo" role="@(Tipo is "erro" or "atencao" ? "alert" : "status")">
+    <span class="ic">@(Tipo switch { "ok" => "✓", "info" => "i", _ => "!" })</span><span>@ChildContent</span>
+</div>
+
+@code {
+    /// <summary>info, ok, atencao ou erro.</summary>
+    [Parameter] public string Tipo { get; set; } = "info";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

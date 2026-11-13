@@ -1,0 +1,174 @@
+@page "/base"
+@inherits Tela
+
+<Barra Titulo="Base de dados" Sub="@Subtitulo">
+    <button class="acao" aria-label="Reler agora" @onclick="Reler">↻</button>
+</Barra>
+<div class="conteudo">
+    @if (App.Base.Estado is EstadoBase.SemConexao or EstadoBase.Inacessivel or EstadoBase.Invalida or EstadoBase.SemPlanilha or EstadoBase.Lendo)
+    {
+        <SituacaoBase />
+    }
+    <div class="busca">
+        <Icone Nome="busca" Cor="#9A9A96" />
+        <input type="search" placeholder="Escola, contrato, lote, processo…" aria-label="Buscar" value="@App.FiltroBase.Texto" @oninput="Digitou" />
+    </div>
+    <div class="chips">
+        @foreach (var f in Filtros)
+        {
+            var valor = f.Valor(App.FiltroBase);
+            if (valor is not null)
+            {
+                <button class="chip on" @onclick="() => Limpar(f.Id)">@(f.Id == "lote" ? SelosObra.Lote(valor) : valor) ✕</button>
+            }
+            else
+            {
+                <button class="chip" @onclick="() => Abrir(f.Id)">@f.Nome ▾</button>
+            }
+        }
+    </div>
+
+    @if (_totais is { } t)
+    {
+        <div class="painel">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">Totais do @SelosObra.Lote(t.Lote).ToLowerInvariant()</h2><span class="mini">@Formato.Plural(t.Escolas, "escola", "escolas")</span></div>
+            <div class="totais" style="margin-top:10px">
+                <div><span>Valor original</span><b>@Formato.Reais(t.Original)</b></div>
+                <div><span>Aditado</span><b>+ @Formato.Reais(t.Aditado)</b></div>
+                <div style="grid-column:1/-1"><span>Contratado com aditamento</span><b>@Formato.Reais(t.Contratado)</b></div>
+                <div><span>Pago</span><b>@Formato.Reais(t.Pago)</b></div>
+                <div><span>Saldo a pagar</span><b>@Formato.Reais(t.SaldoAPagar)</b></div>
+                <div style="grid-column:1/-1"><span>Medições em trâmite (@t.MedicoesEmTramite)</span><b>@Formato.Reais(t.EmTramite)</b></div>
+            </div>
+            <p class="mini" style="margin:8px 0 0">Soma das obras do lote. Pago + saldo a pagar = contratado com aditamento.</p>
+        </div>
+    }
+
+    @if (!App.Base.TemDados)
+    {
+        <div class="vazio-lista">Ainda não há dados. Escolha a planilha mestra para começar.</div>
+    }
+    else
+    {
+        <div class="mini" style="margin:0 2px 8px;display:flex;justify-content:space-between"><span>@Formato.Plural(_total, "obra", "obras")</span><span>Saldo a pagar</span></div>
+        @foreach (var o in _obras)
+        {
+            var (classe, texto) = SelosObra.Selo(o);
+            <a class="obra" href="obra/@o.Id">
+                <div class="l1"><span class="nome">@o.Empreendimento</span><span class="selo @classe">@texto</span></div>
+                <div class="l2">@string.Join(" · ", new[] { o.Contrato, SelosObra.Lote(o.Lote), o.Portaria }.Where(x => !string.IsNullOrWhiteSpace(x)))</div>
+                <div class="l3"><span>@(o.DataOs is null ? "Sem Data da OS" : "OS " + Formato.Data(o.DataOs))</span><b>@Formato.Reais(o.SaldoAPagar)</b></div>
+            </a>
+        }
+        @if (_obras.Count == 0)
+        {
+            <div class="vazio-lista">Nenhuma obra com esses filtros.</div>
+        }
+        else if (_obras.Count < _total)
+        {
+            <button class="btn linha" @onclick="Mais">Mostrar mais (@(_total - _obras.Count) restantes)</button>
+        }
+    }
+</div>
+<Nav Ativo="base" />
+
+<Folha Aberta="_aberto is not null" Titulo="@(Filtros.FirstOrDefault(f => f.Id == _aberto)?.Nome)" AoFechar="() => _aberto = null">
+    @if (_opcoes.Count == 0)
+    {
+        <p class="texto2">Nenhuma opção com os outros filtros escolhidos.</p>
+    }
+    @foreach (var op in _opcoes)
+    {
+        <button class="opcao" @onclick="() => Escolher(op)"><span>@(_aberto == "lote" ? SelosObra.Lote(op) : op)</span><span class="marca"></span></button>
+    }
+</Folha>
+
+@code {
+    private sealed record FiltroChip(string Id, string Nome, Func<FiltroObras, string?> Valor, Func<OpcoesFiltro, IReadOnlyList<string>> Opcoes, Func<FiltroObras, string?, FiltroObras> Definir);
+
+    private static readonly FiltroChip[] Filtros =
+    [
+        new("lote", "Lote", f => f.Lote, o => o.Lotes, (f, v) => f with { Lote = v }),
+        new("portaria", "Portaria", f => f.Portaria, o => o.Portarias, (f, v) => f with { Portaria = v }),
+        new("status", "Status", f => f.Status, o => o.Status, (f, v) => f with { Status = v }),
+        new("contrato", "Contrato", f => f.Contrato, o => o.Contratos, (f, v) => f with { Contrato = v }),
+    ];
+
+    private const int Pagina = 40;
+    private int _limite = Pagina;
+    private IReadOnlyList<ObraLida> _obras = [];
+    private int _total;
+    private TotaisLote? _totais;
+    private string? _aberto;
+    private IReadOnlyList<string> _opcoes = [];
+    private CancellationTokenSource? _digitando;
+
+    private string Subtitulo => App.Base.UltimaLeitura is { } u
+        ? $"{Formato.Plural(App.Base.TotalDeObras, "obra", "obras")} · atualizada {Formato.Quando(u, App.Agora())}"
+        : "Base ainda não lida";
+
+    protected override void Iniciar() => Carregar();
+
+    protected override void BaseMudou() => Carregar();
+
+    private void Carregar()
+    {
+        if (!App.Base.TemDados)
+        {
+            (_obras, _total, _totais) = ([], 0, null);
+            return;
+        }
+
+        (_obras, _total) = App.Base.Buscar(App.FiltroBase, _limite);
+        _totais = string.IsNullOrWhiteSpace(App.FiltroBase.Lote) ? null : App.Base.Totais(App.FiltroBase);
+    }
+
+    private async Task Digitou(ChangeEventArgs e)
+    {
+        string texto = e.Value?.ToString() ?? "";
+        _digitando?.Cancel();
+        var cancelar = _digitando = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(250, cancelar.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        App.FiltroBase = App.FiltroBase with { Texto = string.IsNullOrWhiteSpace(texto) ? null : texto.Trim() };
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private void Abrir(string id)
+    {
+        var f = Filtros.First(x => x.Id == id);
+        _opcoes = f.Opcoes(App.Base.Opcoes(f.Definir(App.FiltroBase, null)));
+        _aberto = id;
+    }
+
+    private void Escolher(string valor)
+    {
+        App.FiltroBase = Filtros.First(x => x.Id == _aberto).Definir(App.FiltroBase, valor);
+        _aberto = null;
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private void Limpar(string id)
+    {
+        App.FiltroBase = Filtros.First(x => x.Id == id).Definir(App.FiltroBase, null);
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private void Mais()
+    {
+        _limite += Pagina;
+        Carregar();
+    }
+
+    private Task Reler() => App.Base.AtualizarAsync(forcar: true);
+}

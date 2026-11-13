@@ -1,0 +1,12 @@
+<div class="etapas">
+    @for (int i = 0; i < Nomes.Length; i++)
+    {
+        <div class="@(i == Atual ? "on" : i < Atual ? "feita" : "")"><i></i>@Nomes[i]</div>
+    }
+</div>
+
+@code {
+    private static readonly string[] Nomes = ["Dados", "Fotos", "Conferir"];
+
+    [Parameter] public int Atual { get; set; }
+}

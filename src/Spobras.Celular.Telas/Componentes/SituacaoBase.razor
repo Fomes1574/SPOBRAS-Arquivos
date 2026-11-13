@@ -1,0 +1,45 @@
+@inject AppCelular App
+@inject NavigationManager Navegacao
+@implements IDisposable
+@* Como esta a base: lendo, atualizada, sem internet, planilha movida ou invalida. *@
+@switch (App.Base.Estado)
+{
+    case EstadoBase.Lendo:
+        <div class="painel"><b>Lendo a planilha mestra…</b><div class="carregando" style="margin-top:10px"><i></i></div><p class="mini" style="margin:8px 0 0">Pode usar o app enquanto isso; a base anterior continua valendo.</p></div>
+        break;
+    case EstadoBase.Atualizada when App.Base.UltimaLeitura is { } u:
+        <Aviso Tipo="ok">Base atualizada: relida @Formato.Quando(u, App.Agora()). @Formato.Plural(App.Base.TotalDeObras, "obra", "obras").</Aviso>
+        break;
+    case EstadoBase.SemConexao:
+        <Aviso Tipo="atencao">@App.Base.Mensagem Quando a conexão voltar, o app relê sozinho.</Aviso>
+        break;
+    case EstadoBase.Inacessivel:
+        <Aviso Tipo="erro">@App.Base.Mensagem</Aviso>
+        <button class="btn primario" style="margin-bottom:8px" @onclick="Escolher">Escolher a planilha de novo</button>
+        @if (App.Base.TemDados)
+        {
+            <a class="btn linha" style="margin-bottom:12px" href="base">Continuar com a base anterior</a>
+        }
+        break;
+    case EstadoBase.Invalida:
+        <Aviso Tipo="erro">@App.Base.Mensagem</Aviso>
+        <button class="btn linha" style="margin-bottom:12px" @onclick="Escolher">Escolher outra planilha</button>
+        break;
+    case EstadoBase.SemPlanilha when !OcultarSemPlanilha:
+        <Aviso Tipo="atencao">A planilha mestra ainda não foi escolhida.</Aviso>
+        <a class="btn primario" style="margin-bottom:12px" href="primeira">Escolher a planilha mestra</a>
+        break;
+}
+
+@code {
+    /// <summary>Na tela de escolher a planilha o aviso de "falta escolher" seria repetido.</summary>
+    [Parameter] public bool OcultarSemPlanilha { get; set; }
+
+    protected override void OnInitialized() => App.Base.Mudou += Avisar;
+
+    private void Avisar() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => App.Base.Mudou -= Avisar;
+
+    private Task Escolher() => App.Base.EscolherPlanilhaAsync();
+}

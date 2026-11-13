@@ -1,0 +1,29 @@
+@page "/primeira"
+@inherits Tela
+
+<Barra Titulo="Arquivos SPOBRAS" Sub="Vamos ligar o app à planilha mestra" />
+<div class="conteudo">
+    @if (App.LogoUrl() is { } logo)
+    {
+        <div style="text-align:center;margin:6px 0 14px"><span class="logo-caixa"><img src="@logo" alt="Logo" /></span></div>
+    }
+    <p class="texto2" style="margin-top:0">Escolha a planilha mestra uma vez só, no OneDrive ou no SharePoint. Depois o app relê sozinho sempre que você abrir ou voltar para ele. A planilha nunca é alterada.</p>
+    <div class="painel">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+            <h2 style="margin:0">Planilha mestra</h2>
+            <span class="selo @(App.Base.Planilha is null ? "atencao" : "concluido")">@(App.Base.Planilha is null ? "FALTA" : "ESCOLHIDA")</span>
+        </div>
+        <p class="texto2" style="margin:6px 0 10px">@(App.Base.Planilha?.Nome ?? "Ainda não escolhida.")</p>
+        <button class="btn @(App.Base.Planilha is null ? "primario" : "linha") pequeno" style="width:100%" @onclick="Escolher">@(App.Base.Planilha is null ? "Escolher a planilha" : "Trocar")</button>
+    </div>
+    <SituacaoBase OcultarSemPlanilha="true" />
+    <Aviso>Abre o seletor de arquivos do Android. Escolha “OneDrive” ou “SharePoint” e a pasta da planilha @Fontes.NomeArquivoMestra.</Aviso>
+    @if (App.Base.TemDados)
+    {
+        <a class="btn primario" href="">Começar</a>
+    }
+</div>
+
+@code {
+    private Task Escolher() => App.Base.EscolherPlanilhaAsync();
+}

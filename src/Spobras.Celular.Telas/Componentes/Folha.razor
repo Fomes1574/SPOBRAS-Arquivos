@@ -1,0 +1,21 @@
+@* Folha que sobe de baixo, com o fundo escurecido (toque fora fecha). *@
+@if (Aberta)
+{
+    <div class="veu" @onclick="Fechar"></div>
+    <div class="folha" role="dialog" aria-label="@Titulo">
+        @if (!string.IsNullOrEmpty(Titulo))
+        {
+            <b style="font-size:16px;display:block;margin-bottom:6px">@Titulo</b>
+        }
+        @ChildContent
+    </div>
+}
+
+@code {
+    [Parameter] public bool Aberta { get; set; }
+    [Parameter] public string? Titulo { get; set; }
+    [Parameter] public EventCallback AoFechar { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Task Fechar() => AoFechar.InvokeAsync();
+}

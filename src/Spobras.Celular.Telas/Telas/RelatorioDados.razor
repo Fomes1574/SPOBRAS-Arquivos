@@ -1,0 +1,173 @@
+@page "/relatorio"
+@inherits Tela
+
+<Barra Titulo="Relatório fotográfico" Sub="Rascunho salvo sozinho" Voltar="" />
+<div class="conteudo">
+    <Etapas Atual="0" />
+    @if (_mensagem is not null)
+    {
+        <Aviso Tipo="@_tipo">@_mensagem</Aviso>
+    }
+    else
+    {
+        <Aviso>Digite a escola ou o contrato: o resto vem da base. Campo em branco não aparece no relatório.</Aviso>
+    }
+    <CampoTexto Rotulo="Unidade educacional (escola)" Valor="@D.Unidade" AoMudar="EscolaMudou" />
+    <CampoTexto Rotulo="Contrato" Valor="@D.Contrato" Dica="000/EX/0000" AoMudar="ContratoMudou" />
+    <div class="linha-btns">
+        <CampoTexto Rotulo="Lote" Valor="@D.Lote" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Lote = v })" />
+        <CampoTexto Rotulo="Data da OS" Valor="@D.DataOs" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { DataOs = v })" />
+    </div>
+    <CampoTexto Rotulo="Portaria" Valor="@D.Portaria" AoMudar="v => Mudar(d => d with { Portaria = v })" />
+    <CampoTexto Rotulo="Contratada" Valor="@D.Contratada" AoMudar="v => Mudar(d => d with { Contratada = v })" />
+    <div class="linha-btns">
+        <CampoTexto Rotulo="Data do relatório" Valor="@D.Data" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Data = v })" />
+        <CampoTexto Rotulo="Fiscal" Valor="@D.Fiscal" Dica="Opcional" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Fiscal = v })" />
+    </div>
+    <CampoTexto Rotulo="Processo SEI (opcional)" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
+    <CampoTexto Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
+    <CampoTexto Rotulo="Descrição geral (opcional)" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
+    <button class="btn linha" style="margin-bottom:10px" @onclick="Atualizar" disabled="@(!App.Base.TemDados)">Atualizar dados pela base</button>
+    <a class="btn primario" href="relatorio/fotos">Continuar para as fotos</a>
+    @if (!App.Rascunho.Vazio)
+    {
+        <button class="link" style="margin-top:6px" @onclick="() => _recomecar = true">Começar um relatório novo</button>
+    }
+</div>
+<Nav Ativo="relatorio" />
+
+<Folha Aberta="_escolhas.Count > 0" Titulo="@_tituloEscolha" AoFechar="() => _escolhas = []">
+    <p class="texto2" style="margin:0 0 6px">@_textoEscolha</p>
+    @foreach (var o in _escolhas)
+    {
+        <button class="opcao" @onclick="() => Escolher(o)">
+            <span>@(_porEscola ? o.Contrato : o.Empreendimento)<small>@string.Join(" · ", new[] { _porEscola ? o.Empreendimento : o.Contrato, SelosObra.Lote(o.Lote), o.Portaria, Situacao(o) }.Where(x => !string.IsNullOrWhiteSpace(x)))</small></span><span class="marca"></span>
+        </button>
+    }
+</Folha>
+
+<Folha Aberta="_recomecar" Titulo="Começar um relatório novo?" AoFechar="() => _recomecar = false">
+    <p class="texto2" style="margin:0 0 12px">Os dados e as @Formato.Plural(D.Fotos.Count, "foto", "fotos") deste rascunho saem do app. Fotos da galeria do celular não são apagadas.</p>
+    <button class="btn primario" style="margin-bottom:8px" @onclick="Recomecar">Começar de novo</button>
+    <button class="btn linha" @onclick="() => _recomecar = false">Continuar este</button>
+</Folha>
+
+@code {
+    private string? _mensagem;
+    private string _tipo = "info";
+    private IReadOnlyList<ObraLida> _escolhas = [];
+    private bool _porEscola;
+    private string _tituloEscolha = "", _textoEscolha = "";
+    private bool _recomecar;
+
+    private DadosRascunho D => App.Rascunho.Dados;
+
+    private void Mudar(Func<DadosRascunho, DadosRascunho> mudar) => App.Rascunho.Alterar(mudar);
+
+    private string Situacao(ObraLida o) => App.Base.Situacao(o) switch
+    {
+        SituacaoContrato.Concluido => "Concluído",
+        _ => "Andamento",
+    };
+
+    private void Informar(string tipo, string texto) => (_tipo, _mensagem) = (tipo, texto);
+
+    private void EscolaMudou(string v)
+    {
+        Mudar(d => d with { Unidade = v });
+        if (!App.Base.TemDados || v.Trim().Length < 4)
+        {
+            return;
+        }
+
+        var obras = Spobras.Dados.Base.ProcuraObras.DaEscola(App.Base.Repositorio, v);
+        if (obras.Count == 0)
+        {
+            Informar("atencao", $"“{v.Trim()}” não está na base. Confira o nome ou preencha os dados à mão.");
+            return;
+        }
+
+        // Se o contrato ja digitado for um deles, usa esse.
+        var doContrato = obras.Where(o => Spobras.Dados.Base.ProcuraObras.MesmoContrato(o.Contrato, D.Contrato)).ToList();
+        if (doContrato.Count == 1)
+        {
+            Aplicar(doContrato[0]);
+            return;
+        }
+
+        if (obras.Count == 1)
+        {
+            Aplicar(obras[0]);
+            return;
+        }
+
+        bool mesmaEscola = obras.Select(o => Normalizacao.Busca(o.Empreendimento.Trim())).Distinct().Count() == 1;
+        _porEscola = true;
+        _tituloEscolha = mesmaEscola ? "Escolha o contrato" : "Escolha a escola e o contrato";
+        _textoEscolha = mesmaEscola ? $"{obras[0].Empreendimento} está em {obras.Count} contratos na base." : $"{obras.Count} obras combinam com “{v.Trim()}”.";
+        _escolhas = obras;
+    }
+
+    private void ContratoMudou(string v)
+    {
+        Mudar(d => d with { Contrato = v });
+        if (!App.Base.TemDados || v.Trim().Length < 5)
+        {
+            return;
+        }
+
+        var obras = Spobras.Dados.Base.ProcuraObras.DoContrato(App.Base.Repositorio, v);
+        if (obras.Count == 0)
+        {
+            Informar("atencao", $"O contrato {v.Trim()} não está na base.");
+            return;
+        }
+
+        var daEscola = obras.Where(o => Spobras.Dados.Base.ProcuraObras.MesmaEscola(o.Empreendimento, D.Unidade)).ToList();
+        if (daEscola.Count == 1 || obras.Count == 1)
+        {
+            Aplicar(daEscola.Count == 1 ? daEscola[0] : obras[0]);
+            return;
+        }
+
+        _porEscola = false;
+        _tituloEscolha = "Escolha a escola";
+        _textoEscolha = $"O contrato {obras[0].Contrato} tem {obras.Count} escolas na base.";
+        _escolhas = obras;
+    }
+
+    private void Escolher(ObraLida o)
+    {
+        _escolhas = [];
+        Aplicar(o);
+    }
+
+    private void Aplicar(ObraLida o)
+    {
+        App.Rascunho.AplicarObra(o);
+        Informar("info", $"Dados de {o.Empreendimento} ({o.Contrato}) trazidos da base. Campo em branco não aparece no relatório.");
+    }
+
+    /// <summary>Busca de novo pelo contrato e pela escola e diz o que mudou (data, fiscal, descricao e fotos nao mudam).</summary>
+    private void Atualizar()
+    {
+        var obras = Spobras.Dados.Base.ProcuraObras.DoContrato(App.Base.Repositorio, D.Contrato);
+        var obra = obras.FirstOrDefault(o => Spobras.Dados.Base.ProcuraObras.MesmaEscola(o.Empreendimento, D.Unidade))
+                   ?? (obras.Count == 1 ? obras[0] : null);
+        if (obra is null)
+        {
+            Informar("atencao", "Não achei esta escola com este contrato na base. Confira os dois campos.");
+            return;
+        }
+
+        var mudou = App.Rascunho.AplicarObra(obra);
+        Informar(mudou.Count == 0 ? "ok" : "info", mudou.Count == 0 ? "Os dados já estavam iguais aos da base." : $"Atualizado pela base: {string.Join(", ", mudou)}.");
+    }
+
+    private void Recomecar()
+    {
+        App.Rascunho.Recomecar();
+        _recomecar = false;
+        _mensagem = null;
+    }
+}

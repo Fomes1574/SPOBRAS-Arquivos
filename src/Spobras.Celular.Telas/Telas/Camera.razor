@@ -1,0 +1,233 @@
+@page "/relatorio/camera"
+@inherits Tela
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<div class="camera">
+    <div class="topo-cam">
+        <a class="bt-cam" href="relatorio/fotos" aria-label="Fechar a câmera" style="text-decoration:none;display:grid;place-items:center">✕</a>
+        <span style="font-size:13px;text-align:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Foto @(App.Rascunho.Dados.Fotos.Count + 1)@(string.IsNullOrWhiteSpace(App.Rascunho.Dados.Unidade) ? "" : " · " + App.Rascunho.Dados.Unidade)</span>
+        <button class="bt-cam" @onclick="() => _opcoes = true" aria-label="Formato e flash">⚡ @NomeFlash(App.Config.Flash)</button>
+    </div>
+    <div class="formatos" role="radiogroup" aria-label="Formato da foto">
+        @foreach (var f in Enum.GetValues<FormatoFoto>())
+        {
+            <button class="bt-cam @(App.Config.FormatoFoto == f ? "on" : "")" role="radio" aria-checked="@(App.Config.FormatoFoto == f ? "true" : "false")" @onclick="() => Formato_(f)">@NomeFormato(f)</button>
+        }
+    </div>
+    <div class="visor" @ref="_visor">
+        <div class="moldura" style="@Moldura">
+            <video @ref="_video" autoplay playsinline muted></video>
+            <div class="flashou @(_disparou ? "on" : "")"></div>
+        </div>
+        @if (_erroCamera is not null)
+        {
+            <div class="erro-cam" style="position:absolute;inset:0;display:grid;place-items:center"><div>@_erroCamera<br /><br /><button class="bt-cam" @onclick="Abrir">Tentar de novo</button></div></div>
+        }
+        else
+        {
+            <div class="dica">@Dica</div>
+        }
+    </div>
+    <div class="rodape-cam">
+        <a class="btn linha pequeno" style="background:none;color:#fff;border-color:#666;text-decoration:none" href="relatorio/fotos">Pronto (@App.Rascunho.Dados.Fotos.Count)</a>
+        <button class="disparo" aria-label="Tirar foto" @onclick="Tirar" disabled="@(_erroCamera is not null || _tirando)"></button>
+        <button class="btn linha pequeno" style="background:none;color:#fff;border-color:#666" aria-label="Virar câmera" @onclick="Virar">⟲</button>
+    </div>
+    @if (Erro is not null)
+    {
+        <div style="position:absolute;left:12px;right:12px;bottom:120px"><Aviso Tipo="erro">@Erro</Aviso></div>
+    }
+</div>
+
+<Folha Aberta="_opcoes" Titulo="Formato da foto" AoFechar="() => _opcoes = false">
+    @foreach (var f in Enum.GetValues<FormatoFoto>())
+    {
+        <button class="opcao @(App.Config.FormatoFoto == f ? "on" : "")" @onclick="() => Formato_(f)"><span>@NomeFormato(f)<small>@ExplicaFormato(f)</small></span><span class="marca"></span></button>
+    }
+    <b style="font-size:16px;display:block;margin-top:14px">Flash</b>
+    <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        @foreach (var fl in Enum.GetValues<Flash>())
+        {
+            bool on = App.Config.Flash == fl;
+            <button class="btn linha pequeno" style="width:100%;@(on ? "border-color:var(--preto);background:var(--preto);color:#fff" : "")" @onclick="() => DefinirFlash(fl)">@NomeFlash(fl)</button>
+        }
+    </div>
+    @if (_semFlash)
+    {
+        <p class="mini" style="margin:8px 0 0">Este aparelho não deixa o app controlar o flash da foto; a lanterna @(_temLanterna ? "funciona" : "também não está disponível").</p>
+    }
+    <button class="opcao @(App.Config.FotosNaGaleria ? "on" : "")" style="margin-top:8px" @onclick="Galeria"><span>Guardar também na galeria<small>Além do rascunho do app</small></span><span class="marca"></span></button>
+    <p class="mini" style="margin:10px 0 12px">O formato e o flash ficam guardados para as próximas fotos.</p>
+    <button class="btn primario" @onclick="() => _opcoes = false">Voltar à câmera</button>
+</Folha>
+
+@code {
+    private ElementReference _video, _visor;
+    private IJSObjectReference? _modulo;
+    private string? _erroCamera;
+    private bool _opcoes, _tirando, _disparou, _frente, _temLanterna, _semFlash;
+    private double _proporcaoVisor = 3.0 / 4.0;
+
+    private static string NomeFormato(FormatoFoto f) => f switch
+    {
+        FormatoFoto.Padrao43 => "4:3",
+        FormatoFoto.Largo169 => "16:9",
+        FormatoFoto.TelaCheia => "Tela cheia",
+        _ => "1:1",
+    };
+
+    private static string ExplicaFormato(FormatoFoto f) => f switch
+    {
+        FormatoFoto.Padrao43 => "O padrão do celular. Mais área da foto",
+        FormatoFoto.Largo169 => "Retangular, ocupa melhor o quadro deitado",
+        FormatoFoto.TelaCheia => "Do tamanho da tela; a foto sai como você vê",
+        _ => "Quadrada",
+    };
+
+    private static string NomeFlash(Flash f) => f switch
+    {
+        Flash.Auto => "Auto",
+        Flash.Ligado => "Ligado",
+        Flash.Desligado => "Desligado",
+        _ => "Lanterna",
+    };
+
+    private static double Proporcao(FormatoFoto f) => f switch
+    {
+        FormatoFoto.Padrao43 => 4.0 / 3.0,
+        FormatoFoto.Largo169 => 16.0 / 9.0,
+        FormatoFoto.Quadrado => 1.0,
+        _ => 0,
+    };
+
+    private string Dica => App.Config.FormatoFoto == FormatoFoto.TelaCheia
+        ? "Tela cheia · a foto sai como você vê"
+        : $"{NomeFormato(App.Config.FormatoFoto)} · deitado = foto horizontal";
+
+    private string Moldura => App.Config.FormatoFoto == FormatoFoto.TelaCheia
+        ? "width:100%;height:100%"
+        : $"aspect-ratio:{_proporcaoVisor.ToString(System.Globalization.CultureInfo.InvariantCulture)};width:100%;max-height:100%";
+
+    protected override async Task OnAfterRenderAsync(bool primeira)
+    {
+        if (primeira)
+        {
+            await Abrir();
+        }
+    }
+
+    private async Task Abrir()
+    {
+        _erroCamera = null;
+        if (!await App.Plataforma.PermitirCameraAsync())
+        {
+            _erroCamera = "Sem permissão para usar a câmera. Libere nas configurações do Android.";
+            StateHasChanged();
+            return;
+        }
+
+        _modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
+        var r = await _modulo.InvokeAsync<InicioCamera>("iniciar", _video, _frente);
+        if (!r.Ok)
+        {
+            _erroCamera = r.Erro;
+        }
+        else
+        {
+            _temLanterna = r.Lanterna;
+            _semFlash = !r.Flash;
+            if (App.Config.Flash == Flash.Lanterna)
+            {
+                await _modulo.InvokeAsync<bool>("lanterna", true);
+            }
+
+            await AjustarVisor();
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task AjustarVisor()
+    {
+        if (_modulo is not null)
+        {
+            _proporcaoVisor = await _modulo.InvokeAsync<double>("formatoDoVisor", Proporcao(App.Config.FormatoFoto), _visor);
+        }
+    }
+
+    private async Task Formato_(FormatoFoto f)
+    {
+        App.Configurar(p => p with { FormatoFoto = f });
+        await AjustarVisor();
+    }
+
+    private async Task DefinirFlash(Flash f)
+    {
+        App.Configurar(p => p with { Flash = f });
+        if (_modulo is not null)
+        {
+            await _modulo.InvokeAsync<bool>("lanterna", f == Flash.Lanterna);
+        }
+    }
+
+    private void Galeria() => App.Configurar(p => p with { FotosNaGaleria = !p.FotosNaGaleria });
+
+    private async Task Virar()
+    {
+        _frente = !_frente;
+        await Abrir();
+    }
+
+    private async Task Tirar()
+    {
+        if (_modulo is null || _tirando)
+        {
+            return;
+        }
+
+        _tirando = true;
+        _disparou = true;
+        Erro = null;
+        StateHasChanged();
+        try
+        {
+            await AjustarVisor();
+            string flash = App.Config.Flash.ToString().ToLowerInvariant();
+            byte[] jpeg = await _modulo.InvokeAsync<byte[]>("capturar", TimeSpan.FromSeconds(20), _proporcaoVisor, flash);
+            string caminho = App.Rascunho.AdicionarFoto(jpeg);
+            if (App.Config.FotosNaGaleria)
+            {
+                await App.Plataforma.GuardarNaGaleriaAsync(caminho);
+            }
+        }
+        catch (JSException ex)
+        {
+            Erro = "Não foi possível tirar a foto: " + ex.Message;
+        }
+        finally
+        {
+            _tirando = false;
+            _disparou = false;
+            StateHasChanged();
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose(); // o Blazor so chama o DisposeAsync quando os dois existem
+        if (_modulo is not null)
+        {
+            try
+            {
+                await _modulo.InvokeVoidAsync("parar");
+                await _modulo.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+
+    private sealed record InicioCamera(bool Ok, string? Erro, bool Lanterna, bool Flash);
+}

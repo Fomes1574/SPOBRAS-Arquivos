@@ -1,0 +1,64 @@
+@page "/config"
+@inherits Tela
+
+<Barra Titulo="Configurações" Voltar="" />
+<div class="conteudo">
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    <div class="titulo-secao" style="margin-top:2px">Planilha base</div>
+    <div class="painel">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b>Planilha mestra</b><span class="selo @Selo.Classe">@Selo.Texto</span></div>
+        <p class="texto2" style="margin:4px 0 8px">@(App.Base.Planilha?.Nome ?? "Ainda não escolhida")@(App.Base.TemDados ? " · " + Formato.Plural(App.Base.TotalDeObras, "obra", "obras") : "")</p>
+        <div class="linha-btns">
+            <button class="btn linha pequeno" disabled="@(App.Base.Planilha is null)" @onclick="() => App.Base.AtualizarAsync(forcar: true)">Reler agora</button>
+            <button class="btn linha pequeno" @onclick="() => App.Base.EscolherPlanilhaAsync()">@(App.Base.Planilha is null ? "Escolher" : "Trocar")</button>
+        </div>
+    </div>
+    <SituacaoBase />
+
+    <div class="titulo-secao">Arquivos gerados</div>
+    <div class="painel">
+        <div class="campo" style="margin:0">
+            <label>Salvar relatórios e PDFs em</label>
+            <button class="btn linha" style="justify-content:space-between;font-weight:400" @onclick="EscolherPasta"><span style="text-align:left;overflow-wrap:anywhere">@(App.Config.Pasta?.Nome ?? "Escolher a pasta")</span><span style="color:var(--azul);font-weight:600">@(App.Config.Pasta is null ? "Escolher" : "Trocar")</span></button>
+        </div>
+        <button class="opcao @(App.Config.PastaPorEscola ? "on" : "")" style="border-bottom:0" @onclick="() => App.Configurar(p => p with { PastaPorEscola = !p.PastaPorEscola })"><span>Uma pasta para cada escola<small>Nos relatórios fotográficos</small></span><span class="marca"></span></button>
+    </div>
+
+    <div class="titulo-secao">Logo dos documentos</div>
+    <div class="painel" style="display:flex;align-items:center;gap:12px">
+        @if (App.LogoUrl() is { } logo)
+        {
+            <span class="logo-caixa" style="border:1px solid var(--borda)"><img src="@logo" alt="Logo" /></span>
+        }
+        else
+        {
+            <span class="texto2">Nenhum logo escolhido. O relatório sai sem logo.</span>
+        }
+        <button class="btn linha pequeno" style="margin-left:auto;flex:none" @onclick="EscolherLogo">@(App.Config.Logo is null ? "Escolher" : "Trocar")</button>
+    </div>
+    <p class="mini" style="margin:4px 2px">Use o mesmo logo do computador (a imagem fica guardada só no celular). O app só lê a planilha mestra; nunca grava nela. Versão @(typeof(Config).Assembly.GetName().Version?.ToString(3)).</p>
+</div>
+<Nav Ativo="inicio" />
+
+@code {
+    private (string Classe, string Texto) Selo => App.Base.Estado switch
+    {
+        EstadoBase.Atualizada when App.Base.UltimaLeitura is { } u => ("concluido", "LIDA " + u.ToLocalTime().ToString("HH:mm", Formato.PtBr)),
+        EstadoBase.Lendo => ("andamento", "LENDO"),
+        EstadoBase.SemPlanilha => ("atencao", "FALTA"),
+        _ => ("atencao", "VER AVISO"),
+    };
+
+    private async Task EscolherPasta()
+    {
+        if (await App.Plataforma.EscolherPastaAsync() is { } pasta)
+        {
+            App.Configurar(p => p with { Pasta = pasta });
+        }
+    }
+
+    private async Task EscolherLogo() => Erro = await App.EscolherLogoAsync();
+}

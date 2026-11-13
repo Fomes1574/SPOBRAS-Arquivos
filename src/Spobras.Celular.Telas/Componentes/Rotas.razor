@@ -1,0 +1,12 @@
+@* Rotas do app. O host (Android ou navegador de teste) coloca este componente na pagina. *@
+<Router AppAssembly="typeof(Rotas).Assembly">
+    <Found Context="rota">
+        <RouteView RouteData="rota" DefaultLayout="typeof(Casca)" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Casca)">
+            <Barra Titulo="Arquivos SPOBRAS" />
+            <div class="conteudo"><Aviso Tipo="atencao">Tela não encontrada.</Aviso><a class="btn" href="">Voltar ao início</a></div>
+        </LayoutView>
+    </NotFound>
+</Router>

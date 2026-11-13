@@ -1,0 +1,13 @@
+<nav class="nav" aria-label="Seções">
+    @foreach (var (id, href, nome) in Itens)
+    {
+        <a href="@href" class="@(Ativo == id ? "ativo" : "")" aria-current="@(Ativo == id ? "page" : null)"><Icone Nome="@id" />@nome</a>
+    }
+</nav>
+
+@code {
+    private static readonly (string Id, string Href, string Nome)[] Itens =
+        [("inicio", "", "Início"), ("base", "base", "Base"), ("relatorio", "relatorio", "Relatório"), ("pdf", "pdf", "PDF")];
+
+    [Parameter] public string Ativo { get; set; } = "inicio";
+}

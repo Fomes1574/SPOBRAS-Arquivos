@@ -166,50 +166,13 @@ public sealed class Composicao : IDisposable
     public string PastaDados { get; }
 
     /// <summary>Obras de um contrato digitado (aceita "-" no lugar da barra, sem diferenciar maiusculas).</summary>
-    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoContrato(string digitado)
-    {
-        string alvo = digitado.Trim().Replace('-', '/').Replace(' ', '/');
-        string? contrato = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Contratos
-            .FirstOrDefault(c => string.Equals(c.Trim(), alvo, StringComparison.OrdinalIgnoreCase));
-        return contrato is null ? [] : Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = contrato }, 100).Obras;
-    }
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoContrato(string digitado) => Spobras.Dados.Base.ProcuraObras.DoContrato(Base, digitado);
 
-    /// <summary>
-    /// Obras da escola digitada: primeiro o nome exato (sem acento e caixa); se nao houver, as escolas que
-    /// contem o texto. Uma escola pode estar em varios contratos.
-    /// </summary>
-    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDaEscola(string digitado)
-    {
-        string alvo = Spobras.Core.Base.Normalizacao.Busca(digitado.Trim());
-        if (alvo.Length < 4)
-        {
-            return [];
-        }
-
-        var escolas = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Escolas;
-        var exatas = escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e.Trim()) == alvo).ToList();
-        var achadas = exatas.Count > 0 ? exatas : escolas.Where(e => Spobras.Core.Base.Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal)).Take(10).ToList();
-        return [.. achadas.SelectMany(e => Base.Buscar(new Spobras.Core.Base.FiltroObras { Escola = e }, 100).Obras).Take(20)];
-    }
+    /// <summary>Obras da escola digitada (nome exato ou que contem o texto); uma escola pode estar em varios contratos.</summary>
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDaEscola(string digitado) => Spobras.Dados.Base.ProcuraObras.DaEscola(Base, digitado);
 
     /// <summary>Obras de um lote: "216", "lote 216" e "LOTE 216" sao o mesmo lote.</summary>
-    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoLote(string digitado)
-    {
-        static string Chave(string lote)
-        {
-            string digitos = new([.. lote.Where(char.IsDigit)]);
-            return digitos.Length > 0 ? digitos.TrimStart('0') : Spobras.Core.Base.Normalizacao.Busca(lote.Trim());
-        }
-
-        string alvo = Chave(digitado);
-        if (alvo.Length == 0)
-        {
-            return [];
-        }
-
-        var lotes = Base.Opcoes(new Spobras.Core.Base.FiltroObras()).Lotes.Where(l => Chave(l) == alvo).ToList();
-        return [.. lotes.SelectMany(l => Base.Buscar(new Spobras.Core.Base.FiltroObras { Lote = l }, 200).Obras)];
-    }
+    public IReadOnlyList<Spobras.Core.Base.ObraLida> ObrasDoLote(string digitado) => Spobras.Dados.Base.ProcuraObras.DoLote(Base, digitado);
 
     public ServicoPreferencias Preferencias { get; }
     public ServicoOperacoes Operacoes { get; }

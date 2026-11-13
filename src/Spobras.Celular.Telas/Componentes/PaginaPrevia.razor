@@ -1,0 +1,56 @@
+@using Spobras.Core.Relatorio
+@* Miniatura fiel da pagina: as mesmas posicoes do plano usado no Excel e no PDF. *@
+<div style="background:#fff;border:1px solid var(--borda);border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4%">
+    <div style="position:relative;width:100%;aspect-ratio:@Num(GradeRelatorio.Largura) / @Num(GradeRelatorio.AlturaDaPagina);font-size:@(Fonte)">
+        @{
+            var cab = Plano.Cabecalho;
+            double y4 = cab.Alturas.Take(4).Sum();
+            double xt = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoTitulo), xk = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDaCaixa);
+            double xv = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoValor), L = GradeRelatorio.Largura;
+        }
+        <div style="@Caixa(0, 0, xt, y4)">@if (Logo is not null)
+            {
+                <img src="@Logo" alt="" style="max-width:90%;max-height:90%;object-fit:contain" />
+            }</div>
+        <div style="@Caixa(xt, 0, xk - xt, y4);font-weight:800;font-size:1.5em">RELATÓRIO FOTOGRÁFICO</div>
+        <div style="@Caixa(xk, 0, L - xk, cab.Alturas[0]);font-weight:700">SÃO PAULO OBRAS - SPOBRAS</div>
+        <div style="@Caixa(xk, cab.Alturas[0], L - xk, cab.Alturas[1])">@(Plano.Dados.Data is { } d ? "DATA " + CabecalhoRelatorio.Data(d) : "")</div>
+        <div style="@Caixa(xk, cab.Alturas[0] + cab.Alturas[1], L - xk, cab.Alturas[2] + cab.Alturas[3])">@Plano.Dados.Contratada</div>
+        @for (int i = 0; i < cab.Campos.Count; i++)
+        {
+            var c = cab.Campos[i];
+            double y = cab.YDoCampo(i), h = cab.Alturas[cab.PrimeiroCampo + i];
+            <div style="@Caixa(0, y, xv, h, esquerda: true);font-weight:700">@c.Rotulo</div>
+            <div style="@Caixa(xv, y, L - xv, h, esquerda: true)">@c.Valor@(c.Dupla ? $"   {c.Rotulo2} {c.Valor2}" : "")</div>
+        }
+        <div style="@Caixa(0, cab.YDoTitulo + GradeRelatorio.LinhasDoTitulo[0], L, GradeRelatorio.LinhasDoTitulo[1]);background:#D9D9D9;font-weight:700">RELATÓRIO FOTOGRÁFICO</div>
+        @foreach (var f in Pagina.Fotos)
+        {
+            <img src="@Miniatura(f)" alt="" style="position:absolute;@Pos(f.Imagem.X, f.Imagem.Y, f.Imagem.Largura, f.Imagem.Altura)" />
+            @if (f.Titulo.Length > 0)
+            {
+                <div style="position:absolute;@Pos(f.Texto.X, f.Texto.Y, f.Texto.Largura, GradeRelatorio.AlturaDaLinha);text-align:center;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">@f.Titulo</div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlanoRelatorio Plano { get; set; } = default!;
+    [Parameter, EditorRequired] public PaginaRelatorio Pagina { get; set; } = default!;
+    [Parameter, EditorRequired] public Func<FotoRelatorio, string> Foto { get; set; } = default!;
+    [Parameter] public string? Logo { get; set; }
+
+    // 11 px do Excel na largura da pagina (cerca de 720 px) vira uma fracao da largura da tela.
+    private static string Fonte => "calc(min(100vw, 720px) * 0.0118)";
+
+    private static string Num(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string Pos(double x, double y, double l, double a) =>
+        $"left:{Num(x / GradeRelatorio.Largura * 100)}%;top:{Num(y / GradeRelatorio.AlturaDaPagina * 100)}%;width:{Num(l / GradeRelatorio.Largura * 100)}%;height:{Num(a / GradeRelatorio.AlturaDaPagina * 100)}%";
+
+    private static string Caixa(double x, double y, double l, double a, bool esquerda = false) =>
+        $"position:absolute;{Pos(x, y, l, a)};border:1px solid #555;display:flex;align-items:center;justify-content:{(esquerda ? "flex-start" : "center")};text-align:center;padding:0 2px;overflow:hidden;white-space:nowrap;line-height:1.1";
+
+    private string Miniatura(FotoNaPagina f) => Foto(f.Foto);
+}

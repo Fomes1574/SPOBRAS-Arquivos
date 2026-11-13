@@ -1,0 +1,114 @@
+@page "/relatorio/fotos"
+@inherits Tela
+
+<Barra Titulo="Relatório fotográfico" Sub="@Resumo" Voltar="relatorio">
+    <a class="acao texto" href="relatorio/conferir" style="text-decoration:none">Seguir</a>
+</Barra>
+<div class="conteudo" style="padding-bottom:90px">
+    <Etapas Atual="1" />
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    @foreach (var r in _recusadas)
+    {
+        <Aviso Tipo="atencao">@r</Aviso>
+    }
+    <div class="linha-btns" style="margin-bottom:10px"><button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button></div>
+    <div class="fotos">
+        @for (int i = 0; i < Fotos.Count; i++)
+        {
+            int n = i;
+            var f = Fotos[n];
+            <button class="foto" @onclick="() => _aberta = n" aria-label="@Rotulo(n, f)">
+                <img src="@App.Rascunho.Miniatura(f)" alt="" />
+                <span class="n">@(n + 1)</span>
+                @if (f.Legenda.Length > 0)
+                {
+                    <span class="leg">@f.Legenda</span>
+                }
+            </button>
+        }
+        <a class="foto add" href="relatorio/camera" style="text-decoration:none">+ Tirar foto</a>
+    </div>
+    <Aviso Tipo="ok"><span>Fotos guardadas no rascunho dentro do app. Pode sair, atender ligação ou desligar o celular: ao voltar, está tudo aqui.</span></Aviso>
+    <p class="mini" style="margin:10px 2px 0">Toque numa foto para escrever a legenda, girar, mudar de lugar ou tirar. Foto sem legenda vai sem texto embaixo.</p>
+</div>
+<a class="fab" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
+<Nav Ativo="relatorio" />
+<Ocupado Texto="@Trabalhando" />
+
+@if (_aberta is int a && a < Fotos.Count)
+{
+    var f = Fotos[a];
+    <Folha Aberta="true" Titulo="@($"Foto {a + 1} de {Fotos.Count}")" AoFechar="() => _aberta = null">
+        <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" />
+        <CampoTexto @key="f.Arquivo" Rotulo="Legenda (opcional)" Valor="@f.Legenda" Dica="Ex.: execução do piso da sala 3" AoMudar="v => App.Rascunho.Legendar(a, v)" />
+        <div class="linha-btns" style="margin-bottom:8px">
+            <button class="btn linha pequeno" @onclick="() => App.Rascunho.Girar(a)">Girar ↻</button>
+            <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => Mover(a, a - 1)">‹ Mover</button>
+            <button class="btn linha pequeno" disabled="@(a == Fotos.Count - 1)" @onclick="() => Mover(a, a + 1)">Mover ›</button>
+        </div>
+        <div class="linha-btns" style="margin-bottom:8px">
+            <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => _aberta = a - 1">‹ Anterior</button>
+            <button class="btn linha pequeno" disabled="@(a == Fotos.Count - 1)" @onclick="() => _aberta = a + 1">Próxima ›</button>
+        </div>
+        @if (_confirmarRemocao)
+        {
+            <Aviso Tipo="atencao">Tirar esta foto do relatório? A foto da galeria do celular não é apagada.</Aviso>
+            <div class="linha-btns" style="margin-bottom:8px">
+                <button class="btn pequeno" style="border-color:var(--vermelho);color:var(--vermelho)" @onclick="() => Remover(a)">Tirar do relatório</button>
+                <button class="btn linha pequeno" @onclick="() => _confirmarRemocao = false">Manter</button>
+            </div>
+        }
+        else
+        {
+            <button class="link" style="color:var(--vermelho);margin-bottom:6px" @onclick="() => _confirmarRemocao = true">Tirar esta foto do relatório</button>
+        }
+        <button class="btn primario" @onclick="() => _aberta = null">Pronto</button>
+    </Folha>
+}
+
+@code {
+    private int? _aberta;
+    private bool _confirmarRemocao;
+    private IReadOnlyList<string> _recusadas = [];
+
+    private List<FotoRascunho> Fotos => App.Rascunho.Dados.Fotos;
+
+    private string Resumo
+    {
+        get
+        {
+            if (Fotos.Count == 0)
+            {
+                return "Nenhuma foto ainda";
+            }
+
+            int porPagina = Math.Max(1, App.Rascunho.Dados.FotosPorPagina);
+            int paginas = (Fotos.Count + porPagina - 1) / porPagina;
+            return $"{Formato.Plural(Fotos.Count, "foto", "fotos")} · cerca de {Formato.Plural(paginas, "página", "páginas")}";
+        }
+    }
+
+    private Task DaGaleria() => Executar("Copiando as fotos…", async () =>
+    {
+        var escolhidas = await App.Plataforma.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);
+        _recusadas = await Task.Run(() => App.Rascunho.AdicionarCopiadas(escolhidas.Where(e => e.Local is not null).Select(e => e.Local!)));
+    });
+
+    private static string Rotulo(int n, FotoRascunho f) => f.Legenda.Length > 0 ? $"Foto {n + 1}: {f.Legenda}" : $"Foto {n + 1}";
+
+    private void Mover(int de, int para)
+    {
+        App.Rascunho.Mover(de, para);
+        _aberta = para;
+    }
+
+    private void Remover(int i)
+    {
+        App.Rascunho.Remover(i);
+        _confirmarRemocao = false;
+        _aberta = Fotos.Count == 0 ? null : Math.Min(i, Fotos.Count - 1);
+    }
+}

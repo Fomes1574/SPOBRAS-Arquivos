@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+@inject AppCelular App
+@implements IDisposable
+
+<div class="app">
+    @Body
+</div>
+
+@code {
+    protected override void OnInitialized() => App.Base.Mudou += Avisar;
+
+    private void Avisar() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => App.Base.Mudou -= Avisar;
+}

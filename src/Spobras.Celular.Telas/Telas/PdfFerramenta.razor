@@ -1,0 +1,188 @@
+@page "/pdf/{Acao}"
+@inherits Tela
+
+<Barra Titulo="@Nome" Sub="@Sub" Voltar="pdf" />
+<div class="conteudo">
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    @if (_resultado is { } r)
+    {
+        <Aviso Tipo="@(r.Arquivos.Count > 0 ? "ok" : "atencao")">@if (r.Arquivos.Count > 0)
+            {
+                <b>Pronto! </b>
+            }@r.Mensagem @(r.Arquivos.Count > 0 ? $"Salvo em {App.Config.Pasta?.Nome}." : "")</Aviso>
+        @if (r.Arquivos.Count > 0)
+        {
+            <div class="painel" style="padding:4px 14px">
+                @foreach (var a in r.Arquivos)
+                {
+                    <ArquivoGerado Arquivo="a" />
+                }
+            </div>
+            <button class="btn primario" style="margin-bottom:8px" @onclick="() => App.Plataforma.CompartilharAsync(r.Locais)">Compartilhar</button>
+        }
+        <button class="btn linha" @onclick="Recomecar">Fazer outro</button>
+    }
+    else
+    {
+        <div class="painel">
+            <h2>@(Fotos ? "Fotos" : Varios ? "Arquivos, na ordem" : "Arquivo")</h2>
+            @if (_arquivos.Count == 0)
+            {
+                <p class="texto2" style="margin:0 0 10px">@(Fotos ? "Nenhuma foto escolhida." : "Nenhum PDF escolhido.")</p>
+            }
+            <ul class="lista-arq">
+                @for (int i = 0; i < _arquivos.Count; i++)
+                {
+                    int n = i;
+                    <li>
+                        <b>@(n + 1). @_arquivos[n].Nome</b>
+                        @if (Varios)
+                        {
+                            <button aria-label="Subir" disabled="@(n == 0)" @onclick="() => Mover(n, n - 1)">↑</button>
+                            <button aria-label="Descer" disabled="@(n == _arquivos.Count - 1)" @onclick="() => Mover(n, n + 1)">↓</button>
+                        }
+                        <button aria-label="Tirar da lista" @onclick="() => _arquivos.RemoveAt(n)">✕</button>
+                    </li>
+                }
+            </ul>
+            @if (Varios || _arquivos.Count == 0)
+            {
+                <button class="btn linha pequeno" style="width:100%;margin-top:10px" @onclick="Escolher">@(Fotos ? "Escolher fotos" : Varios ? "Escolher PDFs" : "Escolher o PDF")</button>
+            }
+            @if (_paginas > 0)
+            {
+                <p class="mini" style="margin:8px 0 0">@Formato.Plural(_paginas, "página", "páginas") no PDF.</p>
+            }
+        </div>
+
+        @switch (Acao)
+        {
+            case "separar":
+                <CampoTexto Rotulo="Páginas que quer extrair" Valor="@_paginasTexto" Dica="Ex.: 1-3, 5, 8-10" AoMudar="v => _paginasTexto = v" />
+                <p class="mini" style="margin:-6px 2px 12px">Cada intervalo vira um arquivo. O PDF original não muda.</p>
+                break;
+            case "fotos":
+                <CampoTexto Rotulo="Nome do PDF" Valor="@_nome" AoMudar="v => _nome = v" />
+                break;
+            case "numerar":
+                <div class="painel">
+                    <button class="opcao @(_numerar ? "on" : "")" @onclick="() => _numerar = !_numerar"><span>Numerar as páginas<small>“Página X de Y” no rodapé, à direita</small></span><span class="marca"></span></button>
+                    <button class="opcao @(_logo ? "on" : "")" style="border-bottom:0" @onclick="() => _logo = !_logo"><span>Colocar o logo<small>@(App.Config.Logo is null ? "Escolha o logo nas Configurações" : "No alto, à esquerda")</small></span><span class="marca"></span></button>
+                    <CampoTexto Rotulo="A partir da página" Valor="@_aPartir.ToString()" AoMudar="v => _aPartir = int.TryParse(v, out int n) && n > 0 ? n : 1" Estilo="margin:8px 0 0" />
+                </div>
+                break;
+        }
+        <p class="mini" style="margin:0 2px 10px">Salva em: @(App.Config.Pasta?.Nome ?? "escolha a pasta ao salvar") · nada é sobrescrito.</p>
+        <button class="btn primario" @onclick="Fazer" disabled="@(!Pronto)">@Verbo</button>
+    }
+</div>
+<Nav Ativo="pdf" />
+<Ocupado Texto="@Trabalhando" />
+
+@code {
+    [Parameter] public string Acao { get; set; } = "";
+
+    private List<Escolhido> _arquivos = [];
+    private PdfPronto? _resultado;
+    private int _paginas;
+    private string _paginasTexto = "", _nome = "Fotos";
+    private bool _numerar = true, _logo;
+    private int _aPartir = 1;
+
+    private bool Varios => Acao is "juntar" or "fotos";
+    private bool Fotos => Acao == "fotos";
+    private string Nome => Pdf.Ferramentas.FirstOrDefault(f => f.Id == Acao).Nome ?? "PDF";
+    private string Sub => Pdf.Ferramentas.FirstOrDefault(f => f.Id == Acao).Texto ?? "";
+
+    private bool Pronto => Acao switch
+    {
+        "juntar" => _arquivos.Count >= 2,
+        "separar" => _arquivos.Count == 1 && _paginasTexto.Trim().Length > 0,
+        "numerar" => _arquivos.Count == 1 && (_numerar || _logo),
+        _ => _arquivos.Count >= 1,
+    };
+
+    private string Verbo => Acao switch
+    {
+        "juntar" => "Juntar",
+        "separar" => "Separar",
+        "reduzir" => "Reduzir",
+        "fotos" => "Criar o PDF",
+        "numerar" => "Aplicar",
+        "excel" => "Converter para Excel",
+        _ => "Fazer",
+    };
+
+    private string? _acaoAtual;
+
+    protected override void OnParametersSet()
+    {
+        if (!Pdf.Ferramentas.Any(f => f.Id == Acao))
+        {
+            Ir("pdf");
+            return;
+        }
+
+        // A mesma tela serve todas as ferramentas: ao trocar de ferramenta, comeca do zero.
+        if (_acaoAtual != Acao)
+        {
+            _acaoAtual = Acao;
+            Erro = null;
+            _paginasTexto = "";
+            Recomecar();
+        }
+    }
+
+    private Task Escolher() => Executar("Copiando…", async () =>
+    {
+        var novos = Fotos ? await App.Pdf.EscolherFotosAsync() : await App.Pdf.EscolherPdfsAsync(Varios);
+        _arquivos.AddRange(novos.Where(n => n.Local is not null));
+        _paginas = !Varios && _arquivos.Count == 1 ? await Task.Run(() => PdfCelular.Paginas(_arquivos[0].Local!)) : 0;
+    });
+
+    private void Mover(int de, int para)
+    {
+        var a = _arquivos[de];
+        _arquivos.RemoveAt(de);
+        _arquivos.Insert(para, a);
+    }
+
+    private async Task GarantirPasta()
+    {
+        if (App.Config.Pasta is null && await App.Plataforma.EscolherPastaAsync() is { } pasta)
+        {
+            App.Configurar(p => p with { Pasta = pasta });
+        }
+    }
+
+    private Task Fazer() => Executar("Trabalhando no PDF…", async () =>
+    {
+        await GarantirPasta();
+        if (App.Config.Pasta is null)
+        {
+            return;
+        }
+
+        _resultado = Acao switch
+        {
+            "juntar" => await App.Pdf.JuntarAsync(_arquivos),
+            "separar" => await App.Pdf.SepararAsync(_arquivos[0], _paginasTexto),
+            "reduzir" => await App.Pdf.ReduzirAsync(_arquivos[0]),
+            "fotos" => await App.Pdf.FotosEmPdfAsync(_arquivos, _nome),
+            "numerar" => await App.Pdf.NumerarAsync(_arquivos[0], _numerar, _logo, _aPartir),
+            _ => await App.Pdf.ParaExcelAsync(_arquivos[0]),
+        };
+        App.Registrar(_resultado.Arquivos);
+    });
+
+    private void Recomecar()
+    {
+        _resultado = null;
+        _arquivos = [];
+        _paginas = 0;
+        App.Pdf.LimparEntrada();
+    }
+}

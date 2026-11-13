@@ -1,0 +1,24 @@
+@page "/pdf"
+@inherits Tela
+
+<Barra Titulo="PDF" Sub="Tudo no celular, sem internet" />
+<div class="conteudo">
+    @foreach (var (id, nome, texto) in Ferramentas)
+    {
+        <a class="atalho" href="pdf/@id"><span class="ico"><Icone Nome="@id" Cor="@(id == "excel" ? "#1E7B34" : "#231F20")" /></span><span><b>@nome</b><span>@texto</span></span></a>
+    }
+    <Aviso>Excel para PDF fica no computador: precisa do Excel. No celular, abra a planilha no app do Excel e salve como PDF.</Aviso>
+</div>
+<Nav Ativo="pdf" />
+
+@code {
+    public static readonly (string Id, string Nome, string Texto)[] Ferramentas =
+    [
+        ("juntar", "Juntar PDFs", "Vários arquivos num só, na ordem que você escolher"),
+        ("excel", "PDF para Excel", "A tabela do PDF numa planilha igual a ele"),
+        ("fotos", "Fotos em PDF", "Da galeria, uma foto por página"),
+        ("separar", "Separar páginas", "Extrair as páginas que quiser"),
+        ("reduzir", "Reduzir PDF", "Arquivo menor para mandar por e-mail ou WhatsApp"),
+        ("numerar", "Logo e numeração", "Logo e “Página X de Y” a partir da página que escolher"),
+    ];
+}

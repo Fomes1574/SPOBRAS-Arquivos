@@ -1,0 +1,212 @@
+@page "/obra/{Id:long}"
+@inherits Tela
+
+@if (_obra is not { } o)
+{
+    <Barra Titulo="Obra" Voltar="base" />
+    <div class="conteudo"><Aviso Tipo="atencao">Esta obra não está mais na base (a planilha mudou).</Aviso><a class="btn" href="base">Voltar à lista</a></div>
+}
+else
+{
+    var (classe, texto) = SelosObra.Selo(o);
+    <Barra Titulo="@o.Empreendimento" Sub="@string.Join(" · ", new[] { o.Contrato, SelosObra.Lote(o.Lote) }.Where(x => x.Length > 0))" Voltar="base" />
+    <div class="conteudo">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <span class="selo @classe">@texto</span>
+            <span class="mini">@string.Join(" · ", new[] { o.Portaria, o.Contratada }.Where(x => !string.IsNullOrWhiteSpace(x)))</span>
+        </div>
+        @if (_situacao == SituacaoContrato.Desconhecido)
+        {
+            <Aviso Tipo="atencao">Status do contrato que o app ainda não conhece (“@(o.StatusContrato ?? "vazio")”): tratado como em andamento.</Aviso>
+        }
+        <button class="btn primario" style="margin-bottom:12px" @onclick="UsarNoRelatorio">Relatório fotográfico</button>
+
+        <div class="painel">
+            <h2>Valores</h2>
+            <div class="kv">
+                <div><span>Valor original</span><b>@Formato.Reais(o.ValorEmpreendimento)</b></div>
+                <div><span>Aditado</span><b style="color:var(--laranja)">+ @Formato.Reais(o.ValorAditado)@if (MedicoesEmTramite.PercentualAditado(o) is { } pct)
+                        {
+                            <span style="font-weight:600;font-size:12px;display:inline"> (@pct.ToString("0.0", Formato.PtBr)%)</span>
+                        }</b></div>
+                <div class="largo" style="background:var(--fundo);border-radius:10px;padding:8px 10px"><span>Contratado com aditamento</span><b style="font-size:17px">@Formato.Reais(o.ValorContratadoComAditamento)</b></div>
+                <div><span>Pago</span><b style="color:var(--verde)">@Formato.Reais(o.ValorPago)</b></div>
+                <div><span>Saldo a pagar</span><b>@Formato.Reais(o.SaldoAPagar)</b></div>
+            </div>
+            @if (o.ValorContratadoComAditamento is > 0 and var total)
+            {
+                decimal pago = Math.Clamp((o.ValorPago ?? 0) / total * 100, 0, 100);
+                decimal tram = Math.Clamp(_totalTramite / total * 100, 0, 100 - pago);
+                <div class="barra-prog" style="margin-top:10px;display:flex"><i style="width:@Pct(pago);background:var(--verde);border-radius:0"></i><i style="width:@Pct(tram);background:var(--laranja);border-radius:0"></i></div>
+                <div class="mini" style="display:flex;gap:12px;flex-wrap:wrap">
+                    <span><b style="color:var(--verde)">■</b> Pago @pago.ToString("0", Formato.PtBr)%</span>
+                    @if (_tramite.Count > 0)
+                    {
+                        <span><b style="color:var(--laranja)">■</b> Em trâmite @tram.ToString("0", Formato.PtBr)%</span>
+                    }
+                    <span>Saldo a pagar @((100 - pago).ToString("0", Formato.PtBr))%</span>
+                </div>
+            }
+        </div>
+
+        <div class="painel">
+            <h2>Prazo</h2>
+            @if (o.DataOs is { } os && o.Termino is { } fim && fim > os)
+            {
+                var hoje = DateOnly.FromDateTime(App.Agora().LocalDateTime);
+                double pctHoje = Math.Clamp((hoje.DayNumber - os.DayNumber) / (double)(fim.DayNumber - os.DayNumber) * 100, 0, 100);
+                <div class="tempo"><div class="trilho"></div><div class="feito" style="width:@Pct((decimal)pctHoje)"></div><div class="ponto" style="left:0"></div><div class="hoje" style="left:@Pct((decimal)pctHoje)"></div><div class="ponto" style="left:100%;border-color:#A9A9A4"></div></div>
+                <div class="tempo-rotulos"><span>Data da OS<br />@Formato.Data(os)</span><span style="text-align:right">Término<br />@Formato.Data(fim)</span></div>
+                <p class="texto2" style="margin:8px 0 0">@Prazo(os, fim, hoje)</p>
+            }
+            else
+            {
+                <div class="kv">
+                    <div><span>Data da OS</span><b>@(o.DataOs is null ? "Sem informação" : Formato.Data(o.DataOs))</b></div>
+                    <div><span>Término</span><b>@(o.Termino is null ? "Sem informação" : Formato.Data(o.Termino))</b></div>
+                </div>
+            }
+        </div>
+
+        @if (_situacao is SituacaoContrato.Andamento or SituacaoContrato.Desconhecido)
+        {
+            <div class="painel">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">Medições em trâmite</h2><span class="mini">@(_tramite.Count == 0 ? "nenhuma" : Formato.Plural(_tramite.Count, "a pagar", "a pagar"))</span></div>
+                <p class="mini" style="margin:4px 0 6px">Desta escola neste contrato, ainda sem pagamento. Valor considerado + reajuste.</p>
+                @if (_tramite.Count > 0)
+                {
+                    <table class="tabela">
+                        <tr><th>Nº</th><th>Status</th><th style="text-align:right">Valor</th></tr>
+                        @foreach (var m in _tramite)
+                        {
+                            <tr><td>@m.Numero</td><td><span class="selo @(m.Status.Contains("AN", StringComparison.OrdinalIgnoreCase) && m.Status.Contains("LISE", StringComparison.OrdinalIgnoreCase) || m.Status.Contains("DEVOLU", StringComparison.OrdinalIgnoreCase) ? "atencao" : "andamento")">@SelosObra.StatusCurto(m.Status)</span></td><td class="n">@Formato.Reais(m.Valor)</td></tr>
+                        }
+                        <tr><td colspan="2"><b>Total em trâmite</b></td><td class="n"><b>@Formato.Reais(_totalTramite)</b></td></tr>
+                    </table>
+                }
+            </div>
+        }
+        else if (_situacao == SituacaoContrato.Concluido)
+        {
+            <Aviso>Contrato concluído: só o pago e o saldo a pagar, sem medições em trâmite.</Aviso>
+        }
+
+        <div class="painel">
+            <h2>Orçamento</h2>
+            <div class="kv">
+                <div><span>Portaria</span><b>@Valor(o.Portaria)</b></div>
+                <div><span>Dotação</span><b>@Valor(o.Dotacao)</b></div>
+                <div class="largo"><span>Contrato de receita</span><b>@Valor(o.ContratoReceita)</b></div>
+                <div class="largo"><span>Processo SEI</span><b>@Valor(o.ProcessoSei)</b></div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(o.Escopo))
+        {
+            <div class="painel"><h2>Escopo</h2><p class="texto2" style="margin:0;white-space:pre-line">@o.Escopo</p></div>
+        }
+
+        @if (_outros.Count > 0)
+        {
+            <div class="painel">
+                <h2>Mesma escola em outros contratos</h2>
+                @foreach (var x in _outros)
+                {
+                    var (c2, t2) = SelosObra.Selo(x);
+                    <a class="obra" href="obra/@x.Id" style="margin:0 0 8px"><div class="l1"><span class="nome">@x.Contrato</span><span class="selo @c2">@t2</span></div><div class="l2">@string.Join(" · ", new[] { SelosObra.Lote(x.Lote), x.DataOs is null ? "Sem Data da OS" : "OS " + Formato.Data(x.DataOs) }.Where(s => s.Length > 0))</div></a>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(o.Lote))
+        {
+            <button class="btn linha" @onclick="VerLote">Ver as obras do @SelosObra.Lote(o.Lote).ToLowerInvariant()</button>
+        }
+    </div>
+
+    <Folha Aberta="_perguntar" Titulo="Já existe um relatório em andamento" AoFechar="() => _perguntar = false">
+        <p class="texto2" style="margin:0 0 10px">O rascunho atual é de “@App.Rascunho.Dados.Unidade”, com @Formato.Plural(App.Rascunho.Dados.Fotos.Count, "foto", "fotos").</p>
+        <button class="btn primario" style="margin-bottom:8px" @onclick="() => Aplicar(novo: true)">Começar um relatório novo</button>
+        <button class="btn linha" @onclick="() => Aplicar(novo: false)">Trocar só os dados (manter as fotos)</button>
+    </Folha>
+}
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    private ObraLida? _obra;
+    private SituacaoContrato _situacao;
+    private IReadOnlyList<MedicaoEmTramite> _tramite = [];
+    private decimal _totalTramite;
+    private IReadOnlyList<ObraLida> _outros = [];
+    private bool _perguntar;
+
+    protected override void OnParametersSet() => Carregar();
+
+    protected override void BaseMudou() => Carregar();
+
+    private void Carregar()
+    {
+        _obra = App.Base.Obra(Id);
+        if (_obra is null)
+        {
+            return;
+        }
+
+        _situacao = App.Base.Situacao(_obra);
+        _tramite = App.Base.EmTramite(_obra);
+        _totalTramite = _tramite.Sum(m => m.Valor);
+        _outros = App.Base.OutrosContratos(_obra);
+    }
+
+    private static string Pct(decimal v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";
+
+    private static string Valor(string? v) => string.IsNullOrWhiteSpace(v) ? "Sem informação" : v.Trim();
+
+    private static string Prazo(DateOnly os, DateOnly fim, DateOnly hoje)
+    {
+        if (hoje < os)
+        {
+            return $"Começa em {os.DayNumber - hoje.DayNumber} dias.";
+        }
+
+        int meses = Math.Max(1, (int)Math.Round((fim.DayNumber - os.DayNumber) / 30.44));
+        if (hoje > fim)
+        {
+            return $"Prazo terminou há {hoje.DayNumber - fim.DayNumber} dias ({meses} meses de prazo).";
+        }
+
+        int passados = (int)Math.Round((hoje.DayNumber - os.DayNumber) / 30.44);
+        return $"Hoje: {passados} de {meses} meses · faltam {fim.DayNumber - hoje.DayNumber} dias";
+    }
+
+    private void UsarNoRelatorio()
+    {
+        var d = App.Rascunho.Dados;
+        bool outraEscola = d.Unidade.Trim().Length > 0 && !Spobras.Dados.Base.ProcuraObras.MesmaEscola(d.Unidade, _obra!.Empreendimento);
+        if (outraEscola && d.Fotos.Count > 0)
+        {
+            _perguntar = true;
+            return;
+        }
+
+        Aplicar(novo: false);
+    }
+
+    private void Aplicar(bool novo)
+    {
+        if (novo)
+        {
+            App.Rascunho.Recomecar();
+        }
+
+        App.Rascunho.AplicarObra(_obra!);
+        Ir("relatorio");
+    }
+
+    private void VerLote()
+    {
+        App.FiltroBase = new FiltroObras { Lote = _obra!.Lote };
+        Ir("base");
+    }
+}

@@ -1,0 +1,33 @@
+@page "/relatorio/pronto"
+@inherits Tela
+
+<Barra Titulo="Relatório fotográfico" Sub="Concluído" />
+<div class="conteudo">
+    @if (App.UltimoRelatorio is { } r)
+    {
+        <Aviso Tipo="ok"><b>Pronto!</b> “@r.Nome” salvo em @(r.Arquivos.Count > 1 ? "Excel e PDF" : r.Arquivos[0].Nome.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? "PDF" : "Excel"), na pasta @r.Onde. @Formato.Plural(r.Fotos, "foto", "fotos") em @Formato.Plural(r.Paginas, "página", "páginas").</Aviso>
+        <div class="painel" style="padding:4px 14px">
+            @foreach (var a in r.Arquivos)
+            {
+                <ArquivoGerado Arquivo="a" />
+            }
+        </div>
+        <button class="btn primario" style="margin-bottom:8px" @onclick="() => App.Plataforma.CompartilharAsync(r.Locais)">Compartilhar (WhatsApp, e-mail…)</button>
+        <a class="btn linha" style="margin-bottom:8px" href="relatorio/fotos">Voltar ao rascunho</a>
+        <button class="btn linha" style="margin-bottom:8px" @onclick="Novo">Começar um relatório novo</button>
+        <a class="btn linha" href="">Voltar ao início</a>
+    }
+    else
+    {
+        <Aviso Tipo="atencao">Nenhum relatório gerado agora.</Aviso>
+        <a class="btn" href="relatorio">Ir para o relatório</a>
+    }
+</div>
+
+@code {
+    private void Novo()
+    {
+        App.Rascunho.Recomecar();
+        Ir("relatorio");
+    }
+}

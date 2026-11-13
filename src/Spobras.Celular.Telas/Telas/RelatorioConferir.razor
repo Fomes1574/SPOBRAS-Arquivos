@@ -1,0 +1,136 @@
+@page "/relatorio/conferir"
+@using Spobras.Core.Relatorio
+@inherits Tela
+
+<Barra Titulo="Relatório fotográfico" Sub="@Resumo" Voltar="relatorio/fotos" />
+<div class="conteudo">
+    <Etapas Atual="2" />
+    @foreach (var p in _problemas)
+    {
+        <Aviso Tipo="atencao">@p</Aviso>
+    }
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    <div class="chips" role="radiogroup" aria-label="Fotos por página">
+        @foreach (int n in OpcoesRelatorio.Capacidades)
+        {
+            <button class="chip @(App.Rascunho.Dados.FotosPorPagina == n ? "on" : "")" role="radio" aria-checked="@(App.Rascunho.Dados.FotosPorPagina == n ? "true" : "false")" @onclick="() => PorPagina(n)">@(n == 1 ? "1 por página" : n == App.Rascunho.Dados.FotosPorPagina ? $"{n} por página" : n.ToString())</button>
+        }
+    </div>
+    @if (_plano is { } plano && plano.Paginas.Count > 0)
+    {
+        int i = Math.Clamp(_pagina, 0, plano.Paginas.Count - 1);
+        <PaginaPrevia Plano="plano" Pagina="plano.Paginas[i]" Foto="MiniaturaDe" Logo="@_logo" />
+        <div style="display:flex;justify-content:center;gap:16px;align-items:center;margin:8px 0 12px">
+            <button class="link" disabled="@(i == 0)" @onclick="() => _pagina = i - 1">‹ Anterior</button>
+            <span class="mini">Página @(i + 1) de @plano.Paginas.Count</span>
+            <button class="link" disabled="@(i >= plano.Paginas.Count - 1)" @onclick="() => _pagina = i + 1">Próxima ›</button>
+        </div>
+    }
+    <div class="painel">
+        <h2>Gerar</h2>
+        @foreach (var (f, nome, explica) in Formatos)
+        {
+            <button class="opcao @(App.Config.Formato == f ? "on" : "")" @onclick="() => App.Configurar(p => p with { Formato = f })"><span>@nome@if (explica is not null)
+                    {
+                        <small>@explica</small>
+                    }</span><span class="marca"></span></button>
+        }
+        <div class="campo" style="margin:10px 0 0">
+            <label>Salvar em</label>
+            <button class="btn linha" style="justify-content:space-between;font-weight:400" @onclick="EscolherPasta">
+                <span style="text-align:left;overflow-wrap:anywhere">@(App.Config.Pasta is { } pasta ? pasta.Nome + (App.Config.PastaPorEscola && App.Rascunho.Dados.Unidade.Trim().Length > 0 ? " › " + App.Rascunho.Dados.Unidade.Trim() : "") : "Escolher a pasta")</span>
+                <span style="color:var(--azul);font-weight:600">@(App.Config.Pasta is null ? "Escolher" : "Trocar")</span>
+            </button>
+        </div>
+        <button class="opcao @(App.Config.PastaPorEscola ? "on" : "")" style="border-bottom:0" @onclick="() => App.Configurar(p => p with { PastaPorEscola = !p.PastaPorEscola })"><span>Criar uma pasta para cada escola<small>Os relatórios de cada escola ficam juntos</small></span><span class="marca"></span></button>
+    </div>
+    <button class="btn primario" @onclick="Gerar" disabled="@(_problemas.Count > 0)">Gerar relatório</button>
+</div>
+<Nav Ativo="relatorio" />
+<Ocupado Texto="@Trabalhando" Detalhe="@_progresso" />
+
+@code {
+    private static readonly (FormatoGerado F, string Nome, string? Explica)[] Formatos =
+    [
+        (FormatoGerado.ExcelEPdf, "Excel e PDF", "O Excel para ajustar no computador, o PDF para enviar"),
+        (FormatoGerado.Excel, "Só Excel (.xlsx)", null),
+        (FormatoGerado.Pdf, "Só PDF", null),
+    ];
+
+    private PlanoRelatorio? _plano;
+    private IReadOnlyList<string> _problemas = [];
+    private int _pagina;
+    private string? _logo;
+    private string? _progresso;
+    private readonly Dictionary<string, string> _miniaturas = [];
+
+    private string Resumo => _plano is { } p ? $"{Formato.Plural(p.TotalDeFotos, "foto", "fotos")} · {Formato.Plural(p.Paginas.Count, "página", "páginas")}" : "Conferir";
+
+    protected override void Iniciar()
+    {
+        _logo = App.LogoUrl();
+        Planejar();
+    }
+
+    private void Planejar()
+    {
+        _problemas = App.Rascunho.Problemas();
+        try
+        {
+            _plano = App.Rascunho.Dados.Fotos.Count > 0 ? App.Rascunho.Plano() : null;
+        }
+        catch (Spobras.Documentos.Imagens.FotoInvalidaException ex)
+        {
+            _plano = null;
+            _problemas = [.. _problemas, ex.Message];
+        }
+    }
+
+    private string MiniaturaDe(FotoRelatorio f)
+    {
+        var r = App.Rascunho.Dados.Fotos.FirstOrDefault(x => App.Rascunho.Caminho(x) == f.Caminho);
+        return r is null ? "" : App.Rascunho.Miniatura(r);
+    }
+
+    private void PorPagina(int n)
+    {
+        App.Rascunho.Alterar(d => d with { FotosPorPagina = n });
+        _pagina = 0;
+        Planejar();
+    }
+
+    private async Task EscolherPasta()
+    {
+        var pasta = await App.Plataforma.EscolherPastaAsync();
+        if (pasta is not null)
+        {
+            App.Configurar(p => p with { Pasta = pasta });
+        }
+    }
+
+    private Task Gerar() => Executar("Gerando o relatório…", async () =>
+    {
+        if (App.Config.Pasta is null)
+        {
+            await EscolherPasta();
+            if (App.Config.Pasta is null)
+            {
+                return;
+            }
+        }
+
+        int total = App.Rascunho.Dados.Fotos.Count * (App.Config.Formato == FormatoGerado.ExcelEPdf ? 2 : 1);
+        var progresso = new Progress<int>(n => InvokeAsync(() =>
+        {
+            _progresso = $"{Math.Min(n, total)} de {total} fotos colocadas";
+            StateHasChanged();
+        }));
+        var pronto = await App.Rascunho.GerarAsync(App.Plataforma, App.Config, progresso);
+        App.UltimoRelatorio = pronto;
+        App.Registrar(pronto.Arquivos);
+        Ir("relatorio/pronto");
+    });
+}

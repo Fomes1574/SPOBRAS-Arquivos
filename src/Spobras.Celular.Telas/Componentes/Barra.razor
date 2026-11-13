@@ -1,0 +1,23 @@
+<div class="barra">
+    @if (Voltar is not null)
+    {
+        <a class="voltar" href="@Voltar" aria-label="Voltar" style="text-decoration:none">‹</a>
+    }
+    else if (AoVoltar.HasDelegate)
+    {
+        <button class="voltar" @onclick="AoVoltar" aria-label="Voltar">‹</button>
+    }
+    <h1>@Titulo@if (!string.IsNullOrEmpty(Sub))
+        {
+            <span class="sub">@Sub</span>
+        }</h1>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter] public string? Sub { get; set; }
+    [Parameter] public string? Voltar { get; set; }
+    [Parameter] public EventCallback AoVoltar { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,51 @@
+@page "/"
+@inherits Tela
+
+<Barra Titulo="Arquivos SPOBRAS" Sub="@Subtitulo">
+    <a class="acao" href="config" aria-label="Configurações" style="text-decoration:none"><Icone Nome="config" /></a>
+</Barra>
+<div class="conteudo">
+    <SituacaoBase />
+    <a class="atalho" href="base"><span class="ico"><Icone Nome="base" Cor="#231F20" /></span><span><b>Consultar a base</b><span>Escola, contrato, lote, prazos e valores</span></span></a>
+    <a class="atalho" href="relatorio"><span class="ico"><Icone Nome="relatorio" Cor="#231F20" /></span><span><b>@(App.Rascunho.Vazio ? "Novo relatório fotográfico" : "Relatório fotográfico")</b><span>Fotos pela câmera, já com os dados da escola</span></span></a>
+    <a class="atalho" href="pdf"><span class="ico"><Icone Nome="pdf" Cor="#231F20" /></span><span><b>Ferramentas de PDF</b><span>Juntar, separar, reduzir, fotos em PDF e PDF para Excel</span></span></a>
+
+    @if (!App.Rascunho.Vazio)
+    {
+        var d = App.Rascunho.Dados;
+        <div class="titulo-secao">Continuar</div>
+        <div class="painel" style="display:flex;gap:12px;align-items:center">
+            <div style="flex:1;min-width:0"><b>Rascunho de relatório</b><div class="texto2">@(string.IsNullOrWhiteSpace(d.Unidade) ? "Sem escola" : d.Unidade) · @Formato.Plural(d.Fotos.Count, "foto salva", "fotos salvas")@(d.Alterado is { } a ? " · " + Formato.Quando(a, App.Agora()) : "")</div></div>
+            <a class="btn pequeno linha" href="relatorio/fotos">Abrir</a>
+        </div>
+    }
+
+    @if (App.Config.UltimosGerados.Count > 0)
+    {
+        <div class="titulo-secao">Últimos gerados</div>
+        <div class="painel" style="padding:4px 14px">
+            @foreach (var s in App.Config.UltimosGerados)
+            {
+                <ArquivoGerado Arquivo="s" />
+            }
+        </div>
+    }
+</div>
+<Nav Ativo="inicio" />
+
+@code {
+    private string Subtitulo => App.Base.Estado switch
+    {
+        EstadoBase.Lendo => "Lendo a planilha mestra…",
+        EstadoBase.SemConexao => App.Base.UltimaLeitura is { } u ? $"Sem internet · dados de {Formato.Quando(u, App.Agora())}" : "Sem internet",
+        _ => App.Base.UltimaLeitura is { } u ? $"Base lida {Formato.Quando(u, App.Agora())}" : "Base ainda não lida",
+    };
+
+    protected override void Iniciar()
+    {
+        if (App.Base.Planilha is null && !App.Base.TemDados)
+        {
+            Ir("primeira");
+        }
+    }
+}
