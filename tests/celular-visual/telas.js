@@ -155,6 +155,16 @@ async function texto(page, seletor, contem) {
     await foto(page, '15-rel-legenda', w, h, salvar);
     await page.locator('.folha .btn.primario').click(); await page.waitForTimeout(300);
 
+    await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await page.getByRole('button', { name: 'Marcar todas', exact: true }).waitFor();
+    await fotos.first().click();
+    await fotos.nth(1).click();
+    const legendaEmLote = page.getByLabel('Legenda para as marcadas', { exact: true });
+    await legendaEmLote.fill('Vistoria em lote');
+    await foto(page, '15b-rel-legenda-varias', w, h, salvar);
+    await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
+    await page.getByText('Legenda aplicada a 2 fotos.', { exact: true }).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll('button[data-foto] .leg')].filter(e => e.textContent === 'Vistoria em lote').length === 2);
     const antes = await page.locator('button.foto').count();
     await ir(page, urlPronto, 'relatorio/camera'); await page.waitForTimeout(1500);
     await foto(page, '13-rel-camera', w, h, salvar);

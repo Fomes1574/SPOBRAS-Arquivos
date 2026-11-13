@@ -16,15 +16,43 @@
     {
         <Aviso Tipo="atencao">@r</Aviso>
     }
-    <div class="linha-btns" style="margin-bottom:10px"><button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button></div>
-    <div class="fotos" @ref="_grade">
+    @if (_avisoLegenda is not null)
+    {
+        <Aviso Tipo="ok">@_avisoLegenda</Aviso>
+    }
+    <div class="linha-btns" style="margin-bottom:10px">
+        <button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button>
+        @if (Fotos.Count > 0 && !_selecionando)
+        {
+            <button class="btn linha pequeno" @onclick="IniciarSelecao">Selecionar</button>
+        }
+    </div>
+    @if (_selecionando)
+    {
+        <div class="painel legenda-varias">
+            <div class="linha-btns">
+                <button class="btn linha pequeno" @onclick="MarcarTodas">Marcar todas</button>
+                <button class="btn linha pequeno" @onclick="CancelarSelecao">Cancelar</button>
+            </div>
+            <div class="campo">
+                <label for="legenda-varias">Legenda para as marcadas</label>
+                <input id="legenda-varias" type="text" @bind="_legenda" @bind:event="oninput" />
+            </div>
+            <button class="btn primario" @onclick="AplicarLegenda">Aplicar</button>
+        </div>
+    }
+    <div class="fotos" @ref="_grade" data-selecao="@(_selecionando ? "true" : "false")">
         @for (int i = 0; i < Fotos.Count; i++)
         {
             int n = i;
             var f = Fotos[n];
-            <button class="foto" @key="f.Arquivo" data-foto="true" @onclick="() => _aberta = n" aria-label="@Rotulo(n, f)">
+            <button class="foto" @key="f.Arquivo" data-foto="true" @onclick="() => TocarFoto(n)" aria-pressed="@(_selecionando ? (_marcadas.Contains(n) ? "true" : "false") : null)" aria-label="@Rotulo(n, f)">
                 <img src="@App.Rascunho.Miniatura(f)" alt="" />
                 <span class="n">@(n + 1)</span>
+                @if (_selecionando && _marcadas.Contains(n))
+                {
+                    <span class="foto-marcada" aria-hidden="true">✓</span>
+                }
                 @if (f.Legenda.Length > 0)
                 {
                     <span class="leg">@f.Legenda</span>
@@ -104,6 +132,39 @@
         }
         catch (JSDisconnectedException) { }
         _referencia?.Dispose();
+    }
+
+    private bool _selecionando;
+    private readonly HashSet<int> _marcadas = [];
+    private string _legenda = "";
+    private string? _avisoLegenda;
+
+    private void IniciarSelecao()
+    {
+        _avisoLegenda = null;
+        _selecionando = true;
+    }
+
+    private void TocarFoto(int indice)
+    {
+        if (!_selecionando) _aberta = indice;
+        else if (!_marcadas.Add(indice)) _marcadas.Remove(indice);
+    }
+
+    private void MarcarTodas() => _marcadas.UnionWith(Enumerable.Range(0, Fotos.Count));
+
+    private void CancelarSelecao()
+    {
+        _selecionando = false;
+        _marcadas.Clear();
+        _legenda = "";
+    }
+
+    private void AplicarLegenda()
+    {
+        int total = App.Rascunho.LegendarVarias(_marcadas, _legenda);
+        _avisoLegenda = $"Legenda aplicada a {Formato.Plural(total, "foto", "fotos")}.";
+        CancelarSelecao();
     }
 
     private int? _aberta;

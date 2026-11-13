@@ -151,6 +151,18 @@ public sealed class CelularTests : IDisposable
     }
 
     [Fact]
+    public async Task Legenda_em_lote_respeita_as_marcadas_ou_as_vazias()
+    {
+        var app = await AppComBase();
+        ComFotos(app, _p, 3);
+        app.Rascunho.Legendar(0, "Primeira");
+        Assert.Equal(2, app.Rascunho.LegendarVarias([0, 2], "Marcadas"));
+        Assert.Equal(["Marcadas", "", "Marcadas"], app.Rascunho.Dados.Fotos.Select(f => f.Legenda));
+        Assert.Equal(1, app.Rascunho.LegendarVarias([], "Vazias"));
+        Assert.Equal(["Marcadas", "Vazias", "Marcadas"], NovoApp().Rascunho.Dados.Fotos.Select(f => f.Legenda));
+    }
+
+    [Fact]
     public async Task Arrastar_ultima_foto_preserva_legenda_descricao_e_giro()
     {
         var app = await AppComBase();

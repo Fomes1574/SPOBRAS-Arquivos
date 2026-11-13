@@ -117,6 +117,19 @@ public sealed class RascunhoRelatorio
 
     public void Legendar(int i, string legenda) => Trocar(i, f => f with { Legenda = legenda });
 
+    public int LegendarVarias(IEnumerable<int> indices, string legenda)
+    {
+        var marcadas = indices.Where(i => i >= 0 && i < Dados.Fotos.Count).ToHashSet();
+        if (marcadas.Count == 0)
+            marcadas = Dados.Fotos.Select((foto, i) => (foto, i)).Where(x => x.foto.Legenda.Length == 0).Select(x => x.i).ToHashSet();
+        if (marcadas.Count > 0)
+            Alterar(d => d with
+            {
+                Fotos = d.Fotos.Select((foto, i) => marcadas.Contains(i) ? foto with { Legenda = legenda.Trim() } : foto).ToList(),
+            });
+        return marcadas.Count;
+    }
+
     public void Girar(int i) => Trocar(i, f => f with { Rotacao = (f.Rotacao + 90) % 360 });
 
     public void Mover(int de, int para)
