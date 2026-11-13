@@ -135,7 +135,9 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - `GeradorRelatorioPdf` (Documentos): o relatório desenhado direto em PDF A4 a partir do mesmo plano do Excel. Fonte "Roboto" (a do Android) entrou na lista de fontes do PDF.
 - Buscas por contrato, escola e lote passaram para `Spobras.Dados.Base.ProcuraObras`, usadas pelo computador e pelo celular (o computador só chama).
 - Testes: 12 de lógica (`Spobras.Celular.Tests`) e o teste visual em dois tamanhos de tela, 4 cenários. O teste visual achou e já corrigiu: a folha de opções da câmera ficava por baixo da câmera, a ferramenta de PDF guardava o resultado da anterior e o ícone de busca saía enorme.
-- O C# do app Android compila aqui (com um SDK falso só para compilar); o APK de verdade sai no CI (job `celular`, artefato `ArquivosSPOBRAS-Android`).
+- O C# do app Android compila aqui (com um SDK falso só para compilar); o APK de verdade sai no CI (job `celular`, artefato `ArquivosSPOBRAS-Android`). CI 54: tudo verde (Windows, lógica e visual do celular, APK de 83 MB sem corte de código).
+- Instalar no celular: baixar o artefato `ArquivosSPOBRAS-Android` da última execução do CI, abrir o `ArquivosSPOBRAS.apk` no Android e permitir "instalar apps desconhecidos" para o navegador ou o gerenciador de arquivos. No primeiro uso: escolher a planilha mestra no OneDrive/SharePoint, a pasta de saída e o logo (Configurações).
+- Conferência no celular (pelo usuário): 1) escolher a planilha e ver o total de obras; 2) fechar e abrir o app, ver "relida"; 3) ficha de uma obra em andamento e de uma concluída; 4) relatório: escola com dois contratos, 3 fotos pela câmera (testar 16:9 e flash), 2 da galeria, legenda, girar, fechar o app no meio e voltar; 5) gerar Excel e PDF numa pasta do OneDrive com pasta por escola; 6) abrir o PDF e compartilhar no WhatsApp; 7) juntar dois PDFs; 8) modo avião: abrir o app e ver o aviso de sem internet.
 
 ## Testado (automático, Linux e CI Windows)
 
