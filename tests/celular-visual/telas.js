@@ -81,13 +81,24 @@ async function texto(page, seletor, contem) {
     await foto(page, '03-inicio', w, h, salvar);
     await ir(page, urlPronto, 'base'); await foto(page, '04-base', w, h, salvar);
     await texto(page, '.chip', 'Lote'); await foto(page, '05-base-filtro', w, h, salvar);
-    await texto(page, '.opcao', 'Lote 216'); await foto(page, '06-base-lote', w, h, salvar);
+    const pesquisaLote = page.getByRole('searchbox', { name: 'Pesquisar opções' });
+    await pesquisaLote.fill('LOTE');
+    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).check();
+    await page.getByRole('checkbox', { name: 'Lote 239', exact: true }).check();
+    await pesquisaLote.fill('239');
+    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).waitFor({ state: 'detached' });
+    await pesquisaLote.fill('lote');
+    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).waitFor();
+    if (await page.locator('.opcao-filtro input:checked').count() !== 2) problemas.push('pesquisa perdeu lotes marcados');
+    await foto(page, '05b-base-dois-lotes', w, h, salvar);
+    await page.getByRole('button', { name: 'Pronto', exact: true }).click();
+    await foto(page, '06-base-lote', w, h, salvar);
     await texto(page, 'a.obra', 'EMEI Exemplo Alfa'); await foto(page, '07-ficha', w, h, salvar);
     await page.locator('.conteudo').evaluate(e => e.scrollTop = e.scrollHeight); await page.waitForTimeout(200);
     await foto(page, '08-ficha-2', w, h, salvar);
     await texto(page, 'a.obra', '007/EX/2022'); await foto(page, '09-ficha-concluida', w, h, salvar);
     // limpa o filtro de lote para os proximos
-    await ir(page, urlPronto, 'base'); await texto(page, '.chip.on', 'Lote');
+    await ir(page, urlPronto, 'base'); await page.getByRole('button', { name: 'Limpar Lote', exact: true }).click();
     if (await page.locator('a.obra', { hasText: 'Zeta' }).count() > 0) problemas.push('obra sob gestao da SIURB aparece na lista');
 
     await ir(page, urlPronto, 'relatorio'); await foto(page, '10-rel-dados', w, h, salvar);

@@ -1,0 +1,35 @@
+<UserControl x:Class="Spobras.App.Telas.FiltroMultiplo"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Raiz">
+    <DockPanel>
+        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="✕" Padding="6,0"
+                MinHeight="44" Margin="4,0,0,0" AutomationProperties.Name="{Binding LimparNome, ElementName=Raiz}"
+                Click="Limpar" />
+        <ToggleButton x:Name="Abrir" MinHeight="44" Padding="6,0" HorizontalContentAlignment="Left"
+                      AutomationProperties.Name="{Binding Rotulo, ElementName=Raiz}">
+            <TextBlock Text="{Binding Resumo, ElementName=Raiz}" TextTrimming="CharacterEllipsis" />
+        </ToggleButton>
+        <Popup PlacementTarget="{Binding ElementName=Abrir}" Placement="Bottom" StaysOpen="False"
+               IsOpen="{Binding IsChecked, ElementName=Abrir, Mode=TwoWay}" Opened="AoAbrir">
+            <Border Background="White" BorderBrush="#999999" BorderThickness="1" CornerRadius="6" Padding="10" Width="290">
+                <StackPanel>
+                    <TextBox x:Name="Pesquisa" AutomationProperties.Name="Pesquisar opções"
+                             TextChanged="AoPesquisar" />
+                    <Button Style="{StaticResource BotaoLinha}" Content="Marcar todos os visíveis"
+                            Margin="0,6,0,6" Click="MarcarVisiveis" />
+                    <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="Opcoes">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Texto}" IsChecked="{Binding Marcada, Mode=OneWay}"
+                                              Click="Alternar" Margin="0,4" ToolTip="{Binding Texto}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </DockPanel>
+</UserControl>

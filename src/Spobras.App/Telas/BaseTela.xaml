@@ -3,15 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:t="clr-namespace:Spobras.App.Telas"
              xmlns:b="clr-namespace:Spobras.Core.Base;assembly=Spobras.Core">
-    <UserControl.Resources>
-        <!-- Um filtro: rotulo, lista de opcoes compativeis e botao de limpar -->
-        <Style x:Key="LimparFiltro" TargetType="Button" BasedOn="{StaticResource BotaoLinha}">
-            <Setter Property="Content" Value="✕" />
-            <Setter Property="MinHeight" Value="44" />
-            <Setter Property="Margin" Value="4,0,0,0" />
-            <Setter Property="ToolTip" Value="Limpar este filtro" />
-        </Style>
-    </UserControl.Resources>
     <Grid Margin="40,32,40,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -74,38 +65,23 @@
                 <UniformGrid Rows="1" Margin="-6,12,-6,0">
                     <StackPanel Margin="6,0">
                         <TextBlock Text="Portaria" Style="{StaticResource Rotulo}" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="portaria" AutomationProperties.Name="Limpar o filtro de portaria" />
-                            <ComboBox ItemsSource="{Binding Portarias}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Portaria}" AutomationProperties.Name="Portaria" />
-                        </DockPanel>
+                        <t:FiltroMultiplo Rotulo="Portaria" Plural="portarias" Itens="{Binding Portarias}" Selecionados="{Binding Portaria}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
                         <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="contrato" AutomationProperties.Name="Limpar o filtro de contrato" />
-                            <ComboBox ItemsSource="{Binding Contratos}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Contrato}" AutomationProperties.Name="Contrato" />
-                        </DockPanel>
+                        <t:FiltroMultiplo Rotulo="Contrato" Plural="contratos" Itens="{Binding Contratos}" Selecionados="{Binding Contrato}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
                         <TextBlock Text="Escola" Style="{StaticResource Rotulo}" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="escola" AutomationProperties.Name="Limpar o filtro de escola" />
-                            <ComboBox ItemsSource="{Binding Escolas}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Escola}" AutomationProperties.Name="Escola" />
-                        </DockPanel>
+                        <t:FiltroMultiplo Rotulo="Escola" Plural="escolas" Itens="{Binding Escolas}" Selecionados="{Binding Escola}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
                         <TextBlock Text="Lote" Style="{StaticResource Rotulo}" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="lote" AutomationProperties.Name="Limpar o filtro de lote" />
-                            <ComboBox ItemsSource="{Binding Lotes}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Lote}" AutomationProperties.Name="Lote" />
-                        </DockPanel>
+                        <t:FiltroMultiplo Rotulo="Lote" Plural="lotes" Itens="{Binding Lotes}" Selecionados="{Binding Lote}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
                         <TextBlock Text="Empresa" Style="{StaticResource Rotulo}" />
-                        <DockPanel>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="empresa" AutomationProperties.Name="Limpar o filtro de empresa" />
-                            <ComboBox ItemsSource="{Binding Empresas}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Empresa}" AutomationProperties.Name="Empresa" />
-                        </DockPanel>
+                        <t:FiltroMultiplo Rotulo="Empresa" Plural="empresas" Itens="{Binding Empresas}" Selecionados="{Binding Empresa}" />
                     </StackPanel>
                 </UniformGrid>
 
@@ -114,24 +90,15 @@
                         <UniformGrid Rows="1" Margin="-6,0">
                             <StackPanel Margin="6,0">
                                 <TextBlock Text="Contrato de receita" Style="{StaticResource Rotulo}" />
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="receita" AutomationProperties.Name="Limpar o filtro de contrato de receita" />
-                                    <ComboBox ItemsSource="{Binding ContratosReceita}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding ContratoReceita}" AutomationProperties.Name="Contrato de receita" />
-                                </DockPanel>
+                                <t:FiltroMultiplo Rotulo="Contrato de receita" Plural="contratos de receita" Itens="{Binding ContratosReceita}" Selecionados="{Binding ContratoReceita}" />
                             </StackPanel>
                             <StackPanel Margin="6,0">
                                 <TextBlock Text="Dotação (atividade)" Style="{StaticResource Rotulo}" />
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="dotacao" AutomationProperties.Name="Limpar o filtro de dotação" />
-                                    <ComboBox ItemsSource="{Binding Dotacoes}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Dotacao}" AutomationProperties.Name="Dotação" />
-                                </DockPanel>
+                                <t:FiltroMultiplo Rotulo="Dotação" Plural="dotações" Itens="{Binding Dotacoes}" Selecionados="{Binding Dotacao}" />
                             </StackPanel>
                             <StackPanel Margin="6,0">
                                 <TextBlock Text="Status da obra" Style="{StaticResource Rotulo}" />
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="status" AutomationProperties.Name="Limpar o filtro de status" />
-                                    <ComboBox ItemsSource="{Binding Situacoes}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Status}" AutomationProperties.Name="Status da obra" />
-                                </DockPanel>
+                                <t:FiltroMultiplo Rotulo="Status da obra" Plural="status" Itens="{Binding Situacoes}" Selecionados="{Binding Status}" />
                             </StackPanel>
                         </UniformGrid>
 

@@ -336,13 +336,13 @@ public class TelasDeVerdadeTests
             Fotografar(janela, saida, "36-fontes-lidas");
             principal.Navegar(BaseVm.Modulo);
             Fotografar(janela, saida, "37-base-todas");
-            baseDados.Portaria = Spobras.Testes.BaseSintetica.P3De2021;
+            baseDados.Portaria = [Spobras.Testes.BaseSintetica.P3De2021];
             baseDados.Selecionada = baseDados.Obras.First();
             Fotografar(janela, saida, "38-base-filtro-e-ficha");
-            Assert.Equal(Spobras.Testes.BaseSintetica.P3De2021, baseDados.Portaria); // a tela nao pode soltar o filtro ao trocar as opcoes
+            Assert.Equal([Spobras.Testes.BaseSintetica.P3De2021], baseDados.Portaria); // a tela nao pode soltar o filtro ao trocar as opcoes
             Assert.Equal(3, baseDados.Obras.Count);
             baseDados.ValorDe = "abc";
-            baseDados.Contrato = "002/EX/2024";
+            baseDados.Contrato = ["002/EX/2024"];
             Fotografar(janela, saida, "39-base-avisos");
             baseDados.LimparFiltrosCommand.Execute(null);
             baseDados.Selecionada = baseDados.Obras.First();
@@ -354,7 +354,7 @@ public class TelasDeVerdadeTests
             baseDados.CancelarEdicaoCommand.Execute(null);
 
             // Lote escolhido (faixa de totais), filtros recolhidos e ficha ampliada
-            baseDados.Lote = baseDados.Lotes.First();
+            baseDados.Lote = [baseDados.Lotes.First()];
             baseDados.Selecionada = baseDados.Obras.First();
             Fotografar(janela, saida, "58-base-lote-e-totais");
             baseDados.AlternarFiltrosCommand.Execute(null);

@@ -38,22 +38,30 @@ public sealed record FaixaValor(decimal? Minimo, decimal? Maximo, bool SemInform
 /// </summary>
 public sealed record FiltroObras
 {
-    public string? Portaria { get; init; }
-    public string? Contrato { get; init; }
-    public string? Escola { get; init; }
-    public string? Lote { get; init; }
-    public string? Empresa { get; init; }
-    public string? ContratoReceita { get; init; }
-    public string? Dotacao { get; init; }
-    public string? Status { get; init; }
+    public IReadOnlyList<string> Portaria { get; init; } = [];
+    public IReadOnlyList<string> Contrato { get; init; } = [];
+    public IReadOnlyList<string> Escola { get; init; } = [];
+    public IReadOnlyList<string> Lote { get; init; } = [];
+    public IReadOnlyList<string> Empresa { get; init; } = [];
+    public IReadOnlyList<string> ContratoReceita { get; init; } = [];
+    public IReadOnlyList<string> Dotacao { get; init; } = [];
+    public IReadOnlyList<string> Status { get; init; } = [];
     public string? Texto { get; init; }
     public DateOnly? OsDe { get; init; }
     public DateOnly? OsAte { get; init; }
     public bool SemDataOs { get; init; }
     public IReadOnlyDictionary<CampoValor, FaixaValor> Valores { get; init; } = new Dictionary<CampoValor, FaixaValor>();
 
+    public static string TituloLotes(IReadOnlyList<string> lotes)
+    {
+        if (lotes.Count == 0) return "";
+        if (lotes.Count == 1) return lotes[0];
+        var numeros = lotes.Select(lote => lote.StartsWith("LOTE ", StringComparison.OrdinalIgnoreCase) ? lote[5..] : lote).ToArray();
+        return $"Lotes {string.Join(", ", numeros[..^1])} e {numeros[^1]}";
+    }
+
     public bool Vazio =>
-        Portaria is null && Contrato is null && Escola is null && Lote is null && Empresa is null && ContratoReceita is null && Dotacao is null && Status is null
+        Portaria.Count == 0 && Contrato.Count == 0 && Escola.Count == 0 && Lote.Count == 0 && Empresa.Count == 0 && ContratoReceita.Count == 0 && Dotacao.Count == 0 && Status.Count == 0
         && string.IsNullOrWhiteSpace(Texto) && OsDe is null && OsAte is null && !SemDataOs && Valores.Values.All(v => v.Vazia);
 }
 

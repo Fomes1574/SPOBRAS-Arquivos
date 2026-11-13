@@ -58,7 +58,7 @@ public class FontesTests : ComApp
         string caminho = GravarMestra();
         await Fontes.DefinirAsync(Spobras.Core.Base.Fontes.Mestra, caminho);
         var tela = new BaseVm(Base, Fontes, new Servicos.InterfaceDireta(), _ => { });
-        tela.Portaria = BaseSintetica.P6;
+        tela.Portaria = [BaseSintetica.P6];
         Assert.Equal(["CEU Delta"], tela.Obras.Select(o => o.Escola));
 
         // O usuario edita a planilha no Excel e salva: entra uma obra nova na Portaria 6.
@@ -79,7 +79,7 @@ public class FontesTests : ComApp
 
         Assert.Equal(6, Base.TotalDeObras());
         Assert.Equal(2, Mestra.Versao);
-        Assert.Equal(BaseSintetica.P6, tela.Portaria); // filtro mantido
+        Assert.Equal([BaseSintetica.P6], tela.Portaria); // filtro mantido
         Assert.Equal(["CEU Delta", "EMEI Nova"], tela.Obras.Select(o => o.Escola).Order()); // consulta atualizada sozinha
     }
 
@@ -240,19 +240,19 @@ public class BaseVmTests : ComApp
         Assert.Equal("5 obras encontradas", tela.Resumo);
         Assert.Equal(3, tela.Portarias.Count);
 
-        tela.Portaria = BaseSintetica.P3De2021;
+        tela.Portaria = [BaseSintetica.P3De2021];
         Assert.Equal("3 obras encontradas", tela.Resumo);
         Assert.Equal(["001/EX/2024", "002/EX/2024"], tela.Contratos);
         Assert.Equal(["CEI Beta", "EMEF Alfa", "EMEI Gama"], tela.Escolas);
         Assert.True(tela.TemFiltro);
 
-        tela.Escola = "EMEF Alfa";
+        tela.Escola = ["EMEF Alfa"];
         Assert.Equal(["001/EX/2024"], tela.Obras.Select(o => o.Contrato));
         Assert.Equal(["001/EX/2024"], tela.Contratos);
         Assert.Equal(2, tela.Portarias.Count); // para trocar a portaria, so as que tem a EMEF Alfa
 
         tela.LimparCommand.Execute("portaria");
-        Assert.Null(tela.Portaria);
+        Assert.Empty(tela.Portaria);
         Assert.Equal(["001/EX/2024", "003/EX/2025"], tela.Contratos);
         Assert.Equal("2 obras encontradas", tela.Resumo);
 
@@ -351,7 +351,7 @@ public class BaseVmTests : ComApp
     public async Task Filtro_que_deixou_de_existir_apos_atualizar_a_base_e_apontado()
     {
         var tela = await Abrir();
-        tela.Contrato = "004/EX/2025";
+        tela.Contrato = ["004/EX/2025"];
         Assert.Single(tela.Obras);
 
         // A planilha e salva sem esse contrato.
@@ -361,10 +361,10 @@ public class BaseVmTests : ComApp
         string caminho = GravarMestra(menor);
         await Fontes.RelerAsync(Spobras.Core.Base.Fontes.Mestra);
 
-        Assert.Equal("004/EX/2025", tela.Contrato); // nao some em silencio
+        Assert.Equal(["004/EX/2025"], tela.Contrato); // nao some em silencio
         Assert.Empty(tela.Obras);
         Assert.Equal("Nenhuma obra com esses filtros.", tela.Resumo);
-        Assert.Contains(tela.Avisos, a => a.Texto.Contains("O filtro Contrato (\"004/EX/2025\") não combina com nenhuma obra da base atual"));
+        Assert.Contains(tela.Avisos, a => a.Texto.Contains("O filtro Contrato (004/EX/2025) tem opções sem obras compatíveis na base atual"));
         Assert.Contains("004/EX/2025", tela.Contratos);
         Assert.True(File.Exists(caminho));
     }

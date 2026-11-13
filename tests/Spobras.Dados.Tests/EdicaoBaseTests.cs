@@ -29,7 +29,7 @@ public class EdicaoBaseTests : IDisposable
     private void Reler(PlanilhaFalsa? mestra = null) => _base.GravarMestra(ImportadorMestra.Importar(mestra ?? BaseSintetica.Mestra()), Fonte(Fontes.Mestra));
 
     private ObraLida Obra(string contrato, string escola) =>
-        _base.Buscar(new FiltroObras { Contrato = contrato }, 50).Obras.Single(o => o.Empreendimento == escola);
+        _base.Buscar(new FiltroObras { Contrato = [contrato] }, 50).Obras.Single(o => o.Empreendimento == escola);
 
     private static object? V(string campo, string texto) => CamposObra.Converter(CamposObra.Por(campo)!, texto).Valor;
 
@@ -99,13 +99,13 @@ public class EdicaoBaseTests : IDisposable
 
         _base.GravarEdicao(lida, new Dictionary<string, object?> { ["empreendimento"] = V("empreendimento", "EMEI Nova Esperança") }, Agora);
         Reler();
-        Assert.Equal("EMEI Nova Esperança", _base.Buscar(new FiltroObras { Contrato = "900/NOVO/2026" }).Obras.Single().Empreendimento);
+        Assert.Equal("EMEI Nova Esperança", _base.Buscar(new FiltroObras { Contrato = ["900/NOVO/2026"] }).Obras.Single().Empreendimento);
 
         Assert.Throws<InvalidOperationException>(() => _base.IncluirObra(new ObraLida { Contrato = "001/EX/2024", Empreendimento = "EMEF Alfa" }, Agora));
         Assert.Throws<InvalidOperationException>(() => _base.RemoverObraIncluida(Obra("001/EX/2024", "EMEF Alfa")));
-        _base.RemoverObraIncluida(_base.Buscar(new FiltroObras { Contrato = "900/NOVO/2026" }).Obras.Single());
+        _base.RemoverObraIncluida(_base.Buscar(new FiltroObras { Contrato = ["900/NOVO/2026"] }).Obras.Single());
         Reler();
-        Assert.Empty(_base.Buscar(new FiltroObras { Contrato = "900/NOVO/2026" }).Obras);
+        Assert.Empty(_base.Buscar(new FiltroObras { Contrato = ["900/NOVO/2026"] }).Obras);
     }
 
     [Fact]

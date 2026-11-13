@@ -53,6 +53,21 @@ public class BaseTests : IDisposable
     }
 
     [Fact]
+    public void Selecoes_no_mesmo_filtro_somam_e_filtros_diferentes_se_combinam()
+    {
+        var filtro = new FiltroObras
+        {
+            Contrato = ["001/EX/2024", "004/EX/2025"],
+            ContratoReceita = ["015/EX/2025", "128/EX/2021"],
+        };
+        var resultado = _base.Buscar(filtro).Obras;
+        Assert.Contains(resultado, o => o.Contrato == "001/EX/2024");
+        Assert.Contains(resultado, o => o.Contrato == "004/EX/2025");
+        Assert.Equal(["004/EX/2025:CEU Delta"], Escolas(filtro with { Escola = ["CEU Delta"] }));
+        Assert.Empty(_base.Buscar(filtro with { ContratoReceita = ["15/EX/2025"] }).Obras);
+    }
+
+    [Fact]
     public void T16_tabela_ou_coluna_que_sumiu_recusa_a_importacao_e_mantem_a_base_anterior()
     {
         var semTabela = BaseSintetica.Mestra();
@@ -118,16 +133,16 @@ public class BaseTests : IDisposable
     [Fact]
     public void T27_comecar_por_portaria_contrato_ou_escola_mostra_so_as_opcoes_compativeis()
     {
-        var porPortaria = _base.Opcoes(new FiltroObras { Portaria = BaseSintetica.P3De2021 });
+        var porPortaria = _base.Opcoes(new FiltroObras { Portaria = [BaseSintetica.P3De2021] });
         Assert.Equal(["001/EX/2024", "002/EX/2024"], porPortaria.Contratos);
         Assert.Equal(["CEI Beta", "EMEF Alfa", "EMEI Gama"], porPortaria.Escolas);
         Assert.Equal(3, porPortaria.Portarias.Count); // o proprio campo continua com todas, para poder trocar
 
-        var porContrato = _base.Opcoes(new FiltroObras { Contrato = "001/EX/2024" });
+        var porContrato = _base.Opcoes(new FiltroObras { Contrato = ["001/EX/2024"] });
         Assert.Equal(["CEI Beta", "EMEF Alfa"], porContrato.Escolas);
         Assert.Equal([BaseSintetica.P3De2021], porContrato.Portarias);
 
-        var porEscola = _base.Opcoes(new FiltroObras { Escola = "EMEF Alfa" });
+        var porEscola = _base.Opcoes(new FiltroObras { Escola = ["EMEF Alfa"] });
         Assert.Equal(["001/EX/2024", "003/EX/2025"], porEscola.Contratos);
         Assert.Equal([BaseSintetica.P3De2021, BaseSintetica.P3De2025], porEscola.Portarias); // duas "Portaria 3", distinguidas pelo ano
     }
@@ -135,39 +150,39 @@ public class BaseTests : IDisposable
     [Fact]
     public void T27_a_ordem_de_selecao_nao_muda_o_resultado_e_limpar_um_filtro_amplia_as_opcoes()
     {
-        var a = new FiltroObras { Portaria = BaseSintetica.P3De2021 } with { Escola = "EMEF Alfa" };
-        var b = new FiltroObras { Escola = "EMEF Alfa" } with { Portaria = BaseSintetica.P3De2021 };
+        var a = new FiltroObras { Portaria = [BaseSintetica.P3De2021] } with { Escola = ["EMEF Alfa"] };
+        var b = new FiltroObras { Escola = ["EMEF Alfa"] } with { Portaria = [BaseSintetica.P3De2021] };
         Assert.Equal(Escolas(a), Escolas(b));
         Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(a));
         Assert.Equal(_base.Opcoes(a).Contratos, _base.Opcoes(b).Contratos);
 
         // Limpar a portaria: a escola Alfa volta a ter os dois contratos.
-        Assert.Equal(["001/EX/2024", "003/EX/2025"], _base.Opcoes(a with { Portaria = null }).Contratos);
-        Assert.Equal(2, _base.Buscar(a with { Portaria = null }).Total);
+        Assert.Equal(["001/EX/2024", "003/EX/2025"], _base.Opcoes(a with { Portaria = [] }).Contratos);
+        Assert.Equal(2, _base.Buscar(a with { Portaria = [] }).Total);
     }
 
     [Fact]
     public void T28_combinacao_portaria_e_contrato_devolve_so_as_escolas_daquele_vinculo_sem_duplicar()
     {
-        var f = new FiltroObras { Portaria = BaseSintetica.P3De2021, Contrato = "001/EX/2024" };
+        var f = new FiltroObras { Portaria = [BaseSintetica.P3De2021], Contrato = ["001/EX/2024"] };
 
         Assert.Equal(["001/EX/2024:CEI Beta", "001/EX/2024:EMEF Alfa"], Escolas(f));
         // Tres medicoes no contrato nao triplicam a obra nem as opcoes.
         Assert.Equal(2, _base.Buscar(f).Total);
         Assert.Equal(["CEI Beta", "EMEF Alfa"], _base.Opcoes(f).Escolas);
         Assert.Equal(3, _base.Medicoes("001/EX/2024").Count);
-        Assert.Empty(_base.Buscar(new FiltroObras { Portaria = BaseSintetica.P3De2025, Contrato = "001/EX/2024" }).Obras);
+        Assert.Empty(_base.Buscar(new FiltroObras { Portaria = [BaseSintetica.P3De2025], Contrato = ["001/EX/2024"] }).Obras);
     }
 
     [Fact]
     public void T29_contrato_de_receita_dotacao_escola_e_faixa_de_saldo_em_qualquer_ordem()
     {
-        var f1 = new FiltroObras { ContratoReceita = "015/EX/2025" };
+        var f1 = new FiltroObras { ContratoReceita = ["015/EX/2025"] };
         Assert.Equal(["001/EX/2024:CEI Beta", "004/EX/2025:CEU Delta", "001/EX/2024:EMEF Alfa"], Escolas(f1)); // inclui o contrato com dois de receita
         Assert.Equal(["015/EX/2025", "016/EX/2026", "128/EX/2021"], _base.Opcoes(new FiltroObras()).ContratosReceita);
 
-        var combinado = f1 with { Dotacao = "2878" } with { Valores = Saldo(1000m, null).Valores };
-        var outraOrdem = Saldo(1000m, null) with { Dotacao = "2878" } with { ContratoReceita = "015/EX/2025" };
+        var combinado = f1 with { Dotacao = ["2878"] } with { Valores = Saldo(1000m, null).Valores };
+        var outraOrdem = Saldo(1000m, null) with { Dotacao = ["2878"] } with { ContratoReceita = ["015/EX/2025"] };
         Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(combinado));
         Assert.Equal(Escolas(combinado), Escolas(outraOrdem));
 
@@ -180,7 +195,7 @@ public class BaseTests : IDisposable
         Assert.Equal(5, _base.Buscar(Saldo(0m, null, semInformacao: true)).Total);
 
         // Varias medicoes nao duplicam o total do contrato: os valores sao os da obra.
-        Assert.Equal(1500m + 0m, _base.Buscar(new FiltroObras { Contrato = "001/EX/2024" }).Obras.Sum(o => o.SaldoAPagar));
+        Assert.Equal(1500m + 0m, _base.Buscar(new FiltroObras { Contrato = ["001/EX/2024"] }).Obras.Sum(o => o.SaldoAPagar));
     }
 
     [Fact]
@@ -190,14 +205,14 @@ public class BaseTests : IDisposable
         Assert.Equal(["001/EX/2024:CEI Beta", "001/EX/2024:EMEF Alfa"], Escolas(periodo)); // as duas pontas entram
 
         // Duas obras do mesmo contrato com datas diferentes: cada data fica na sua obra.
-        Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(new FiltroObras { Contrato = "001/EX/2024", OsAte = new DateOnly(2026, 1, 31) }));
+        Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(new FiltroObras { Contrato = ["001/EX/2024"], OsAte = new DateOnly(2026, 1, 31) }));
         Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(new FiltroObras { OsDe = new DateOnly(2026, 1, 10), OsAte = new DateOnly(2026, 1, 10) }));
 
         Assert.Equal(["002/EX/2024:EMEI Gama"], Escolas(new FiltroObras { SemDataOs = true }));
         Assert.Equal(3, _base.Buscar(periodo with { SemDataOs = true }).Total);
 
         // Combinada com portaria e saldo.
-        var combinado = new FiltroObras { Portaria = BaseSintetica.P3De2021, OsDe = new DateOnly(2026, 1, 1), OsAte = new DateOnly(2026, 12, 31) } with { Valores = Saldo(1000m, null).Valores };
+        var combinado = new FiltroObras { Portaria = [BaseSintetica.P3De2021], OsDe = new DateOnly(2026, 1, 1), OsAte = new DateOnly(2026, 12, 31) } with { Valores = Saldo(1000m, null).Valores };
         Assert.Equal(["001/EX/2024:EMEF Alfa"], Escolas(combinado));
 
         var porData = _base.Buscar(new FiltroObras(), ordem: OrdemObras.DataOs).Obras.Select(o => o.DataOs).ToList();

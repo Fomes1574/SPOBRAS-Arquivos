@@ -216,7 +216,7 @@ public class ComposicaoProtótipoTests : IDisposable
         Assert.Equal(["LOTE 01", "LOTE 07"], b.Lotes);
         Assert.False(b.TemLote);
 
-        b.Lote = "LOTE 01";
+        b.Lote = ["LOTE 01"];
         Assert.True(b.TemLote);
         Assert.Equal(4, b.Obras.Count); // a EMEF Alfa do lote 07 fica de fora
         Assert.StartsWith("LOTE 01 · 4 obras", b.TituloDoLote);
@@ -248,7 +248,7 @@ public class ComposicaoProtótipoTests : IDisposable
         using var app = await AppComBase();
         app.Principal.Navegar(BaseVm.Modulo);
         var tela = (BaseVm)app.Principal.PaginaAtual!;
-        tela.Lote = "LOTE 01";
+        tela.Lote = ["LOTE 01"];
         tela.Selecionada = tela.Obras[0];
         tela.AlternarAmpliarCommand.Execute(null);
         Assert.True(tela.FichaAmpliada);

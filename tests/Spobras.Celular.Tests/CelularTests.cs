@@ -93,17 +93,17 @@ public sealed class CelularTests : IDisposable
     public async Task Ficha_e_totais_do_lote_com_medicoes_em_tramite()
     {
         var app = await AppComBase();
-        var alfa = app.Base.Buscar(new FiltroObras { Contrato = "044/EX/2026" }, 1).Obras[0];
+        var alfa = app.Base.Buscar(new FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0];
         var tramite = app.Base.EmTramite(alfa);
         Assert.Equal(["7", "6", "5"], tramite.Select(m => m.Numero));
         Assert.Equal(847_230.52m, tramite.Sum(m => m.Valor));
         Assert.Single(app.Base.OutrosContratos(alfa));
 
-        var concluida = app.Base.Buscar(new FiltroObras { Contrato = "007/EX/2022" }, 1).Obras[0];
+        var concluida = app.Base.Buscar(new FiltroObras { Contrato = ["007/EX/2022"] }, 1).Obras[0];
         Assert.Equal(SituacaoContrato.Concluido, app.Base.Situacao(concluida));
         Assert.Empty(app.Base.EmTramite(concluida));
 
-        var t = app.Base.Totais(new FiltroObras { Lote = "LOTE 216" });
+        var t = app.Base.Totais(new FiltroObras { Lote = ["LOTE 216"] });
         Assert.Equal(3, t.Obras);
         Assert.Equal(7_640_000m, t.Original);
         Assert.Equal(442_428.24m, t.Aditado);
@@ -117,12 +117,24 @@ public sealed class CelularTests : IDisposable
     {
         var app = await AppComBase();
         const string empresa = "Construtora Exemplo Ltda";
-        var filtro = new FiltroObras { Empresa = empresa, Lote = "LOTE 216" };
+        var filtro = new FiltroObras { Empresa = [empresa], Lote = ["LOTE 216"] };
         Assert.Equal([empresa], app.Base.Opcoes(filtro).Empresas);
         var obras = app.Base.Buscar(filtro, 50).Obras;
         Assert.Equal(3, obras.Count);
         Assert.All(obras, o => Assert.Equal(empresa, o.Contratada));
-        Assert.Empty(app.Base.Buscar(filtro with { Empresa = "Empresa inexistente" }, 50).Obras);
+        Assert.Empty(app.Base.Buscar(filtro with { Empresa = ["Empresa inexistente"] }, 50).Obras);
+    }
+
+    [Fact]
+    public async Task Base_soma_obras_dos_dois_lotes_selecionados()
+    {
+        var app = await AppComBase();
+        var filtro = new FiltroObras { Lote = ["LOTE 216", "LOTE 239"] };
+        var obras = app.Base.Buscar(filtro, 50).Obras;
+        var totais = app.Base.Totais(filtro);
+        Assert.Equal(5, obras.Count);
+        Assert.Equal("Lotes 216 e 239", totais.Lote);
+        Assert.Equal(obras.Sum(o => o.ValorPago ?? 0), totais.Pago);
     }
 
     // ---- Rascunho do relatorio ----
@@ -142,7 +154,7 @@ public sealed class CelularTests : IDisposable
     public async Task Rascunho_continua_igual_depois_de_fechar_o_app()
     {
         var app = await AppComBase();
-        var obra = app.Base.Buscar(new FiltroObras { Contrato = "044/EX/2026" }, 1).Obras[0];
+        var obra = app.Base.Buscar(new FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0];
         var mudou = app.Rascunho.AplicarObra(obra);
         Assert.Contains("Unidade", mudou);
         Assert.Equal("0000.2026/0000000-0", app.Rascunho.Dados.ProcessoSei);
@@ -199,7 +211,7 @@ public sealed class CelularTests : IDisposable
     public async Task Gera_excel_e_pdf_na_pasta_da_escola_sem_sobrescrever()
     {
         var app = await AppComBase();
-        var obra = app.Base.Buscar(new FiltroObras { Contrato = "044/EX/2026" }, 1).Obras[0];
+        var obra = app.Base.Buscar(new FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0];
         app.Rascunho.AplicarObra(obra);
         ComFotos(app, _p, 7);
         app.Configurar(c => c with { Pasta = new Escolhido("pasta:" + _p.Saida, "Relatórios") });

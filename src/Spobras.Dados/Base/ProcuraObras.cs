@@ -14,7 +14,7 @@ public static class ProcuraObras
         string alvo = digitado.Trim().Replace('-', '/').Replace(' ', '/');
         string? contrato = base_.Opcoes(new FiltroObras()).Contratos
             .FirstOrDefault(c => string.Equals(c.Trim(), alvo, StringComparison.OrdinalIgnoreCase));
-        return contrato is null ? [] : base_.Buscar(new FiltroObras { Contrato = contrato }, 100).Obras;
+        return contrato is null ? [] : base_.Buscar(new FiltroObras { Contrato = [contrato] }, 100).Obras;
     }
 
     /// <summary>
@@ -32,7 +32,7 @@ public static class ProcuraObras
         var escolas = base_.Opcoes(new FiltroObras()).Escolas;
         var exatas = escolas.Where(e => Normalizacao.Busca(e.Trim()) == alvo).ToList();
         var achadas = exatas.Count > 0 ? exatas : escolas.Where(e => Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal)).Take(10).ToList();
-        return [.. achadas.SelectMany(e => base_.Buscar(new FiltroObras { Escola = e }, 100).Obras).Take(20)];
+        return [.. achadas.SelectMany(e => base_.Buscar(new FiltroObras { Escola = [e] }, 100).Obras).Take(20)];
     }
 
     /// <summary>Obras de um lote: "216", "lote 216" e "LOTE 216" sao o mesmo lote.</summary>
@@ -45,7 +45,7 @@ public static class ProcuraObras
         }
 
         var lotes = base_.Opcoes(new FiltroObras()).Lotes.Where(l => ChaveDoLote(l) == alvo).ToList();
-        return [.. lotes.SelectMany(l => base_.Buscar(new FiltroObras { Lote = l }, 200).Obras)];
+        return [.. lotes.SelectMany(l => base_.Buscar(new FiltroObras { Lote = [l] }, 200).Obras)];
     }
 
     public static string ChaveDoLote(string lote)

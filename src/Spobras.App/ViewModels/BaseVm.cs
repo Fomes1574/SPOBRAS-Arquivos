@@ -173,14 +173,22 @@ public sealed record ApoioConsultas(IDialogos Dialogos, PerfilRepositorio Perfis
 /// <summary>Filtros de uma consulta salva, como o usuario os digitou (reabrir = mesmos filtros sobre a base atual).</summary>
 public sealed record ConsultaSalva
 {
-    public string? Portaria { get; init; }
-    public string? Contrato { get; init; }
-    public string? Escola { get; init; }
-    public string? Lote { get; init; }
-    public string? Empresa { get; init; }
-    public string? ContratoReceita { get; init; }
-    public string? Dotacao { get; init; }
-    public string? Status { get; init; }
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Portaria { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Contrato { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Escola { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Lote { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Empresa { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> ContratoReceita { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Dotacao { get; init; } = [];
+    [System.Text.Json.Serialization.JsonConverter(typeof(ListaFiltroJson))]
+    public IReadOnlyList<string> Status { get; init; } = [];
     public string Texto { get; init; } = "";
     public CampoValor CampoValor { get; init; } = CampoValor.SaldoAPagar;
     public string ValorDe { get; init; } = "";
@@ -405,8 +413,7 @@ public sealed partial class BaseVm : TelaVm
     {
         get
         {
-            var partes = new[] { Portaria, Contrato, Escola, Lote, Empresa, ContratoReceita, Dotacao, Status, Texto.Trim().Length > 0 ? $"“{Texto.Trim()}”" : null }
-                .Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            var partes = FiltrosEmUso().Select(f => f.Valor).ToList();
             return partes.Count == 0 ? "Sem filtros" : string.Join(" · ", partes);
         }
     }
@@ -425,28 +432,28 @@ public sealed partial class BaseVm : TelaVm
     public IReadOnlyList<CampoValorVm> CamposDeValor { get; }
 
     [ObservableProperty]
-    private string? _portaria;
+    private IReadOnlyList<string> _portaria = [];
 
     [ObservableProperty]
-    private string? _contrato;
+    private IReadOnlyList<string> _contrato = [];
 
     [ObservableProperty]
-    private string? _escola;
+    private IReadOnlyList<string> _escola = [];
 
     [ObservableProperty]
-    private string? _lote;
+    private IReadOnlyList<string> _lote = [];
 
     [ObservableProperty]
-    private string? _empresa;
+    private IReadOnlyList<string> _empresa = [];
 
     [ObservableProperty]
-    private string? _contratoReceita;
+    private IReadOnlyList<string> _contratoReceita = [];
 
     [ObservableProperty]
-    private string? _dotacao;
+    private IReadOnlyList<string> _dotacao = [];
 
     [ObservableProperty]
-    private string? _status;
+    private IReadOnlyList<string> _status = [];
 
     [ObservableProperty]
     private string _texto = "";
@@ -540,14 +547,14 @@ public sealed partial class BaseVm : TelaVm
     {
         switch (campo)
         {
-            case "portaria": Portaria = null; break;
-            case "contrato": Contrato = null; break;
-            case "escola": Escola = null; break;
-            case "lote": Lote = null; break;
-            case "empresa": Empresa = null; break;
-            case "receita": ContratoReceita = null; break;
-            case "dotacao": Dotacao = null; break;
-            case "status": Status = null; break;
+            case "portaria": Portaria = []; break;
+            case "contrato": Contrato = []; break;
+            case "escola": Escola = []; break;
+            case "lote": Lote = []; break;
+            case "empresa": Empresa = []; break;
+            case "receita": ContratoReceita = []; break;
+            case "dotacao": Dotacao = []; break;
+            case "status": Status = []; break;
         }
     }
 
@@ -556,7 +563,7 @@ public sealed partial class BaseVm : TelaVm
     {
         FichaAmpliada = false;
         _atualizando = true;
-        Portaria = Contrato = Escola = Lote = Empresa = ContratoReceita = Dotacao = Status = null;
+        Portaria = Contrato = Escola = Lote = Empresa = ContratoReceita = Dotacao = Status = [];
         Texto = ValorDe = ValorAte = OsDe = OsAte = "";
         ValorSemInformacao = SemDataOs = false;
         _atualizando = false;
@@ -665,14 +672,14 @@ public sealed partial class BaseVm : TelaVm
             }
         }
 
-        Por("Portaria", Portaria);
-        Por("Contrato", Contrato);
-        Por("Escola", Escola);
-        Por("Lote", Lote);
-        Por("Empresa", Empresa);
-        Por("Contrato de receita", ContratoReceita);
-        Por("Dotação", Dotacao);
-        Por("Status", Status);
+        Por("Portaria", string.Join(", ", Portaria));
+        Por("Contrato", string.Join(", ", Contrato));
+        Por("Escola", string.Join(", ", Escola));
+        Por("Lote", string.Join(", ", Lote));
+        Por("Empresa", string.Join(", ", Empresa));
+        Por("Contrato de receita", string.Join(", ", ContratoReceita));
+        Por("Dotação", string.Join(", ", Dotacao));
+        Por("Status", string.Join(", ", Status));
         Por("Texto", Texto);
         var faixa = Filtro().Valores;
         if (faixa.TryGetValue(ValorFiltrado.Campo, out var f))
@@ -919,14 +926,14 @@ public sealed partial class BaseVm : TelaVm
         var opcoes = _base.Opcoes(filtro);
         _atualizando = true;
         // Trocar a lista faz a tela soltar a selecao; o valor escolhido e reposto logo depois.
-        Portaria = Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
-        Contrato = Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
-        Escola = Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
-        Lote = Trocar(Lotes, opcoes.Lotes, Lote, "Lote");
-        Empresa = Trocar(Empresas, opcoes.Empresas, Empresa, "Empresa");
-        ContratoReceita = Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
-        Dotacao = Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
-        Status = Trocar(Situacoes, opcoes.Status, Status, "Status");
+        Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
+        Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
+        Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
+        Trocar(Lotes, opcoes.Lotes, Lote, "Lote");
+        Trocar(Empresas, opcoes.Empresas, Empresa, "Empresa");
+        Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
+        Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
+        Trocar(Situacoes, opcoes.Status, Status, "Status");
         _atualizando = false;
 
         long? selecionada = Selecionada?.Obra.Id;
@@ -964,7 +971,7 @@ public sealed partial class BaseVm : TelaVm
     private void AtualizarLote(FiltroObras filtro)
     {
         TotaisDoLote.Clear();
-        if (string.IsNullOrWhiteSpace(Lote))
+        if (Lote.Count == 0)
         {
             TituloDoLote = "";
             OnPropertyChanged(nameof(TemLote));
@@ -973,7 +980,7 @@ public sealed partial class BaseVm : TelaVm
 
         var obras = _base.Buscar(filtro, int.MaxValue).Obras;
         decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
-        TituloDoLote = $"{Lote} · {Formato.Plural(obras.Count, "obra", "obras")} · {Formato.Plural(obras.Select(o => o.Empreendimento).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "escola", "escolas")}";
+        TituloDoLote = $"{FiltroObras.TituloLotes(Lote)} · {Formato.Plural(obras.Count, "obra", "obras")} · {Formato.Plural(obras.Select(o => o.Empreendimento).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "escola", "escolas")}";
         var tramite = obras.SelectMany(o => MedicoesEmTramite.DaObra(o, _base.Medicoes(o.Contrato))).ToList();
         TotaisDoLote.Add(new ItemCronograma("Valor original", FormatoBase.Reais(Soma(o => o.ValorEmpreendimento))));
         TotaisDoLote.Add(new ItemCronograma("Aditado", FormatoBase.Reais(Soma(o => o.ValorAditado))));
@@ -988,25 +995,21 @@ public sealed partial class BaseVm : TelaVm
     /// Troca a lista de opcoes mantendo o valor escolhido. Se a base foi atualizada e o valor escolhido nao existe
     /// mais, ele continua visivel na lista (para o usuario ver e limpar) e um aviso aponta o campo.
     /// </summary>
-    private string? Trocar(ObservableCollection<string> lista, IReadOnlyList<string> novas, string? escolhido, string campo)
+    private void Trocar(ObservableCollection<string> lista, IReadOnlyList<string> novas, IReadOnlyList<string> escolhidos, string campo)
     {
-        bool falta = escolhido is not null && !novas.Contains(escolhido, StringComparer.OrdinalIgnoreCase);
-        var desejada = falta ? [escolhido!, .. novas] : novas;
-        if (!lista.SequenceEqual(desejada))
+        var faltam = escolhidos.Except(novas, StringComparer.OrdinalIgnoreCase).ToList();
+        var desejadas = novas.Concat(faltam);
+        if (!lista.SequenceEqual(desejadas))
         {
             lista.Clear();
-            foreach (string opcao in desejada)
-            {
-                lista.Add(opcao);
-            }
+            foreach (string opcao in desejadas) lista.Add(opcao);
         }
 
-        if (falta)
+        if (faltam.Count > 0)
         {
-            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, $"O filtro {campo} (\"{escolhido}\") não combina com nenhuma obra da base atual. Limpe ou troque esse filtro."));
+            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir,
+                $"O filtro {campo} ({string.Join(", ", faltam)}) tem opções sem obras compatíveis na base atual."));
         }
-
-        return escolhido;
     }
 
     private void AtualizarMedicoes()

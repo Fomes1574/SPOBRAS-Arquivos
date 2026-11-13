@@ -192,3 +192,13 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .barra .acao svg { width: 24px; height: 24px; }
 .fab { white-space: nowrap; }
 .fab svg { width: 22px; height: 22px; flex: none; }
+
+
+.grupo-chip { display: inline-flex; flex: none; }
+.grupo-chip.on .chip { background: var(--preto); color: #fff; border-color: var(--preto); border-radius: 999px 0 0 999px; }
+.grupo-chip.on .limpar-chip { border-radius: 0 999px 999px 0; padding-left: 8px; }
+.opcoes-filtro { max-height: 45vh; overflow: auto; margin-bottom: 12px; }
+.opcao-filtro { cursor: pointer; }
+.opcao-filtro input { appearance: none; width: 22px; height: 22px; flex: none; border: 2px solid #A9A9A4; border-radius: 4px; display: grid; place-items: center; }
+.opcao-filtro input:checked { background: var(--vermelho); border-color: var(--vermelho); }
+.opcao-filtro input:checked::before { content: "✓"; color: white; font-weight: 700; }

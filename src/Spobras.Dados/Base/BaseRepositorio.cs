@@ -412,24 +412,26 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             return nome;
         }
 
-        void Igual(string coluna, string? valor, string campo)
+        void Incluir(string coluna, IReadOnlyList<string> valores, string campo)
         {
-            if (!string.IsNullOrWhiteSpace(valor) && menos != campo)
+            if (valores.Count > 0 && menos != campo)
             {
-                partes.Add($"{coluna} = {P(valor)} collate nocase");
+                partes.Add($"{coluna} collate nocase in ({string.Join(", ", valores.Select(v => P(v)))})");
             }
         }
 
-        Igual("portaria", f.Portaria, "portaria");
-        Igual("contrato", f.Contrato, "contrato");
-        Igual("empreendimento", f.Escola, "escola");
-        Igual("lote", f.Lote, "lote");
-        Igual("contratada", f.Empresa, "empresa");
-        Igual("atividade", f.Dotacao, "dotacao");
-        Igual("status", f.Status, "status");
-        if (!string.IsNullOrWhiteSpace(f.ContratoReceita) && menos != "receita")
+        Incluir("portaria", f.Portaria, "portaria");
+        Incluir("contrato", f.Contrato, "contrato");
+        Incluir("empreendimento", f.Escola, "escola");
+        Incluir("lote", f.Lote, "lote");
+        Incluir("contratada", f.Empresa, "empresa");
+        Incluir("atividade", f.Dotacao, "dotacao");
+        Incluir("status", f.Status, "status");
+        if (f.ContratoReceita.Count > 0 && menos != "receita")
         {
-            partes.Add($"contrato_receita like {P("%" + f.ContratoReceita.Trim() + "%")}");
+            var codigos = f.ContratoReceita.Select(v => P(v.Trim()));
+            const string lista = "replace(replace(coalesce(contrato_receita, ''), ' | ', ','), ', ', ',')";
+            partes.Add($"exists (select 1 from json_each('[' || replace(json_quote({lista}), ',', '\",\"') || ']') where value collate nocase in ({string.Join(", ", codigos)}))");
         }
 
         foreach (string termo in Normalizacao.Busca(f.Texto).Split(' ', StringSplitOptions.RemoveEmptyEntries))

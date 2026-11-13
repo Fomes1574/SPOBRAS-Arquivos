@@ -206,7 +206,7 @@ else
 
     private void VerLote()
     {
-        App.FiltroBase = new FiltroObras { Lote = _obra!.Lote };
+        App.FiltroBase = new FiltroObras { Lote = _obra!.Lote is { } lote ? [lote] : [] };
         Ir("base");
     }
 }

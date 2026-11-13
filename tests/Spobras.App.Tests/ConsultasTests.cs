@@ -17,6 +17,17 @@ public class ConsultasTests : ComApp
     }
 
     [Fact]
+    public void Consulta_antiga_converte_valor_unico_e_le_listas_novas()
+    {
+        var perfil = new PerfilGuardado(Guid.NewGuid(), "consulta-base", "Antiga",
+            """{"Portaria":"Portaria Exemplo","Contrato":null,"Lote":["LOTE 01","LOTE 07"]}""");
+        var filtros = Assert.IsType<ConsultaSalva>(PerfilRepositorio.Abrir<ConsultaSalva>(perfil));
+        Assert.Equal(["Portaria Exemplo"], filtros.Portaria);
+        Assert.Empty(filtros.Contrato);
+        Assert.Equal(["LOTE 01", "LOTE 07"], filtros.Lote);
+    }
+
+    [Fact]
     public void Sem_apoio_as_funcoes_de_consulta_ficam_escondidas()
     {
         var tela = new BaseVm(Base, Fontes, new Servicos.InterfaceDireta(), _ => { });
@@ -29,7 +40,7 @@ public class ConsultasTests : ComApp
     public async Task T33_consulta_salva_reaberta_usa_os_dados_novos_da_fonte()
     {
         var tela = await Abrir();
-        tela.Portaria = BaseSintetica.P3De2021;
+        tela.Portaria = [BaseSintetica.P3De2021];
         tela.ValorDe = "1,00";
         Assert.Equal("1 obra encontrada", tela.Resumo);
 
@@ -48,7 +59,7 @@ public class ConsultasTests : ComApp
         var reaberta = new BaseVm(Base, Fontes, new Servicos.InterfaceDireta(), _ => { }, apoio: Apoio);
         Assert.Equal(["Portaria 3 com saldo"], reaberta.Consultas.Select(c => c.Nome));
         reaberta.ConsultaAberta = reaberta.Consultas[0];
-        Assert.Equal(BaseSintetica.P3De2021, reaberta.Portaria);
+        Assert.Equal([BaseSintetica.P3De2021], reaberta.Portaria);
         Assert.Equal("1,00", reaberta.ValorDe);
         Assert.Equal("2 obras encontradas", reaberta.Resumo);
 
@@ -60,14 +71,14 @@ public class ConsultasTests : ComApp
         Dialogos.Confirmacoes.Enqueue(true);
         reaberta.RemoverConsultaCommand.Execute(null);
         Assert.Empty(reaberta.Consultas);
-        Assert.Equal(BaseSintetica.P3De2021, reaberta.Portaria); // filtros continuam
+        Assert.Equal([BaseSintetica.P3De2021], reaberta.Portaria); // filtros continuam
     }
 
     [Fact]
     public async Task Exporta_todas_as_obras_do_filtro_com_tipos_do_excel_e_aba_sobre_a_consulta()
     {
         var tela = await Abrir();
-        tela.Portaria = BaseSintetica.P3De2021;
+        tela.Portaria = [BaseSintetica.P3De2021];
         tela.ExportarCommand.Execute(null);
 
         Assert.False(tela.ResultadoComFalha, tela.Resultado);
@@ -113,9 +124,9 @@ public class ConsultasTests : ComApp
         Assert.True(tela.TemPendencias);
         Assert.Equal("1 obra sem Data da OS", tela.Pendencias);
 
-        tela.Portaria = BaseSintetica.P6;
+        tela.Portaria = [BaseSintetica.P6];
         tela.VerObrasSemOsCommand.Execute(null);
-        Assert.Null(tela.Portaria);
+        Assert.Empty(tela.Portaria);
         Assert.True(tela.SemDataOs);
         Assert.Equal("EMEI Gama", Assert.Single(tela.Obras).Escola);
     }

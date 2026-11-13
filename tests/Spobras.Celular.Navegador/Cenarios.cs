@@ -41,7 +41,7 @@ public static class Cenarios
 
         if (App.Rascunho.Vazio)
         {
-            var obra = App.Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = "044/EX/2026" }, 1).Obras[0];
+            var obra = App.Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0];
             App.Rascunho.AplicarObra(obra);
             p.ProximaEscolha = [.. Directory.GetFiles(p.Entrada, "foto-*.jpg").Order(StringComparer.Ordinal)];
             var escolhidas = await p.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);

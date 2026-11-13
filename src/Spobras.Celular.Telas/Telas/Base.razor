@@ -16,22 +16,21 @@
     <div class="chips">
         @foreach (var f in Filtros)
         {
-            var valor = f.Valor(App.FiltroBase);
-            if (valor is not null)
-            {
-                <button class="chip on" @onclick="() => Limpar(f.Id)">@(f.Id == "lote" ? SelosObra.Lote(valor) : valor) ✕</button>
-            }
-            else
-            {
-                <button class="chip" @onclick="() => Abrir(f.Id)">@f.Nome ▾</button>
-            }
+            var valores = f.Valor(App.FiltroBase);
+            <div class="grupo-chip @(valores.Count > 0 ? "on" : "")">
+                <button class="chip" @onclick="() => Abrir(f.Id)">@ResumoFiltro(f, valores) ▾</button>
+                @if (valores.Count > 0)
+                {
+                    <button class="chip limpar-chip" aria-label="@($"Limpar {f.Nome}")" @onclick="() => Limpar(f.Id)">✕</button>
+                }
+            </div>
         }
     </div>
 
     @if (_totais is { } t)
     {
         <div class="painel">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">Totais do @SelosObra.Lote(t.Lote).ToLowerInvariant()</h2><span class="mini">@Formato.Plural(t.Escolas, "escola", "escolas")</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">@(App.FiltroBase.Lote.Count > 1 ? t.Lote : $"Totais do {SelosObra.Lote(t.Lote).ToLowerInvariant()}")</h2><span class="mini">@Formato.Plural(t.Escolas, "escola", "escolas")</span></div>
             <div class="totais" style="margin-top:10px">
                 <div><span>Valor original</span><b>@Formato.Reais(t.Original)</b></div>
                 <div><span>Aditado</span><b>+ @Formato.Reais(t.Aditado)</b></div>
@@ -40,7 +39,7 @@
                 <div><span>Saldo a pagar</span><b>@Formato.Reais(t.SaldoAPagar)</b></div>
                 <div style="grid-column:1/-1"><span>Medições em trâmite (@t.MedicoesEmTramite)</span><b>@Formato.Reais(t.EmTramite)</b></div>
             </div>
-            <p class="mini" style="margin:8px 0 0">Soma das obras do lote. Pago + saldo a pagar = contratado com aditamento.</p>
+            <p class="mini" style="margin:8px 0 0">Soma das obras dos lotes selecionados. Pago + saldo a pagar = contratado com aditamento.</p>
         </div>
     }
 
@@ -72,27 +71,37 @@
 </div>
 <Nav Ativo="base" />
 
-<Folha Aberta="_aberto is not null" Titulo="@(Filtros.FirstOrDefault(f => f.Id == _aberto)?.Nome)" AoFechar="() => _aberto = null">
-    @if (_opcoes.Count == 0)
+<Folha Aberta="_aberto is not null" Titulo="@_aberto?.Nome" AoFechar="FecharFiltro">
+    @if (_aberto is { } filtro)
     {
-        <p class="texto2">Nenhuma opção com os outros filtros escolhidos.</p>
-    }
-    @foreach (var op in _opcoes)
-    {
-        <button class="opcao" @onclick="() => Escolher(op)"><span>@(_aberto == "lote" ? SelosObra.Lote(op) : op)</span><span class="marca"></span></button>
+        <div class="busca"><input type="search" aria-label="Pesquisar opções" placeholder="Pesquisar opções" value="@_pesquisa" @oninput="Pesquisar" /></div>
+        <div class="opcoes-filtro">
+            @foreach (var op in OpcoesVisiveis())
+            {
+                bool marcado = filtro.Valor(App.FiltroBase).Contains(op, StringComparer.OrdinalIgnoreCase);
+                <label class="opcao opcao-filtro">
+                    <span>@(filtro.Id == "lote" ? SelosObra.Lote(op) : op)</span>
+                    <input type="checkbox" checked="@marcado" @onchange="() => Escolher(filtro, op)" />
+                </label>
+            }
+        </div>
+        <button class="btn primario" @onclick="FecharFiltro">Pronto</button>
     }
 </Folha>
 
 @code {
-    private sealed record FiltroChip(string Id, string Nome, Func<FiltroObras, string?> Valor, Func<OpcoesFiltro, IReadOnlyList<string>> Opcoes, Func<FiltroObras, string?, FiltroObras> Definir);
+    private sealed record FiltroChip(string Id, string Nome, string Plural, Func<FiltroObras, IReadOnlyList<string>> Valor, Func<OpcoesFiltro, IReadOnlyList<string>> Opcoes, Func<FiltroObras, IReadOnlyList<string>, FiltroObras> Definir);
 
     private static readonly FiltroChip[] Filtros =
     [
-        new("lote", "Lote", f => f.Lote, o => o.Lotes, (f, v) => f with { Lote = v }),
-        new("portaria", "Portaria", f => f.Portaria, o => o.Portarias, (f, v) => f with { Portaria = v }),
-        new("empresa", "Empresa", f => f.Empresa, o => o.Empresas, (f, v) => f with { Empresa = v }),
-        new("status", "Status", f => f.Status, o => o.Status, (f, v) => f with { Status = v }),
-        new("contrato", "Contrato", f => f.Contrato, o => o.Contratos, (f, v) => f with { Contrato = v }),
+        new("lote", "Lote", "lotes", f => f.Lote, o => o.Lotes, (f, v) => f with { Lote = v }),
+        new("portaria", "Portaria", "portarias", f => f.Portaria, o => o.Portarias, (f, v) => f with { Portaria = v }),
+        new("empresa", "Empresa", "empresas", f => f.Empresa, o => o.Empresas, (f, v) => f with { Empresa = v }),
+        new("status", "Status", "status", f => f.Status, o => o.Status, (f, v) => f with { Status = v }),
+        new("contrato", "Contrato", "contratos", f => f.Contrato, o => o.Contratos, (f, v) => f with { Contrato = v }),
+        new("escola", "Escola", "escolas", f => f.Escola, o => o.Escolas, (f, v) => f with { Escola = v }),
+        new("receita", "Contrato de receita", "contratos de receita", f => f.ContratoReceita, o => o.ContratosReceita, (f, v) => f with { ContratoReceita = v }),
+        new("dotacao", "Dotação", "dotações", f => f.Dotacao, o => o.Dotacoes, (f, v) => f with { Dotacao = v }),
     ];
 
     private const int Pagina = 40;
@@ -100,7 +109,9 @@
     private IReadOnlyList<ObraLida> _obras = [];
     private int _total;
     private TotaisLote? _totais;
-    private string? _aberto;
+    private FiltroChip? _aberto;
+    private string _pesquisa = "";
+    private readonly Dictionary<string, string> _pesquisas = [];
     private IReadOnlyList<string> _opcoes = [];
     private CancellationTokenSource? _digitando;
 
@@ -121,7 +132,7 @@
         }
 
         (_obras, _total) = App.Base.Buscar(App.FiltroBase, _limite);
-        _totais = string.IsNullOrWhiteSpace(App.FiltroBase.Lote) ? null : App.Base.Totais(App.FiltroBase);
+        _totais = App.FiltroBase.Lote.Count == 0 ? null : App.Base.Totais(App.FiltroBase);
     }
 
     private async Task Digitou(ChangeEventArgs e)
@@ -143,24 +154,50 @@
         Carregar();
     }
 
+    private static string ResumoFiltro(FiltroChip filtro, IReadOnlyList<string> valores) => valores.Count switch
+    {
+        0 => filtro.Nome,
+        1 => filtro.Id == "lote" ? SelosObra.Lote(valores[0]) : valores[0],
+        _ => $"{valores.Count} {filtro.Plural}",
+    };
+
     private void Abrir(string id)
     {
-        var f = Filtros.First(x => x.Id == id);
-        _opcoes = f.Opcoes(App.Base.Opcoes(f.Definir(App.FiltroBase, null)));
-        _aberto = id;
+        _aberto = Filtros.First(x => x.Id == id);
+        _pesquisa = _pesquisas.GetValueOrDefault(id, "");
+        RecarregarOpcoes(_aberto);
     }
 
-    private void Escolher(string valor)
+    private void FecharFiltro()
     {
-        App.FiltroBase = Filtros.First(x => x.Id == _aberto).Definir(App.FiltroBase, valor);
+        if (_aberto is { } filtro) _pesquisas[filtro.Id] = _pesquisa;
         _aberto = null;
+    }
+
+    private void RecarregarOpcoes(FiltroChip filtro) =>
+        _opcoes = filtro.Opcoes(App.Base.Opcoes(App.FiltroBase))
+            .Union(filtro.Valor(App.FiltroBase), StringComparer.OrdinalIgnoreCase).ToList();
+
+    private void Pesquisar(ChangeEventArgs e) => _pesquisa = e.Value?.ToString() ?? "";
+
+    private IEnumerable<string> OpcoesVisiveis() =>
+        _opcoes.Where(o => Normalizacao.Busca(o).Contains(Normalizacao.Busca(_pesquisa), StringComparison.Ordinal));
+
+    private void Escolher(FiltroChip filtro, string valor)
+    {
+        var atuais = filtro.Valor(App.FiltroBase);
+        var outros = atuais.Where(v => !string.Equals(v, valor, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (outros.Count == atuais.Count) outros.Add(valor);
+        App.FiltroBase = filtro.Definir(App.FiltroBase, outros);
         _limite = Pagina;
         Carregar();
+        RecarregarOpcoes(filtro);
     }
 
     private void Limpar(string id)
     {
-        App.FiltroBase = Filtros.First(x => x.Id == id).Definir(App.FiltroBase, null);
+        _pesquisas.Remove(id);
+        App.FiltroBase = Filtros.First(x => x.Id == id).Definir(App.FiltroBase, []);
         _limite = Pagina;
         Carregar();
     }

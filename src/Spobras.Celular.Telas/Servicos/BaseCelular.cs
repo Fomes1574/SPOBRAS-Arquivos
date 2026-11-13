@@ -194,7 +194,7 @@ public sealed class BaseCelular
         var obras = Buscar(filtro, int.MaxValue).Obras;
         decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
         var tramite = obras.SelectMany(EmTramite).ToList();
-        return new TotaisLote(filtro.Lote ?? "", obras.Count, obras.Select(o => Normalizacao.Busca(o.Empreendimento.Trim())).Distinct().Count(),
+        return new TotaisLote(FiltroObras.TituloLotes(filtro.Lote), obras.Count, obras.Select(o => Normalizacao.Busca(o.Empreendimento.Trim())).Distinct().Count(),
             Soma(o => o.ValorEmpreendimento), Soma(o => o.ValorAditado), Soma(o => o.ValorContratadoComAditamento), Soma(o => o.ValorPago),
             tramite.Count, tramite.Sum(m => m.Valor), Soma(o => o.SaldoAPagar));
     }
