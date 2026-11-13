@@ -202,3 +202,5 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .opcao-filtro input { appearance: none; width: 22px; height: 22px; flex: none; border: 2px solid #A9A9A4; border-radius: 4px; display: grid; place-items: center; }
 .opcao-filtro input:checked { background: var(--vermelho); border-color: var(--vermelho); }
 .opcao-filtro input:checked::before { content: "✓"; color: white; font-weight: 700; }
+
+.sugestoes-rel { border: 1px solid var(--borda); border-radius: 8px; padding: 0 8px; margin: -4px 0 10px; max-height: 250px; overflow: auto; }

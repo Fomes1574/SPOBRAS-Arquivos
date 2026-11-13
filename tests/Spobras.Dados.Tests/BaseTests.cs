@@ -31,6 +31,16 @@ public class BaseTests : IDisposable
     // ---- Importacao ----
 
     [Fact]
+    public void Sugestoes_por_escola_mostram_os_contratos_e_ordenam_contratos_por_ano()
+    {
+        var escolas = ProcuraObras.SugestoesDeEscola(_base, "alfa");
+        Assert.Equal(new ProcuraObras.Sugestao("EMEF Alfa", "2 contratos"), Assert.Single(escolas));
+        Assert.Empty(ProcuraObras.SugestoesDeEscola(_base, "a"));
+        Assert.Equal(["003/EX/2025", "001/EX/2024"],
+            ProcuraObras.SugestoesDeContrato(_base, "/EX/202").Select(o => o.Valor).Where(o => o is "003/EX/2025" or "001/EX/2024"));
+    }
+
+    [Fact]
     public void Importa_obras_com_codigos_como_texto_dinheiro_exato_e_dotacao_padronizada()
     {
         var todas = _base.Buscar(new FiltroObras());

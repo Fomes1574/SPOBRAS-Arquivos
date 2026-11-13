@@ -8,6 +8,47 @@ namespace Spobras.Dados.Base;
 /// </summary>
 public static class ProcuraObras
 {
+    public sealed record Sugestao(string Valor, string Detalhe);
+
+    public static IReadOnlyList<Sugestao> SugestoesDeEscola(BaseRepositorio base_, string texto, int max = 8)
+    {
+        string alvo = Normalizacao.Busca(texto.Trim());
+        if (alvo.Length < 2) return [];
+        var escolas = base_.Opcoes(new FiltroObras()).Escolas
+            .Where(e => Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal))
+            .OrderByDescending(e => Normalizacao.Busca(e).StartsWith(alvo, StringComparison.Ordinal))
+            .ThenBy(e => e, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), true)).Take(max).ToArray();
+        if (escolas.Length == 0) return [];
+        var obras = base_.Buscar(new FiltroObras { Escola = escolas }, int.MaxValue).Obras;
+        return [.. escolas.Select(e =>
+        {
+            var contratos = obras.Where(o => MesmaEscola(e, o.Empreendimento)).Select(o => o.Contrato).Distinct().ToArray();
+            return new Sugestao(e, contratos.Length == 1 ? contratos[0] : $"{contratos.Length} contratos");
+        })];
+    }
+
+    public static IReadOnlyList<Sugestao> SugestoesDeContrato(BaseRepositorio base_, string texto, int max = 8)
+    {
+        string alvo = Normalizacao.Busca(texto.Trim().Replace('-', '/'));
+        if (alvo.Length < 2) return [];
+        static int Ano(string codigo) => int.TryParse(
+            System.Text.RegularExpressions.Regex.Match(codigo, @"(?<![0-9])[0-9]{4}(?![0-9])",
+                System.Text.RegularExpressions.RegexOptions.RightToLeft).Value, out int ano) ? ano : 0;
+        var contratos = base_.Opcoes(new FiltroObras()).Contratos
+            .Where(c => Normalizacao.Busca(c).Contains(alvo, StringComparison.Ordinal))
+            .OrderByDescending(Ano).ThenBy(c => c, StringComparer.OrdinalIgnoreCase).Take(max).ToArray();
+        if (contratos.Length == 0) return [];
+        var obras = base_.Buscar(new FiltroObras { Contrato = contratos }, int.MaxValue).Obras;
+        return [.. contratos.Select(c =>
+        {
+            var escolas = obras.Where(o => MesmoContrato(o.Contrato, c)).DistinctBy(o => Normalizacao.Busca(o.Empreendimento)).ToArray();
+            string detalhe = escolas.Length == 1
+                ? string.Join(" · ", new[] { escolas[0].Lote, escolas[0].Empreendimento }.Where(v => !string.IsNullOrWhiteSpace(v)))
+                : $"{escolas.Length} escolas";
+            return new Sugestao(c, detalhe);
+        })];
+    }
+
     /// <summary>Obras do contrato digitado ("044-EX-2026" e "044/EX/2026" sao o mesmo).</summary>
     public static IReadOnlyList<ObraLida> DoContrato(BaseRepositorio base_, string digitado)
     {

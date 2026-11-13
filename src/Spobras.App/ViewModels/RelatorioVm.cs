@@ -170,6 +170,40 @@ public sealed partial class RelatorioVm : TelaVm
     /// <summary>Obras da escola digitada (uma escola pode estar em varios contratos).</summary>
     public Func<string, IReadOnlyList<Spobras.Core.Base.ObraLida>>? ObrasDaEscola { get; set; }
 
+    public Func<string, IReadOnlyList<Spobras.Dados.Base.ProcuraObras.Sugestao>>? BuscarSugestoesEscola { get; set; }
+    public Func<string, IReadOnlyList<Spobras.Dados.Base.ProcuraObras.Sugestao>>? BuscarSugestoesContrato { get; set; }
+
+    public void EscolherSugestao(string valor, bool escola)
+    {
+        var obras = escola ? ObrasDaEscola?.Invoke(valor).Where(o => MesmaEscola(o.Empreendimento, valor)).ToList()
+            : ObrasDoContrato?.Invoke(valor).ToList();
+        if (obras is null || obras.Count == 0) return;
+        LimparEscolhas();
+        if (obras.Count == 1)
+        {
+            PreencherDaObra(obras[0]);
+            return;
+        }
+
+        _restaurando = true;
+        if (escola)
+        {
+            Unidade = valor;
+            Contrato = "";
+            foreach (var obra in obras) ContratosDaEscola.Add(new OpcaoDeContrato(obra));
+            OnPropertyChanged(nameof(TemContratosParaEscolher));
+        }
+        else
+        {
+            Contrato = valor;
+            Unidade = "";
+            foreach (var obra in obras) EscolasDoContrato.Add(obra);
+            OnPropertyChanged(nameof(TemEscolasParaEscolher));
+        }
+        _restaurando = false;
+        Replanejar();
+    }
+
     /// <summary>Escolas do contrato digitado, quando ele tem mais de uma: o usuario escolhe qual.</summary>
     public ObservableCollection<Spobras.Core.Base.ObraLida> EscolasDoContrato { get; } = [];
 

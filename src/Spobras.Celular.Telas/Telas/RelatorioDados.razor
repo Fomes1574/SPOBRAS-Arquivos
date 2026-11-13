@@ -1,5 +1,6 @@
 @page "/relatorio"
 @inherits Tela
+@using Spobras.Dados.Base
 
 <Barra Titulo="Relatório fotográfico" Sub="Rascunho salvo sozinho" Voltar="" />
 <div class="conteudo">
@@ -12,8 +13,30 @@
     {
         <Aviso>Digite a escola ou o contrato: o resto vem da base. Campo em branco não aparece no relatório.</Aviso>
     }
-    <CampoTexto Rotulo="Unidade educacional" Valor="@D.Unidade" AoMudar="EscolaMudou" />
-    <CampoTexto Rotulo="Contrato" Valor="@D.Contrato" Dica="000/EX/0000" AoMudar="ContratoMudou" />
+    <CampoTexto Rotulo="Unidade educacional" Valor="@D.Unidade" AoMudar="EscolaMudou" AoDigitar="v => Sugerir(v, true)" AoPerderFoco="FecharSugestoes" />
+    @if (_sugerindoEscola == true && _sugestoes.Count > 0)
+    {
+        <div class="sugestoes-rel">
+            @foreach (var sugestao in _sugestoes)
+            {
+                <button class="opcao" type="button" @onpointerdown:preventDefault @onclick="() => EscolherSugestao(sugestao, true)">
+                    <span>@sugestao.Valor<small>@sugestao.Detalhe</small></span>
+                </button>
+            }
+        </div>
+    }
+    <CampoTexto Rotulo="Contrato" Valor="@D.Contrato" Dica="000/EX/0000" AoMudar="ContratoMudou" AoDigitar="v => Sugerir(v, false)" AoPerderFoco="FecharSugestoes" />
+    @if (_sugerindoEscola == false && _sugestoes.Count > 0)
+    {
+        <div class="sugestoes-rel">
+            @foreach (var sugestao in _sugestoes)
+            {
+                <button class="opcao" type="button" @onpointerdown:preventDefault @onclick="() => EscolherSugestao(sugestao, false)">
+                    <span>@sugestao.Valor<small>@sugestao.Detalhe</small></span>
+                </button>
+            }
+        </div>
+    }
     <div class="linha-btns">
         <CampoTexto Rotulo="Lote" Valor="@D.Lote" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Lote = v })" />
         <CampoTexto Rotulo="Data da OS" Valor="@D.DataOs" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { DataOs = v })" />
@@ -53,6 +76,47 @@
 </Folha>
 
 @code {
+    private IReadOnlyList<ProcuraObras.Sugestao> _sugestoes = [];
+    private bool _sugerindoEscola;
+    private int _versaoSugestao;
+
+    private async Task Sugerir(string texto, bool escola)
+    {
+        int versao = ++_versaoSugestao;
+        _sugerindoEscola = escola;
+        _sugestoes = [];
+        if (texto.Trim().Length < 2 || !App.Base.TemDados) return;
+        await Task.Delay(200);
+        if (versao != _versaoSugestao) return;
+        _sugestoes = escola ? ProcuraObras.SugestoesDeEscola(App.Base.Repositorio, texto)
+            : ProcuraObras.SugestoesDeContrato(App.Base.Repositorio, texto);
+    }
+
+    private void FecharSugestoes()
+    {
+        _versaoSugestao++;
+        _sugestoes = [];
+    }
+
+    private void EscolherSugestao(ProcuraObras.Sugestao sugestao, bool escola)
+    {
+        FecharSugestoes();
+        var obras = escola ? ProcuraObras.DaEscola(App.Base.Repositorio, sugestao.Valor)
+            .Where(o => ProcuraObras.MesmaEscola(o.Empreendimento, sugestao.Valor)).ToList()
+            : ProcuraObras.DoContrato(App.Base.Repositorio, sugestao.Valor).ToList();
+        if (obras.Count == 0) return;
+        if (obras.Count == 1)
+        {
+            Aplicar(obras[0]);
+            return;
+        }
+        Mudar(d => escola ? d with { Unidade = sugestao.Valor, Contrato = "" } : d with { Contrato = sugestao.Valor, Unidade = "" });
+        _porEscola = escola;
+        _tituloEscolha = escola ? "Escolha o contrato" : "Escolha a escola";
+        _textoEscolha = escola ? $"{obras.Count} contratos na base." : $"{obras.Count} escolas na base.";
+        _escolhas = obras;
+    }
+
     private string? _mensagem;
     private string _tipo = "info";
     private IReadOnlyList<ObraLida> _escolhas = [];

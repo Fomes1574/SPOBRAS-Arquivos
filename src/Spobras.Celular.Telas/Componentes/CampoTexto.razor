@@ -8,7 +8,7 @@
     else
     {
         <input id="@_id" type="text" inputmode="@(Data ? "numeric" : "text")" placeholder="@Dica" value="@Valor" class="@(Invalido ? "erro" : "")"
-               autocomplete="off" @onchange="Mudou" @oninput="Digitando" />
+               autocomplete="off" @onchange="Mudou" @oninput="Digitando" @onblur="AoPerderFoco" />
     }
     @if (Invalido)
     {
@@ -27,6 +27,8 @@
     [Parameter] public string? Estilo { get; set; }
     [Parameter] public EventCallback<string> AoMudar { get; set; }
     [Parameter] public EventCallback<string> AoDigitar { get; set; }
+
+    [Parameter] public EventCallback AoPerderFoco { get; set; }
 
     private bool Invalido => Data && Formato.LerData(Valor).Invalida;
 

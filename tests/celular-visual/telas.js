@@ -106,8 +106,13 @@ async function texto(page, seletor, contem) {
       if (await page.getByLabel(rotulo, { exact: true }).count() !== 1)
         problemas.push(`${w}x${h} rotulo do relatorio incorreto: ${rotulo}`);
     }
-    await page.fill('input >> nth=1', ''); await page.locator('input >> nth=1').dispatchEvent('change'); await page.waitForTimeout(250);
-    await page.fill('input >> nth=0', 'emei exemplo alfa'); await page.locator('input >> nth=0').dispatchEvent('change'); await page.waitForTimeout(450);
+    const unidade = page.getByLabel('Unidade educacional', { exact: true });
+    await unidade.fill('exemplo alfa');
+    const sugestao = page.locator('.sugestoes-rel button', { hasText: 'EMEI Exemplo Alfa' });
+    await sugestao.waitFor();
+    if (!await unidade.evaluate(e => e === document.activeElement)) problemas.push('sugestao apareceu so depois de sair do campo');
+    await foto(page, '10b-rel-sugestoes', w, h, salvar);
+    await sugestao.click();
     await foto(page, '11-rel-escolha', w, h, salvar);
     await texto(page, '.opcao', '044/EX/2026');
     if ((await page.inputValue('input >> nth=1')) !== '044/EX/2026') problemas.push(`${w}x${h} escolher o contrato nao preencheu o campo`);

@@ -83,6 +83,8 @@ public sealed class Composicao : IDisposable
         var relatorio = (RelatorioVm)telas[RelatorioVm.Modulo];
         relatorio.ObrasDoContrato = ObrasDoContrato;
         relatorio.ObrasDaEscola = ObrasDaEscola;
+        relatorio.BuscarSugestoesEscola = texto => Spobras.Dados.Base.ProcuraObras.SugestoesDeEscola(Base, texto);
+        relatorio.BuscarSugestoesContrato = texto => Spobras.Dados.Base.ProcuraObras.SugestoesDeContrato(Base, texto);
         var cronograma = (CronogramaVm)telas[CronogramaVm.Modulo];
         cronograma.ObrasDaEscola = ObrasDaEscola;
         cronograma.ObrasDoLote = ObrasDoLote;

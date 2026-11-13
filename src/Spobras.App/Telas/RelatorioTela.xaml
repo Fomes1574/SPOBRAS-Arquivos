@@ -94,7 +94,20 @@
                     <TextBlock Text="Todos os campos são opcionais. Campo em branco não aparece no relatório, nem o nome dele." Style="{StaticResource Texto2}" Margin="0,4,0,12" TextWrapping="Wrap" />
 
                     <TextBlock Text="Unidade educacional" Style="{StaticResource Rotulo}" />
-                    <TextBox Text="{Binding Unidade, UpdateSourceTrigger=PropertyChanged, Delay=500}" AutomationProperties.Name="Unidade educacional" />
+                    <Grid>
+                        <TextBox x:Name="SugestaoUnidade" Text="{Binding Unidade, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Unidade educacional"
+                                 TextChanged="AoDigitarSugestao" PreviewKeyDown="TeclasSugestao" />
+                        <Popup x:Name="PopupUnidade" PlacementTarget="{Binding ElementName=SugestaoUnidade}" StaysOpen="False" Placement="Bottom">
+                            <Border Width="290" Background="White" BorderBrush="#999999" BorderThickness="1" Padding="5">
+                                <ListBox x:Name="ListaUnidade" MaxHeight="320" PreviewMouseLeftButtonUp="ClicarSugestao">
+                                    <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="4">
+                                        <TextBlock Text="{Binding Valor}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detalhe}" FontSize="12" Foreground="#555555" TextWrapping="Wrap" />
+                                    </StackPanel></DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                        </Popup>
+                    </Grid>
                     <ItemsControl ItemsSource="{Binding ContratosDaEscola}" Focusable="False" Margin="0,6,0,0"
                                   Visibility="{Binding TemContratosParaEscolher, Converter={StaticResource Visivel}}">
                         <ItemsControl.ItemTemplate>
@@ -132,8 +145,20 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
-                            <TextBox Text="{Binding Contrato, UpdateSourceTrigger=PropertyChanged, Delay=400}" AutomationProperties.Name="Contrato"
-                                     ToolTip="Digite o número do contrato como está na Base de dados, por exemplo 123/SIURB/2024" />
+                            <Grid>
+                        <TextBox x:Name="SugestaoContrato" Text="{Binding Contrato, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Contrato"
+                                 TextChanged="AoDigitarSugestao" PreviewKeyDown="TeclasSugestao" />
+                        <Popup x:Name="PopupContrato" PlacementTarget="{Binding ElementName=SugestaoContrato}" StaysOpen="False" Placement="Bottom">
+                            <Border Width="290" Background="White" BorderBrush="#999999" BorderThickness="1" Padding="5">
+                                <ListBox x:Name="ListaContrato" MaxHeight="320" PreviewMouseLeftButtonUp="ClicarSugestao">
+                                    <ListBox.ItemTemplate><DataTemplate><StackPanel Margin="4">
+                                        <TextBlock Text="{Binding Valor}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detalhe}" FontSize="12" Foreground="#555555" TextWrapping="Wrap" />
+                                    </StackPanel></DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                        </Popup>
+                    </Grid>
                             <ItemsControl ItemsSource="{Binding EscolasDoContrato}" Focusable="False" Margin="0,6,0,0"
                                           Visibility="{Binding TemEscolasParaEscolher, Converter={StaticResource Visivel}}">
                                 <ItemsControl.ItemTemplate>
