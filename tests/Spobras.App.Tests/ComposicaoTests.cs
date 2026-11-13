@@ -243,6 +243,26 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
+    public async Task Base_volta_para_lista_ao_limpar_filtros_ou_perder_a_obra()
+    {
+        using var app = await AppComBase();
+        app.Principal.Navegar(BaseVm.Modulo);
+        var tela = (BaseVm)app.Principal.PaginaAtual!;
+        tela.Lote = "LOTE 01";
+        tela.Selecionada = tela.Obras[0];
+        tela.AlternarAmpliarCommand.Execute(null);
+        Assert.True(tela.FichaAmpliada);
+        tela.LimparFiltrosCommand.Execute(null);
+        Assert.False(tela.FichaAmpliada);
+
+        tela.Selecionada = tela.Obras[0];
+        tela.AlternarAmpliarCommand.Execute(null);
+        tela.Texto = "obra inexistente";
+        Assert.Null(tela.Selecionada);
+        Assert.False(tela.FichaAmpliada);
+    }
+
+    [Fact]
     public async Task Inicio_mostra_a_planilha_mestra_e_leva_a_base()
     {
         using var app = await AppComBase();

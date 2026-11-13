@@ -360,9 +360,13 @@ public class TelasDeVerdadeTests
             baseDados.AlternarFiltrosCommand.Execute(null);
             baseDados.AlternarAmpliarCommand.Execute(null);
             Fotografar(janela, saida, "59-base-ficha-ampliada");
-            baseDados.AlternarAmpliarCommand.Execute(null);
-            baseDados.AlternarFiltrosCommand.Execute(null);
             baseDados.LimparFiltrosCommand.Execute(null);
+            Bombear();
+            Assert.False(baseDados.FichaAmpliada);
+            var lista = Assert.IsAssignableFrom<FrameworkElement>(EncontrarNaTela(janela, "PainelLista"));
+            Assert.True(lista.IsVisible);
+            baseDados.AlternarFiltrosCommand.Execute(null);
+            Fotografar(janela, saida, "59b-base-lista-restaurada");
 
             // Ficha com medicoes em tramite (contrato em andamento) e lista em duas linhas
             baseDados.Selecionada = baseDados.Obras.First(o => o.Escola == "CEU Delta");
@@ -497,6 +501,17 @@ public class TelasDeVerdadeTests
         }
 
         Conferir(conteudo, nome);
+    }
+
+    private static FrameworkElement? EncontrarNaTela(DependencyObject elemento, string nome)
+    {
+        if (elemento is FrameworkElement visual && visual.Name == nome) return visual;
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(elemento); i++)
+        {
+            var encontrado = EncontrarNaTela(VisualTreeHelper.GetChild(elemento, i), nome);
+            if (encontrado is not null) return encontrado;
+        }
+        return null;
     }
 
     private static readonly System.Text.StringBuilder Relatorio = new();

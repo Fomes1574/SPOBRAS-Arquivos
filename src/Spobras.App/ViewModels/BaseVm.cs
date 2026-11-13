@@ -394,7 +394,7 @@ public sealed partial class BaseVm : TelaVm
     private bool _filtrosRecolhidos;
 
     [RelayCommand]
-    private void AlternarAmpliar() => FichaAmpliada = !FichaAmpliada;
+    private void AlternarAmpliar() => FichaAmpliada = Selecionada is not null && !FichaAmpliada;
 
     [RelayCommand]
     private void AlternarFiltros() => FiltrosRecolhidos = !FiltrosRecolhidos;
@@ -522,6 +522,7 @@ public sealed partial class BaseVm : TelaVm
                 Aplicar(PerfilRepositorio.Abrir<ConsultaSalva>(consulta) ?? new ConsultaSalva());
                 break;
             case nameof(Selecionada):
+                if (Selecionada is null) FichaAmpliada = false;
                 OnPropertyChanged(nameof(PodeUsarNoRelatorio));
                 OnPropertyChanged(nameof(PodeUsarNoCronograma));
                 AtualizarMedicoes();
@@ -547,6 +548,7 @@ public sealed partial class BaseVm : TelaVm
     [RelayCommand]
     private void LimparFiltros()
     {
+        FichaAmpliada = false;
         _atualizando = true;
         Portaria = Contrato = Escola = Lote = ContratoReceita = Dotacao = Status = null;
         Texto = ValorDe = ValorAte = OsDe = OsAte = "";
@@ -919,6 +921,7 @@ public sealed partial class BaseVm : TelaVm
 
         long? selecionada = Selecionada?.Obra.Id;
         var resultado = _base.Buscar(filtro, _mostrando, 0, Ordem, decrescente: Ordem == OrdemObras.SaldoAPagar);
+        _atualizando = true;
         Obras.Clear();
         foreach (var obra in resultado.Obras)
         {
@@ -932,9 +935,9 @@ public sealed partial class BaseVm : TelaVm
                 ? "Nenhuma obra com esses filtros."
                 : Formato.Plural(resultado.Total, "obra encontrada", "obras encontradas")
                   + (TemMais ? $" (mostrando as primeiras {resultado.Obras.Count})" : "");
-        _atualizando = true;
         Selecionada = Obras.FirstOrDefault(o => o.Obra.Id == selecionada);
         _atualizando = false;
+        if (Selecionada is null) FichaAmpliada = false;
         OnPropertyChanged(nameof(PodeUsarNoRelatorio));
         OnPropertyChanged(nameof(PodeUsarNoCronograma));
         OnPropertyChanged(nameof(TemFiltro));
