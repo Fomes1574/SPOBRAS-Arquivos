@@ -177,6 +177,13 @@ public sealed class BancoApp
             quando text not null
         );
         """,
+
+        // 7: medicoes guardam o reajuste e o status do contrato (para as medicoes em tramite da ficha)
+        """
+        alter table Medicao add column valor_reajuste integer null;
+        alter table Medicao add column status_contrato text null;
+        create index Medicao_contrato_emp on Medicao(contrato, empreendimento);
+        """,
     ];
 
     private const string SufixoRestaurar = ".restaurar";

@@ -132,7 +132,8 @@ public sealed record OpcoesFiltro(
 
 public sealed record MedicaoLida(
     string Contrato, string? Numero, string? Empreendimento, DateOnly? Inicio, DateOnly? Fim, decimal? ValorProtocolado,
-    decimal? ValorLiberado, decimal? ValorConsiderado, decimal? ValorPago, string? Status, string? ContratoReceita, DateOnly? Pagamento);
+    decimal? ValorLiberado, decimal? ValorConsiderado, decimal? ValorPago, string? Status, string? ContratoReceita, DateOnly? Pagamento,
+    decimal? ValorReajuste = null, string? StatusContrato = null);
 
 public sealed record EmpenhoLido(
     string? Contrato, string? Numero, DateOnly? Data, int? Ano, string? ProcessoSei, decimal? TotalEmpenhado, decimal? Liquido,

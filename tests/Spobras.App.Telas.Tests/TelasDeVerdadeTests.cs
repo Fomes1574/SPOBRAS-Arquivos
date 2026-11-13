@@ -363,6 +363,11 @@ public class TelasDeVerdadeTests
             baseDados.AlternarAmpliarCommand.Execute(null);
             baseDados.AlternarFiltrosCommand.Execute(null);
             baseDados.LimparFiltrosCommand.Execute(null);
+
+            // Ficha com medicoes em tramite (contrato em andamento) e lista em duas linhas
+            baseDados.Selecionada = baseDados.Obras.First(o => o.Escola == "CEU Delta");
+            Assert.Equal(2, baseDados.MedicoesEmTramiteDaObra.Count);
+            Fotografar(janela, saida, "60-base-medicoes-em-tramite");
             principal.Navegar(FontesVm.Modulo);
             var telaFontes = (FontesVm)principal.PaginaAtual!;
             telaFontes.EditarVinculoCommand.Execute(telaFontes.Vinculos.First());

@@ -203,18 +203,10 @@
             <!-- Resultados -->
             <Border x:Name="PainelLista" Style="{StaticResource Painel}" Padding="10">
                 <DockPanel>
-                    <Grid DockPanel.Dock="Top" Margin="10,4,26,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="118" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="92" />
-                            <ColumnDefinition Width="122" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Contrato" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="Escola" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="2" Text="Data da OS" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap" />
-                        <TextBlock Grid.Column="3" Text="Saldo a pagar" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" TextAlignment="Right" TextWrapping="NoWrap" />
-                    </Grid>
+                    <DockPanel DockPanel.Dock="Top" Margin="10,4,26,6">
+                        <TextBlock DockPanel.Dock="Right" Text="Saldo a pagar" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                        <TextBlock Text="Obra" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                    </DockPanel>
                     <Grid>
                         <TextBlock Text="{Binding Resumo}" Style="{StaticResource Texto2}" VerticalAlignment="Center" HorizontalAlignment="Center"
                                    Visibility="{Binding Obras.Count, Converter={StaticResource VisivelSeNao}}" />
@@ -223,25 +215,15 @@
                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.ScrollUnit="Pixel" AutomationProperties.Name="Obras encontradas">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="118" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="92" />
-                                            <ColumnDefinition Width="122" />
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Contrato}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding Status}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                            <TextBlock Text="{Binding Escola}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Escola}" />
-                                            <TextBlock Text="{Binding Portaria}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Portaria}" />
-                                            <TextBlock Text="{Binding Marca}" FontSize="12" Foreground="{StaticResource Azul}" Visibility="{Binding Marca, Converter={StaticResource VisivelSe}}" />
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{Binding DataOs}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                        <TextBlock Grid.Column="3" Text="{Binding SaldoAPagar}" TextAlignment="Right" VerticalAlignment="Center" TextWrapping="Wrap" />
-                                    </Grid>
+                                    <!-- Duas linhas: o nome da escola inteiro em cima; contrato, status, lote e OS embaixo -->
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding SaldoAPagar}" Margin="12,0,0,0" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Escola}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                        </DockPanel>
+                                        <TextBlock Text="{Binding Detalhe}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                        <TextBlock Text="{Binding Marca}" FontSize="12" Foreground="{StaticResource Azul}" Visibility="{Binding Marca, Converter={StaticResource VisivelSe}}" />
+                                    </StackPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -299,7 +281,9 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                             <StackPanel Margin="20,12,20,12">
                                 <StackPanel Margin="0,0,0,12">
-                            <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding Selecionada.Escola}" FontSize="18" FontWeight="Bold" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding Selecionada.Situacao}" Foreground="{StaticResource Azul}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,6" />
+                            <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" TextWrapping="Wrap" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
                                     ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no cronograma" Margin="0,8,0,0" Command="{Binding UsarNoCronogramaCommand}"
@@ -309,8 +293,70 @@
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar em modelo Excel" Margin="0,8,0,0" Command="{Binding UsarEmModeloCommand}"
                                     ToolTip="Acrescenta esta obra à lista do modelo Excel selecionado, nos campos ligados à Base de dados" />
                         </StackPanel>
-                            <!-- Ficha em blocos, duas colunas por bloco -->
-                            <ItemsControl ItemsSource="{Binding Selecionada.Grupos}" Focusable="False">
+                            <!-- Valores (como na planilha) -->
+                            <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10,0,4">
+                                <StackPanel>
+                                    <TextBlock Text="Valores" FontWeight="Bold" FontSize="14" Margin="0,0,0,6" />
+                                    <ItemsControl ItemsSource="{Binding Selecionada.Valores.Campos}" Focusable="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="0,0,16,8">
+                                                    <TextBlock Text="{Binding Key}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                                    <TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Medicoes em tramite desta escola (so contrato em andamento) -->
+                            <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10,0,8"
+                                    Visibility="{Binding TemMedicoesEmTramite, Converter={StaticResource Visivel}}">
+                                <StackPanel>
+                                    <TextBlock FontWeight="Bold" FontSize="14" TextWrapping="Wrap">
+                                        <Run Text="Medições em trâmite" /><Run Text="  ·  valor considerado + reajuste" FontWeight="Normal" FontSize="13" Foreground="{StaticResource Secundario}" />
+                                    </TextBlock>
+                                    <Grid Margin="0,8,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="44" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Nº" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="1" Text="Status da medição" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Valor" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding MedicoesEmTramiteDaObra}" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,6">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="44" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Numero}" />
+                                                        <TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,12,0" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding Valor}" FontWeight="SemiBold" TextAlignment="Right"
+                                                                   ToolTip="{Binding Reajuste, StringFormat=Reajuste: {0}}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <DockPanel Margin="0,6,0,0">
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding TotalEmTramite}" FontWeight="Bold" />
+                                        <TextBlock Text="Total em trâmite" FontWeight="Bold" />
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <ItemsControl ItemsSource="{Binding Selecionada.GruposSecundarios}" Focusable="False">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10,0,4">

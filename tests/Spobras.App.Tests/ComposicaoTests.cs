@@ -216,14 +216,15 @@ public class ComposicaoProtótipoTests : IDisposable
         Assert.True(b.TemLote);
         Assert.Equal(4, b.Obras.Count); // a EMEF Alfa do lote 07 fica de fora
         Assert.StartsWith("LOTE 01 · 4 obras", b.TituloDoLote);
-        Assert.Equal(["Contratado c/ aditamento", "Medido", "Pago", "Saldo a medir", "Saldo a pagar"], b.TotaisDoLote.Select(t => t.Rotulo));
+        Assert.Equal(["Valor original", "Aditado", "Contratado c/ aditamento", "Pago", "Em trâmite (2)", "Saldo a pagar"], b.TotaisDoLote.Select(t => t.Rotulo));
+        Assert.Equal("R$ 105,50", b.TotaisDoLote.Single(t => t.Rotulo.StartsWith("Em trâmite")).Valor.Replace('\u00A0', ' '));
         decimal pago = b.Obras.Sum(o => o.Obra.ValorPago ?? 0m);
         Assert.Equal(FormatoBase.Reais(pago), b.TotaisDoLote.Single(t => t.Rotulo == "Pago").Valor);
         Assert.Contains("LOTE 01", b.FiltrosAtivos);
 
         // Ficha em blocos; o Ampliar e os filtros recolhidos so mudam a tela.
         b.Selecionada = b.Obras[0];
-        Assert.Equal(["Identificação", "Prazo", "Valores", "Orçamento", "Escopo"], b.Selecionada.Grupos.Select(g => g.Titulo));
+        Assert.Equal(["Valores", "Prazo", "Identificação", "Orçamento", "Escopo"], b.Selecionada.Grupos.Select(g => g.Titulo));
         b.AlternarAmpliarCommand.Execute(null);
         b.AlternarFiltrosCommand.Execute(null);
         Assert.True(b.FichaAmpliada && b.FiltrosRecolhidos);

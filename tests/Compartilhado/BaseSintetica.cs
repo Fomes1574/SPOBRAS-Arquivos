@@ -44,7 +44,7 @@ public static class BaseSintetica
     public static readonly string[] ColunasMedicoes =
     [
         "NR. DO CONTRATO", "NR. DA MEDIÇÃO", "EMPREENDIMENTO", "DATA DE INÍCIO", "DATA FIM", "VALOR PROTOCOLADO", "VALOR LIBERADO",
-        "VALOR CONSIDERADO", "VALOR PAGO", "STATUS DA MEDIÇÃO", "CONTRATO RECEITA", "DATA DE PAGAMENTO",
+        "VALOR CONSIDERADO", "VALOR PAGO", "STATUS DA MEDIÇÃO", "CONTRATO RECEITA", "DATA DE PAGAMENTO", "VALOR REJUSTE", "STATUS DO CONTRATO",
     ];
 
     public static readonly string[] ColunasEmpenhos =
@@ -63,7 +63,11 @@ public static class BaseSintetica
     ];
 
     public static object?[] Medicao(string contrato, string numero, decimal pago, string? receita, string escola = "EMEF Alfa") =>
-        [contrato, numero, escola, new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), pago, pago, pago, pago, "PAGAMENTO EFETUADO", receita, new DateTime(2026, 2, 20)];
+        [contrato, numero, escola, new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), pago, pago, pago, pago, "PAGAMENTO EFETUADO", receita, new DateTime(2026, 2, 20), null, "VIGENTE"];
+
+    /// <summary>Medicao ainda nao paga (em tramite): valor considerado, reajuste e o status do contrato que ela traz.</summary>
+    public static object?[] MedicaoPendente(string contrato, string numero, string status, decimal considerado, decimal? reajuste, string escola, string statusContrato = "VIGENTE") =>
+        [contrato, numero, escola, new DateTime(2026, 3, 1), new DateTime(2026, 3, 31), considerado, considerado, considerado, 0m, status, "015/EX/2025", null, reajuste, statusContrato];
 
     public static object?[] Empenho(string contrato, string numero, decimal total) =>
         [contrato, numero, new DateTime(2026, 1, 15), 2026m, "7910.2026/0000002-0", total, total, 0m, 0m, 0m, 0m, "Credor Exemplo", "GERENCIAMENTO PORTARIA 03 (2021)", total];
@@ -86,6 +90,9 @@ public static class BaseSintetica
             Medicao("003/EX/2025", "00001", 50m, "016/EX/2026"),
             Medicao("003/EX/2025", "00002", 60m, "016/EX/2026"),
             Medicao("004/EX/2025", "00001", 70m, "015/EX/2025, 128/EX/2021", "CEU Delta"),
+            MedicaoPendente("004/EX/2025", "00002", "ANÁLISE GEC", 80m, 5.5m, "CEU Delta"),
+            MedicaoPendente("004/EX/2025", "00003", "DEVOLUÇÃO FISCAL", 20m, null, "CEU Delta"),
+            MedicaoPendente("004/EX/2025", "00004", "LIBERADO PARA PAGAMENTO", 1000m, null, "CEU Delta", "SOB GESTÃO DA SIURB"),
             Medicao("999/OUTRO/2020", "00001", 5m, null, "Obra de outro programa"))
         .Tabela("contratos_VW_EMPENHOS_SOF", ColunasEmpenhos,
             Empenho("015/EX/2025", "100001", 5000m),

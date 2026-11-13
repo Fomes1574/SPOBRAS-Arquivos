@@ -31,8 +31,8 @@ public class BackupTests : IDisposable
         new ConfigRepositorio(banco).Gravar("teste", "valor antigo");
         Assert.Empty(banco.Backups()); // banco novo: nada para guardar
         // Simula um banco da versao anterior do app
-        Sql(banco, "drop table AjusteObra; drop table ObraLocal; drop table VinculoLocal; alter table Obra drop column local; "
-                   + $"alter table Obra drop column editados; alter table Vinculo drop column origem; pragma user_version = {BancoApp.VersaoAtual - 1};");
+        Sql(banco, "drop index Medicao_contrato_emp; alter table Medicao drop column valor_reajuste; alter table Medicao drop column status_contrato; "
+                   + $"pragma user_version = {BancoApp.VersaoAtual - 1};");
 
         var atualizado = new BancoApp(Db);
 

@@ -71,7 +71,7 @@ public class LeitorXlsxTests : IDisposable
         using (var aberto = new FileStream(caminho, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
         using (var leitor = new LeitorXlsx(caminho))
         {
-            Assert.Equal(7, leitor.LerTabela("preCadastro_VW_RELATORIO_MEDICOES").Linhas.Count);
+            Assert.Equal(10, leitor.LerTabela("preCadastro_VW_RELATORIO_MEDICOES").Linhas.Count);
         }
 
         Assert.Equal(antes, (new FileInfo(caminho).Length, File.GetLastWriteTimeUtc(caminho)));

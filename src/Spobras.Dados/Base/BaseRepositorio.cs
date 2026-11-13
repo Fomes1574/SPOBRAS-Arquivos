@@ -50,15 +50,15 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             cmd.Transaction = tx;
             cmd.CommandText = """
                 insert into Medicao (contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago,
-                    status, contrato_receita, pagamento)
-                values ($contrato, $numero, $emp, $inicio, $fim, $prot, $lib, $cons, $pago, $status, $receita, $pagamento)
+                    status, contrato_receita, pagamento, valor_reajuste, status_contrato)
+                values ($contrato, $numero, $emp, $inicio, $fim, $prot, $lib, $cons, $pago, $status, $receita, $pagamento, $reaj, $stc)
                 """;
-            var p = Parametros(cmd, "$contrato", "$numero", "$emp", "$inicio", "$fim", "$prot", "$lib", "$cons", "$pago", "$status", "$receita", "$pagamento");
+            var p = Parametros(cmd, "$contrato", "$numero", "$emp", "$inicio", "$fim", "$prot", "$lib", "$cons", "$pago", "$status", "$receita", "$pagamento", "$reaj", "$stc");
             foreach (var m in dados.Medicoes)
             {
                 Valores(p, m.Contrato, m.Numero, m.Empreendimento, Iso(m.Inicio), Iso(m.Fim), Normalizacao.Centavos(m.ValorProtocolado),
                     Normalizacao.Centavos(m.ValorLiberado), Normalizacao.Centavos(m.ValorConsiderado), Normalizacao.Centavos(m.ValorPago), m.Status,
-                    m.ContratoReceita, Iso(m.Pagamento));
+                    m.ContratoReceita, Iso(m.Pagamento), Normalizacao.Centavos(m.ValorReajuste), m.StatusContrato);
                 cmd.ExecuteNonQuery();
             }
         }
@@ -275,7 +275,8 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         using var conexao = banco.Abrir();
         using var cmd = conexao.CreateCommand();
         cmd.CommandText = """
-            select contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago, status, contrato_receita, pagamento
+            select contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago, status, contrato_receita, pagamento,
+                valor_reajuste, status_contrato
             from Medicao where contrato = $c collate nocase order by numero, inicio
             """;
         cmd.Parameters.AddWithValue("$c", contrato);
@@ -284,7 +285,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         while (r.Read())
         {
             lista.Add(new MedicaoLida(r.GetString(0), Txt(r, 1), Txt(r, 2), Dia(r, 3), Dia(r, 4), Reais(r, 5), Reais(r, 6), Reais(r, 7), Reais(r, 8),
-                Txt(r, 9), Txt(r, 10), Dia(r, 11)));
+                Txt(r, 9), Txt(r, 10), Dia(r, 11), Reais(r, 12), Txt(r, 13)));
         }
 
         return lista;

@@ -228,6 +228,10 @@ public class BaseTests : IDisposable
         Assert.Equal(2, _base.Empenhos("015/EX/2025").Count);
         Assert.Equal(7500.5m, _base.Empenhos("015/EX/2025").Sum(e => e.TotalEmpenhado));
         Assert.Empty(_base.Empenhos("001/EX/2024")); // empenho de outro contrato nao e atribuido a este
+
+        // Reajuste ("VALOR REJUSTE") e status do contrato de cada medicao entram na base.
+        var gec = _base.Medicoes("004/EX/2025").Single(m => m.Numero == "00002");
+        Assert.Equal((80m, 5.5m, "VIGENTE", "ANÁLISE GEC"), (gec.ValorConsiderado, gec.ValorReajuste, gec.StatusContrato, gec.Status));
     }
 
     // ---- Portarias e dotacoes ----

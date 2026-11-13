@@ -155,13 +155,18 @@ public static class ImportadorMestra
             pago = c["VALOR PAGO"], status = c["STATUS DA MEDIÇÃO"], receita = c["CONTRATO RECEITA"], pagamento = c["DATA DE PAGAMENTO"];
         c.Conferir(t.Nome);
 
+        // Opcionais: sem elas a importacao continua, so sem reajuste e sem o status do contrato na medicao.
+        // "VALOR REJUSTE" e o nome como esta na planilha (sem o "a").
+        int reajuste = t.Indice("VALOR REJUSTE"), statusContrato = t.Indice("STATUS DO CONTRATO");
+
         var lista = new List<MedicaoLida>(t.Linhas.Count);
         foreach (var l in t.Linhas)
         {
             if (Texto(l[contrato]) is { } ct)
             {
                 lista.Add(new MedicaoLida(ct, Texto(l[numero]), Texto(l[emp]), Data(l[inicio]), Data(l[fim]), Reais(l[protocolado]),
-                    Reais(l[liberado]), Reais(l[considerado]), Reais(l[pago]), Texto(l[status]), Texto(l[receita]), Data(l[pagamento])));
+                    Reais(l[liberado]), Reais(l[considerado]), Reais(l[pago]), Texto(l[status]), Texto(l[receita]), Data(l[pagamento]),
+                    reajuste >= 0 ? Reais(l[reajuste]) : null, statusContrato >= 0 ? Texto(l[statusContrato]) : null));
             }
         }
 

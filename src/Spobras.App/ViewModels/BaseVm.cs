@@ -44,6 +44,10 @@ public sealed class ObraVm(ObraLida obra)
     public string ValorPago => FormatoBase.Reais(Obra.ValorPago);
     public string ValorContratado => FormatoBase.Reais(Obra.ValorContratadoComAditamento);
 
+    /// <summary>Segunda linha da lista: contrato · status do contrato · lote · Data da OS.</summary>
+    public string Detalhe => string.Join(" · ", new[] { Obra.Contrato, Obra.StatusContrato ?? Obra.Status, Obra.Lote, Obra.DataOs is null ? "sem Data da OS" : "OS " + FormatoBase.Data(Obra.DataOs) }
+        .Where(t => !string.IsNullOrWhiteSpace(t)));
+
     /// <summary>"incluída no app", "2 campos editados no app" ou vazio.</summary>
     public string Marca => Obra.IncluidaNoApp ? "Incluída no app" : Obra.CamposEditados > 0 ? Formato.Plural(Obra.CamposEditados, "campo editado no app", "campos editados no app") : "";
 
@@ -98,22 +102,57 @@ public sealed class ObraVm(ObraLida obra)
 
             var grupos = new List<GrupoFicha>
             {
+                new("Prazo", Bloco(("Data da OS (início da execução)", DataOs), ("Término da execução", FormatoBase.Data(Obra.Termino)))),
                 new("Identificação", Bloco(
                     ("Contrato", Obra.Contrato), ("Escola / empreendimento", Obra.Empreendimento), ("Contratada", Obra.Contratada),
                     ("Lote", Obra.Lote), ("Status", Obra.Status), ("Status do contrato", Obra.StatusContrato), ("Situação", Obra.Situacao),
                     ("Modalidade", Obra.Modalidade), ("Tipo de obra", Obra.TipoDeObra))),
-                new("Prazo", Bloco(
-                    ("Data de assinatura", FormatoBase.Data(Obra.DataAssinatura)), ("Data da OS (início da execução)", DataOs),
-                    ("Término da execução", FormatoBase.Data(Obra.Termino)))),
-                new("Valores", [.. Enum.GetValues<CampoValor>().Select(c => new KeyValuePair<string, string>(CamposValor.Rotulo(c), FormatoBase.Reais(Obra.Valor(c))))]),
                 new("Orçamento", Bloco(
                     ("Portaria", Obra.Portaria), ("Contrato de receita (do contrato, pelas medições)", Obra.ContratoReceita), ("Dotação", Obra.Dotacao),
                     ("Atividade (dotação resumida)", Obra.Atividade), ("Processo SEI", Obra.ProcessoSei))),
                 new("Escopo", Bloco(("Escopo", Obra.Escopo))),
             };
-            return [.. grupos.Where(g => g.Campos.Count > 0)];
+            return [Valores, .. grupos.Where(g => g.Campos.Count > 0)];
         }
     }
+
+    /// <summary>
+    /// Valores como estao na planilha: original, aditado (com o percentual sobre o original), contratado com
+    /// aditamento, pago e saldo a pagar (pago + saldo = contratado). Medido e a medir nao entram: pago mais as
+    /// medicoes em tramite ja e o medido.
+    /// </summary>
+    public GrupoFicha Valores => new("Valores",
+    [
+        new("Valor original (empreendimento)", FormatoBase.Reais(Obra.ValorEmpreendimento)),
+        new("Aditado", Obra.ValorAditado is { } a
+            ? FormatoBase.Reais(a) + (MedicoesEmTramite.PercentualAditado(Obra) is { } pct ? $" ({pct.ToString("0.0", Formato.PtBr)}%)" : "")
+            : FormatoBase.Reais(null)),
+        new("Contratado com aditamento", FormatoBase.Reais(Obra.ValorContratadoComAditamento)),
+        new("Pago", FormatoBase.Reais(Obra.ValorPago)),
+        new("Saldo a pagar", FormatoBase.Reais(Obra.SaldoAPagar)),
+    ]);
+
+    /// <summary>Os blocos depois das medicoes em tramite (Prazo, Identificacao, Orcamento, Escopo).</summary>
+    public IReadOnlyList<GrupoFicha> GruposSecundarios => [.. Grupos.Skip(1)];
+
+    /// <summary>"VIGENTE · em andamento", "ENCERRADO / TRD · concluído"...</summary>
+    public string Situacao => (Obra.StatusContrato ?? "Sem status do contrato") + " · " + MedicoesEmTramite.Classificar(Obra.StatusContrato) switch
+    {
+        SituacaoContrato.Concluido => "concluído",
+        SituacaoContrato.Ignorado => "fora dos relatórios",
+        SituacaoContrato.Desconhecido => "status novo, tratado como andamento",
+        _ => "em andamento",
+    };
+}
+
+/// <summary>Uma medicao em tramite na ficha: numero, status e valor (considerado + reajuste).</summary>
+public sealed record MedicaoTramiteVm(MedicaoEmTramite Medicao)
+{
+    public string Numero => Medicao.Numero;
+    public string Status => Medicao.Status;
+    public string ValorConsiderado => FormatoBase.Reais(Medicao.ValorConsiderado);
+    public string Reajuste => Medicao.Reajuste == 0 ? "—" : FormatoBase.Reais(Medicao.Reajuste);
+    public string Valor => FormatoBase.Reais(Medicao.Valor);
 }
 
 /// <summary>Um bloco da ficha da obra ("Prazo", "Valores"...), com os campos preenchidos.</summary>
@@ -448,6 +487,14 @@ public sealed partial class BaseVm : TelaVm
 
     [ObservableProperty]
     private string _resumoDasMedicoes = "";
+
+    /// <summary>Medicoes ainda nao pagas da obra escolhida (so em contrato em andamento).</summary>
+    public ObservableCollection<MedicaoTramiteVm> MedicoesEmTramiteDaObra { get; } = [];
+
+    [ObservableProperty]
+    private string _totalEmTramite = "";
+
+    public bool TemMedicoesEmTramite => MedicoesEmTramiteDaObra.Count > 0;
 
     public bool TemFiltro => !Filtro().Vazio;
     public bool PodeUsarNoRelatorio => _usarNoRelatorio is not null && Selecionada is not null;
@@ -898,8 +945,8 @@ public sealed partial class BaseVm : TelaVm
     }
 
     /// <summary>
-    /// Com um lote escolhido: soma das colunas de valor de cada obra do lote (com os outros filtros ativos).
-    /// As medicoes ficam fora porque sao do contrato inteiro, e um contrato pode ter escolas de outro lote.
+    /// Com um lote escolhido: soma dos valores de cada obra do lote (com os outros filtros ativos) e das medicoes
+    /// em tramite de cada obra (contrato + escola, entao nao entram escolas de outro lote).
     /// </summary>
     private void AtualizarLote(FiltroObras filtro)
     {
@@ -914,10 +961,12 @@ public sealed partial class BaseVm : TelaVm
         var obras = _base.Buscar(filtro, int.MaxValue).Obras;
         decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
         TituloDoLote = $"{Lote} · {Formato.Plural(obras.Count, "obra", "obras")} · {Formato.Plural(obras.Select(o => o.Empreendimento).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "escola", "escolas")}";
+        var tramite = obras.SelectMany(o => MedicoesEmTramite.DaObra(o, _base.Medicoes(o.Contrato))).ToList();
+        TotaisDoLote.Add(new ItemCronograma("Valor original", FormatoBase.Reais(Soma(o => o.ValorEmpreendimento))));
+        TotaisDoLote.Add(new ItemCronograma("Aditado", FormatoBase.Reais(Soma(o => o.ValorAditado))));
         TotaisDoLote.Add(new ItemCronograma("Contratado c/ aditamento", FormatoBase.Reais(Soma(o => o.ValorContratadoComAditamento))));
-        TotaisDoLote.Add(new ItemCronograma("Medido", FormatoBase.Reais(Soma(o => o.ValorMedido))));
         TotaisDoLote.Add(new ItemCronograma("Pago", FormatoBase.Reais(Soma(o => o.ValorPago))));
-        TotaisDoLote.Add(new ItemCronograma("Saldo a medir", FormatoBase.Reais(Soma(o => o.SaldoAMedir))));
+        TotaisDoLote.Add(new ItemCronograma($"Em trâmite ({tramite.Count})", FormatoBase.Reais(tramite.Sum(m => m.Valor))));
         TotaisDoLote.Add(new ItemCronograma("Saldo a pagar", FormatoBase.Reais(Soma(o => o.SaldoAPagar))));
         OnPropertyChanged(nameof(TemLote));
     }
@@ -949,18 +998,37 @@ public sealed partial class BaseVm : TelaVm
 
     private void AtualizarMedicoes()
     {
+        MedicoesEmTramiteDaObra.Clear();
+        TotalEmTramite = "";
         if (Selecionada is not { } obra)
         {
             ResumoDasMedicoes = "";
+            OnPropertyChanged(nameof(TemMedicoesEmTramite));
             return;
         }
 
-        // Medicoes sao do contrato inteiro: o total nao e apresentado como se fosse da escola.
+        // Em contrato em andamento, toda medicao desta escola que nao esta paga esta em tramite (considerado + reajuste).
         var medicoes = _base.Medicoes(obra.Contrato);
-        ResumoDasMedicoes = medicoes.Count == 0
-            ? "Nenhuma medição deste contrato na planilha."
-            : $"{Formato.Plural(medicoes.Count, "medição", "medições")} no contrato {obra.Contrato} (todas as escolas do contrato), "
-              + $"somando {FormatoBase.Reais(medicoes.Sum(m => m.ValorPago ?? 0m))} pagos.";
+        var tramite = MedicoesEmTramite.DaObra(obra.Obra, medicoes);
+        foreach (var m in tramite)
+        {
+            MedicoesEmTramiteDaObra.Add(new MedicaoTramiteVm(m));
+        }
+
+        decimal total = tramite.Sum(m => m.Valor);
+        TotalEmTramite = FormatoBase.Reais(total);
+        ResumoDasMedicoes = MedicoesEmTramite.Situacao(obra.Obra, medicoes) switch
+        {
+            SituacaoContrato.Concluido => $"Contrato concluído ({obra.Obra.StatusContrato}): só o pago e o saldo, sem medições.",
+            SituacaoContrato.Ignorado => "Contrato fora dos relatórios (sob gestão da SIURB).",
+            var situacao => (situacao == SituacaoContrato.Desconhecido && !string.IsNullOrWhiteSpace(obra.Obra.StatusContrato)
+                                ? $"Status de contrato novo na planilha: {obra.Obra.StatusContrato} (tratado como andamento). "
+                                : "")
+                            + (tramite.Count == 0
+                                ? "Nenhuma medição em trâmite desta escola."
+                                : $"{Formato.Plural(tramite.Count, "medição em trâmite", "medições em trâmite")} desta escola, somando {FormatoBase.Reais(total)}."),
+        };
+        OnPropertyChanged(nameof(TemMedicoesEmTramite));
     }
 }
 

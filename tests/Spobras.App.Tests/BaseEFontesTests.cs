@@ -315,7 +315,11 @@ public class BaseVmTests : ComApp
         Assert.Contains(tela.Selecionada.Campos, c => c.Key == "Data da OS (início da execução)" && c.Value == "01/03/2026");
         Assert.Contains(tela.Selecionada.Campos, c => c.Key == "Saldo a pagar" && c.Value.Replace(' ', ' ') == "R$ 0,00");
         Assert.Contains(tela.Selecionada.Campos, c => c.Key.StartsWith("Contrato de receita") && c.Value == "015/EX/2025");
-        Assert.Contains("3 medições no contrato 001/EX/2024 (todas as escolas do contrato)", tela.ResumoDasMedicoes);
+        Assert.Equal("Nenhuma medição em trâmite desta escola.", tela.ResumoDasMedicoes); // as tres do contrato estao pagas
+        Assert.False(tela.TemMedicoesEmTramite);
+        Assert.Equal(["Valor original (empreendimento)", "Aditado", "Contratado com aditamento", "Pago", "Saldo a pagar"], tela.Selecionada.Valores.Campos.Select(c => c.Key));
+        Assert.DoesNotContain(tela.Selecionada.Grupos.SelectMany(g => g.Campos), c => c.Key is "Valor medido" or "Saldo a medir" or "Data de assinatura");
+        Assert.Equal(["Data da OS (início da execução)", "Término da execução"], tela.Selecionada.Grupos.Single(g => g.Titulo == "Prazo").Campos.Select(c => c.Key));
 
         tela.UsarNoRelatorioCommand.Execute(null);
         Assert.Equal("CEI Beta", usada!.Empreendimento);
@@ -325,6 +329,22 @@ public class BaseVmTests : ComApp
         Assert.Equal(("CEI Beta", "001/EX/2024", "01/03/2026", "LOTE 01"), (relatorio.Unidade, relatorio.Contrato, relatorio.DataOsTexto, relatorio.Lote));
         Assert.Equal(BaseSintetica.P3De2021, relatorio.Portaria);
         Assert.Contains("trazidos da Base de dados", relatorio.Resultado);
+    }
+
+    [Fact]
+    public async Task Ficha_mostra_as_medicoes_em_tramite_da_escola_com_considerado_mais_reajuste()
+    {
+        var tela = await Abrir();
+        tela.Selecionada = tela.Obras.First(o => o.Escola == "CEU Delta");
+
+        // Nao pagas: analise GEC (80 + 5,50 de reajuste) e devolucao fiscal (20); a "sob gestao da SIURB" nao aparece.
+        Assert.Equal(["00003", "00002"], tela.MedicoesEmTramiteDaObra.Select(m => m.Numero));
+        Assert.Equal("R$ 85,50", tela.MedicoesEmTramiteDaObra[1].Valor.Replace('\u00A0', ' '));
+        Assert.Equal("R$ 105,50", tela.TotalEmTramite.Replace('\u00A0', ' '));
+        Assert.Contains("2 medições em trâmite desta escola", tela.ResumoDasMedicoes);
+        Assert.Equal("VIGENTE · em andamento", tela.Selecionada.Situacao);
+        Assert.Contains("ANÁLISE GEC", tela.Selecionada.Detalhe + tela.MedicoesEmTramiteDaObra[1].Status);
+        Assert.StartsWith("004/EX/2025 · VIGENTE · LOTE 01 · OS 15/06/2025", tela.Selecionada.Detalhe);
     }
 
     [Fact]
