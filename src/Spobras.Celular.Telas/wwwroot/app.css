@@ -88,7 +88,7 @@ button { font: inherit; color: inherit; }
 .etapas div.on { color: var(--preto); font-weight: 700; }
 .etapas div.on i { background: var(--vermelho); }
 .etapas div.feita i { background: var(--preto); }
-.fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.fotos { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .foto { aspect-ratio: 1; border-radius: 8px; position: relative; overflow: hidden; cursor: pointer; border: 0; padding: 0; }
 .foto .n { position: absolute; left: 5px; top: 5px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 5px; padding: 1px 5px; }
 .foto .leg { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 10.5px; padding: 3px 5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

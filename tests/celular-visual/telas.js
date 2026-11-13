@@ -135,12 +135,15 @@ async function texto(page, seletor, contem) {
     const inicioArraste = await ultima.boundingBox();
     await page.mouse.move(inicioArraste.x + inicioArraste.width / 2, inicioArraste.y + inicioArraste.height / 2);
     await page.mouse.down();
-    await page.waitForTimeout(500);
+    await page.locator('.foto-flutuante').waitFor();
     const areaFotos = page.locator('.conteudo');
     const caixaArea = await areaFotos.boundingBox();
     await page.mouse.move(caixaArea.x + 60, caixaArea.y + 8, { steps: 12 });
     await page.waitForTimeout(500);
-    const primeira = await fotos.first().boundingBox();
+    const primeira = await fotos.first().evaluate(el => {
+      const pai = el.offsetParent.getBoundingClientRect();
+      return { x: pai.left + el.offsetLeft, y: pai.top + el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+    });
     await page.mouse.move(primeira.x + primeira.width / 2, primeira.y + primeira.height / 2, { steps: 10 });
     await page.mouse.up();
     await page.waitForFunction(({ legenda, miniatura }) => {

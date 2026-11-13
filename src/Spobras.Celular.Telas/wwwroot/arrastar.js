@@ -15,11 +15,8 @@ export function ligar(grade, dotnet) {
         sombra.style.transform = `translate(${x - arraste.offsetX}px,${y - arraste.offsetY}px) scale(1.05)`;
         const itens = fotos();
         const caixas = itens.map(el => {
-            const caixa = el.getBoundingClientRect();
-            const transformacao = getComputedStyle(el).transform;
-            if (transformacao === 'none') return caixa;
-            const matriz = new DOMMatrixReadOnly(transformacao);
-            return new DOMRect(caixa.x - matriz.m41, caixa.y - matriz.m42, caixa.width, caixa.height);
+            const pai = el.offsetParent.getBoundingClientRect();
+            return new DOMRect(pai.left + el.offsetLeft, pai.top + el.offsetTop, el.offsetWidth, el.offsetHeight);
         });
         let destino = origem;
         let distancia = Infinity;
