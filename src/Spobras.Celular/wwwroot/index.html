@@ -9,7 +9,22 @@
 </head>
 <body>
     <div id="app"><div style="padding:24px;font-family:sans-serif;color:#5A5A5F">Abrindo…</div></div>
+    <div id="blazor-error-ui" style="display:none">
+        <div class="aviso erro" style="margin:12px"><span class="ic">!</span><span>Aconteceu um erro no app. <a href="" class="reload">Recarregar</a></span></div>
+    </div>
+    <script>
+        // Se algo falhar antes das telas abrirem, mostra o motivo em vez de ficar parado em "Abrindo…".
+        window.addEventListener("error", function (e) { mostrar(e.message || String(e)); });
+        window.addEventListener("unhandledrejection", function (e) { mostrar((e.reason && e.reason.message) || String(e.reason)); });
+        function mostrar(texto) {
+            var app = document.getElementById("app");
+            if (app && app.textContent.indexOf("Abrindo") >= 0) {
+                app.innerHTML = '<div style="padding:24px;font-family:sans-serif"><b>O app não conseguiu abrir.</b><p style="color:#5A5A5F">Tire um print desta tela e mande para o suporte:</p><pre style="white-space:pre-wrap;font-size:12px"></pre></div>';
+                app.querySelector("pre").textContent = texto;
+            }
+        }
+    </script>
+    <!-- O BlazorWebView do Android inicia o Blazor sozinho (chama Blazor.start()); chamar aqui de novo trava o app. -->
     <script src="_framework/blazor.webview.js" autostart="false"></script>
-    <script>Blazor.start();</script>
 </body>
 </html>

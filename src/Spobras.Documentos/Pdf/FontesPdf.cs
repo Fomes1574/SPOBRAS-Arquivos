@@ -24,7 +24,15 @@ public sealed class FontesPdf : IFontResolver
     }
 
     public FontResolverInfo? ResolveTypeface(string familyName, bool bold, bool italic) =>
-        new(bold ? "spobras-negrito" : "spobras-regular");
+        !bold ? new("spobras-regular")
+        : NegritoDeVerdade.Value ? new("spobras-negrito")
+        : new("spobras-regular", mustSimulateBold: true, mustSimulateItalic: false);
+
+    /// <summary>
+    /// No Android a Roboto e uma fonte variavel: o negrito vem no mesmo arquivo da regular. Nesse caso o PDF simula
+    /// o negrito, senao titulos sairiam sem destaque.
+    /// </summary>
+    private static readonly Lazy<bool> NegritoDeVerdade = new(() => !Negrito.Value.AsSpan().SequenceEqual(Regular.Value));
 
     public byte[]? GetFont(string faceName) => faceName == "spobras-negrito" ? Negrito.Value : Regular.Value;
 

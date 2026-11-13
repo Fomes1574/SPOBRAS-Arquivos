@@ -265,4 +265,59 @@ public sealed class CelularTests : IDisposable
         Assert.NotNull(app.LogoUrl());
         Assert.True(File.Exists(logo));
     }
+
+    // ---- Erros que so apareceram no aparelho ----
+
+    [Fact]
+    public void Pagina_do_android_nao_inicia_o_blazor_por_conta_propria()
+    {
+        // O BlazorWebView do Android chama Blazor.start() sozinho; chamar de novo na pagina deixou o app parado em "Abrindo…".
+        string raiz = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(raiz, "ArquivosSpobras.sln")))
+        {
+            raiz = Path.GetDirectoryName(raiz)!;
+        }
+
+        string html = File.ReadAllText(Path.Combine(raiz, "src", "Spobras.Celular", "wwwroot", "index.html"));
+        Assert.Contains("autostart=\"false\"", html);
+        Assert.DoesNotContain("Blazor.start(", html.Replace("chama Blazor.start()", "", StringComparison.Ordinal));
+        Assert.Contains("blazor-error-ui", html);
+    }
+
+    [Fact]
+    public async Task Trocar_a_planilha_durante_uma_leitura_le_a_nova_ao_terminar()
+    {
+        var app = await AppComBase();
+        string outra = Path.Combine(_raiz, "outra.xlsx");
+        var menor = AmostraCelular.Mestra();
+        menor.TabelasPorNome["contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS"] = menor.TabelasPorNome["contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS"] with
+        {
+            Linhas = [.. menor.TabelasPorNome["contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS"].Linhas.Take(2)],
+        };
+        XlsxSintetico.Gravar(menor, outra);
+
+        var primeira = app.Base.AtualizarAsync(forcar: true);      // leitura em andamento (planilha antiga)
+        app.Configurar(c => c with { Mestra = new Escolhido("arquivo:" + outra, "outra.xlsx"), HashDaMestra = null });
+        var segunda = app.Base.AtualizarAsync();                   // pedida no meio: nao pode se perder
+        await Task.WhenAll(primeira, segunda);
+
+        Assert.Equal(2, app.Base.TotalDeObras);
+        Assert.Equal(EstadoBase.Atualizada, app.Base.Estado);
+    }
+
+    [Fact]
+    public async Task Voltar_para_o_app_logo_em_seguida_nao_baixa_a_planilha_de_novo()
+    {
+        var agora = Hoje;
+        var app = new AppCelular(_p, () => agora);
+        await app.Base.EscolherPlanilhaAsync();
+        await app.AoAbrirAsync();
+        File.Delete(_p.Mestra);                        // se tentasse reler, daria "planilha movida"
+        agora = agora.AddSeconds(30);
+        await app.AoAbrirAsync();
+        Assert.Equal(EstadoBase.Atualizada, app.Base.Estado);
+        agora = agora.AddMinutes(5);
+        await app.AoAbrirAsync();
+        Assert.Equal(EstadoBase.Inacessivel, app.Base.Estado);
+    }
 }

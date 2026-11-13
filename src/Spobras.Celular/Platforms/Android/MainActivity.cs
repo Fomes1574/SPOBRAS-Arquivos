@@ -1,6 +1,8 @@
 using Android.App;
 using Android.Content;
 using Android.Content.PM;
+using Android.OS;
+using AndroidX.Core.View;
 
 namespace Spobras.Celular.Android;
 
@@ -11,6 +13,18 @@ public class MainActivity : MauiAppCompatActivity
 {
     private static int _proximo = 4100;
     private static readonly Dictionary<int, TaskCompletionSource<Intent?>> Pendentes = [];
+
+    protected override void OnCreate(Bundle? savedInstanceState)
+    {
+        base.OnCreate(savedInstanceState);
+        // Barras do sistema escuras (como o topo do app): icones claros para aparecerem.
+        if (Window is { } janela)
+        {
+            var controle = WindowCompat.GetInsetsController(janela, janela.DecorView);
+            controle.AppearanceLightStatusBars = false;
+            controle.AppearanceLightNavigationBars = false;
+        }
+    }
 
     /// <summary>Abre um seletor do Android (arquivo, pasta) e espera a resposta. Nulo se o usuario cancelar.</summary>
     public static Task<Intent?> EscolherAsync(Intent intent)
@@ -24,7 +38,22 @@ public class MainActivity : MauiAppCompatActivity
             Pendentes[codigo] = espera;
         }
 
-        atividade.StartActivityForResult(intent, codigo);
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            try
+            {
+                atividade.StartActivityForResult(intent, codigo);
+            }
+            catch (ActivityNotFoundException)
+            {
+                lock (Pendentes)
+                {
+                    Pendentes.Remove(codigo);
+                }
+
+                espera.TrySetException(new InvalidOperationException("Este celular não tem um seletor de arquivos para isso."));
+            }
+        });
         return espera.Task;
     }
 

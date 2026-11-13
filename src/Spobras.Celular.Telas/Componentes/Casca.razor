@@ -1,12 +1,31 @@
 @inherits LayoutComponentBase
 @inject AppCelular App
+@inject NavigationManager Navegacao
 @implements IDisposable
 
 <div class="app">
-    @Body
+    <ErrorBoundary @ref="_erro">
+        <ChildContent>@Body</ChildContent>
+        <ErrorContent Context="ex">
+            <Barra Titulo="Arquivos SPOBRAS" />
+            <div class="conteudo">
+                <Aviso Tipo="erro">Aconteceu um erro nesta tela. Seus dados e o rascunho continuam guardados.</Aviso>
+                <p class="mini" style="overflow-wrap:anywhere">@ex.GetType().Name: @ex.Message</p>
+                <button class="btn primario" @onclick="VoltarAoInicio">Voltar ao início</button>
+            </div>
+        </ErrorContent>
+    </ErrorBoundary>
 </div>
 
 @code {
+    private ErrorBoundary? _erro;
+
+    private void VoltarAoInicio()
+    {
+        _erro?.Recover();
+        Navegacao.NavigateTo("");
+    }
+
     protected override void OnInitialized() => App.Base.Mudou += Avisar;
 
     private void Avisar() => InvokeAsync(StateHasChanged);

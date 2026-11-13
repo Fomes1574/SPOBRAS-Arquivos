@@ -37,6 +37,7 @@ public sealed class BaseCelular
     private readonly ArquivoPreferencias _preferencias;
     private readonly Func<DateTimeOffset> _agora;
     private readonly SemaphoreSlim _leitura = new(1, 1);
+    private bool _deNovo, _deNovoForcado;
 
     public BaseCelular(IPlataforma plataforma, ArquivoPreferencias preferencias, Func<DateTimeOffset>? agora = null)
     {
@@ -87,7 +88,11 @@ public sealed class BaseCelular
 
         if (!await _leitura.WaitAsync(0))
         {
-            return; // ja esta lendo
+            // Ja esta lendo (por exemplo, ao voltar do seletor de arquivos): le de novo ao terminar, para nunca
+            // ficar com a planilha antiga quando o usuario acabou de trocar.
+            _deNovo = true;
+            _deNovoForcado |= forcar;
+            return;
         }
 
         try
@@ -145,6 +150,13 @@ public sealed class BaseCelular
         finally
         {
             _leitura.Release();
+        }
+
+        if (_deNovo)
+        {
+            bool f = _deNovoForcado;
+            (_deNovo, _deNovoForcado) = (false, false);
+            await AtualizarAsync(f);
         }
     }
 

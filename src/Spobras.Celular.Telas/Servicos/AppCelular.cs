@@ -38,8 +38,23 @@ public sealed class AppCelular
     public void Registrar(IEnumerable<Salvo> salvos) =>
         Configurar(p => p with { UltimosGerados = [.. salvos.Concat(p.UltimosGerados).Take(6)] });
 
-    /// <summary>Ao abrir o app e ao voltar para ele: rele a planilha (so importa se mudou).</summary>
-    public Task AoAbrirAsync() => Base.AtualizarAsync();
+    private DateTimeOffset? _ultimaReleitura;
+
+    /// <summary>
+    /// Ao abrir o app e ao voltar para ele: rele a planilha (so importa se mudou). Voltar da camera, do seletor de
+    /// arquivos ou de uma ligacao rapida nao baixa a planilha de novo: espera pelo menos 2 minutos entre releituras.
+    /// </summary>
+    public Task AoAbrirAsync()
+    {
+        var agora = Agora();
+        if (_ultimaReleitura is { } u && agora - u < TimeSpan.FromMinutes(2))
+        {
+            return Task.CompletedTask;
+        }
+
+        _ultimaReleitura = agora;
+        return Base.AtualizarAsync();
+    }
 
     /// <summary>Logo escolhido: copia para dentro do app (a imagem original nao muda).</summary>
     public async Task<string?> EscolherLogoAsync()
