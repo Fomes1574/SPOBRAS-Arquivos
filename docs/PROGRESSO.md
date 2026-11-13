@@ -1,5 +1,13 @@
 # Progresso
 
+## Melhorias de consulta e relatório em 13/11/2026
+
+- Windows e Android: Processo SEI preenchido e restaurado pela Base, rótulos curtos, sugestões de escola e contrato ao digitar e borracha nos campos do relatório. A data do relatório começa vazia no Windows.
+- Base: filtro Empresa e seleção múltipla pesquisável. Os valores de um filtro são combinados por OU, e filtros diferentes por E. As consultas salvas no formato anterior continuam abrindo. A faixa de totais soma os lotes marcados. No Windows, limpar os filtros ou perder a seleção restaura a lista quando a ficha está ampliada.
+- Fotos: reordenação por arraste no Windows e por toque prolongado no Android, com os botões de mover disponíveis. No Android há legenda em lote e ordenação por nome original ou data de captura, com leitura de EXIF para fotos de rascunhos antigos.
+- Verificação local: build sem erros e 372 testes executados pelo xUnit direto. A execução de `dotnet test` e os testes WPF em janela real ficam a cargo do CI. O teste visual do celular passou nos quatro cenários em 360 × 760 e 412 × 915, com dados sintéticos. Foram gerados e conferidos PDFs com o lote apagado e com o lote restaurado pela Base e duas legendas aplicadas em lote.
+- Conferência no aparelho: validar toque prolongado, vibração e rolagem durante o arraste no Android real. Validar o arraste com mouse no Windows.
+
 Passo atual: **entrega única para o teste do usuário** (fim da seção 10 da arquitetura). Aguardando o resultado do [roteiro de conferência](ROTEIRO-CONFERENCIA.md).
 
 Passos 1 a 8 concluídos. O usuário autorizou seguir passo a passo até o fim, parando só quando for preciso algo dele.
