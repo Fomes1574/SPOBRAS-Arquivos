@@ -194,7 +194,7 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
-- **Celular, chave do APK:** para o celular aceitar as próximas versões por cima (sem desinstalar e perder o rascunho), criar a chave uma vez pelo workflow "criar chave do APK" (Actions, só pelo site: precisa de um token temporário no segredo `TOKEN_SEGREDOS`, apagado depois). Ele grava `ANDROID_KEYSTORE` e `ANDROID_KEYSTORE_SENHA` sem mostrar nada e nunca troca uma chave que já existe. Sem isso, cada versão nova pede desinstalar a anterior.
+- ~~Celular, chave do APK~~: resolvido em 13/11/2026. A chave foi criada pelo workflow "criar chave do APK" e está nos segredos; o CI 57 já assinou o APK com ela. As próximas versões instalam por cima.
 - **Celular, ícone:** o ícone do app é genérico (o logo oficial não pode ir para o repositório público). O logo dos relatórios é escolhido nas Configurações do app, uma vez.
 
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
