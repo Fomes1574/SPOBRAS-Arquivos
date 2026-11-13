@@ -220,6 +220,21 @@ public sealed partial class RelatorioVm : TelaVm
         PreencherDaObra(obra);
     }
 
+    public void ApagarCampo(Action limpar)
+    {
+        _restaurando = true;
+        try
+        {
+            limpar();
+        }
+        finally
+        {
+            _restaurando = false;
+        }
+        LimparEscolhas();
+        Replanejar();
+    }
+
     private void LimparEscolhas()
     {
         EscolasDoContrato.Clear();

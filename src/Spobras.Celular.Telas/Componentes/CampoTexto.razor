@@ -1,15 +1,25 @@
 @* Campo do formulario que grava no rascunho a cada mudanca. *@
 <div class="campo" style="@Estilo">
     <label for="@_id">@Rotulo</label>
-    @if (Linhas > 1)
-    {
-        <textarea id="@_id" rows="@Linhas" placeholder="@Dica" value="@Valor" @onchange="Mudou"></textarea>
-    }
-    else
-    {
-        <input id="@_id" type="text" inputmode="@(Data ? "numeric" : "text")" placeholder="@Dica" value="@Valor" class="@(Invalido ? "erro" : "")"
-               autocomplete="off" @onchange="Mudou" @oninput="Digitando" @onblur="AoPerderFoco" />
-    }
+    <div class="entrada-campo @(PermiteApagar ? "com-borracha" : "")">
+        @if (Linhas > 1)
+        {
+            <textarea id="@_id" rows="@Linhas" placeholder="@Dica" value="@Valor" @onchange="Mudou"></textarea>
+        }
+        else
+        {
+            <input id="@_id" type="text" inputmode="@(Data ? "numeric" : "text")" placeholder="@Dica" value="@Valor" class="@(Invalido ? "erro" : "")"
+                   autocomplete="off" @onchange="Mudou" @oninput="Digitando" @onblur="AoPerderFoco" />
+        }
+        @if (PermiteApagar && Valor.Length > 0)
+        {
+            <button type="button" class="apagar-campo" aria-label="@($"Apagar {Rotulo}")" @onpointerdown:preventDefault @onclick="Apagar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M3 14l8-9a2 2 0 0 1 3-.2l6 5a2 2 0 0 1 .2 3L14 20H8l-5-4a1.5 1.5 0 0 1 0-2zM7 10l9 8M14 20h8"/>
+                </svg>
+            </button>
+        }
+    </div>
     @if (Invalido)
     {
         <div class="ajuda erro">Data inválida. Use dd/mm/aaaa.</div>
@@ -29,6 +39,16 @@
     [Parameter] public EventCallback<string> AoDigitar { get; set; }
 
     [Parameter] public EventCallback AoPerderFoco { get; set; }
+
+    [Parameter] public bool PermiteApagar { get; set; }
+    [Parameter] public EventCallback AoApagar { get; set; }
+
+    private async Task Apagar()
+    {
+        Valor = "";
+        if (AoApagar.HasDelegate) await AoApagar.InvokeAsync();
+        else await AoMudar.InvokeAsync("");
+    }
 
     private bool Invalido => Data && Formato.LerData(Valor).Invalida;
 

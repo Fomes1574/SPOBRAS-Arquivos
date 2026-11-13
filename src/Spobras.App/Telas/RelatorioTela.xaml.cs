@@ -66,6 +66,17 @@ public partial class RelatorioTela : UserControl
         campo.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
     }
 
+    private void ApagarCampo(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: TextBox campo } || DataContext is not RelatorioVm vm) return;
+        PopupUnidade.IsOpen = PopupContrato.IsOpen = false;
+        vm.ApagarCampo(() =>
+        {
+            campo.SetCurrentValue(TextBox.TextProperty, "");
+            campo.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        });
+    }
+
     private void AoArrastar(object sender, DragEventArgs e)
     {
         e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;

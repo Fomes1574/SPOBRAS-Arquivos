@@ -4,6 +4,28 @@
              xmlns:t="clr-namespace:Spobras.App.Telas"
              AllowDrop="True" Drop="AoSoltar" DragOver="AoArrastar" Background="Transparent">
     <UserControl.Resources>
+        <Style x:Key="BorrachaRelatorio" TargetType="Button">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,3,3,0" />
+            <Setter Property="ToolTip" Value="{Binding (AutomationProperties.Name), RelativeSource={RelativeSource Self}}" />
+            <Setter Property="Template">
+                <Setter.Value><ControlTemplate TargetType="Button">
+                    <Border Background="Transparent">
+                        <Path Width="16" Height="16" Stretch="Uniform" Stroke="#444444" StrokeThickness="1.6"
+                              Data="M3,14 L11,5 Q12,4 14,5 L20,10 Q21,11 20,13 L14,20 H8 L3,16 Q2,15 3,14 M7,10 L16,18 M14,20 H22" />
+                    </Border>
+                </ControlTemplate></Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}}" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Botao de etapa: marcado quando e a etapa atual -->
         <Style x:Key="Etapa" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
@@ -95,8 +117,11 @@
 
                     <TextBlock Text="Unidade educacional" Style="{StaticResource Rotulo}" />
                     <Grid>
-                        <TextBox x:Name="SugestaoUnidade" Text="{Binding Unidade, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Unidade educacional"
+                        <Grid>
+                            <TextBox Padding="8,6,34,6" x:Name="SugestaoUnidade" Text="{Binding Unidade, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Unidade educacional"
                                  TextChanged="AoDigitarSugestao" PreviewKeyDown="TeclasSugestao" />
+                            <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=SugestaoUnidade}" AutomationProperties.Name="Apagar Unidade educacional" Click="ApagarCampo" />
+                        </Grid>
                         <Popup x:Name="PopupUnidade" PlacementTarget="{Binding ElementName=SugestaoUnidade}" StaysOpen="False" Placement="Bottom">
                             <Border Width="290" Background="White" BorderBrush="#999999" BorderThickness="1" Padding="5">
                                 <ListBox x:Name="ListaUnidade" MaxHeight="320" PreviewMouseLeftButtonUp="ClicarSugestao">
@@ -127,11 +152,17 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Contratada" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Contratada, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Contratada" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoContratada" Text="{Binding Contratada, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Contratada" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoContratada}" AutomationProperties.Name="Apagar Contratada" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Data do relatório" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding DataTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data do relatório" t:Mascaras.Data="True" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoDataTexto" Text="{Binding DataTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data do relatório" t:Mascaras.Data="True" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoDataTexto}" AutomationProperties.Name="Apagar Data do relatório" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
@@ -146,8 +177,11 @@
                         <StackPanel>
                             <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
                             <Grid>
-                        <TextBox x:Name="SugestaoContrato" Text="{Binding Contrato, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Contrato"
+                        <Grid>
+                            <TextBox Padding="8,6,34,6" x:Name="SugestaoContrato" Text="{Binding Contrato, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Contrato"
                                  TextChanged="AoDigitarSugestao" PreviewKeyDown="TeclasSugestao" />
+                            <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=SugestaoContrato}" AutomationProperties.Name="Apagar Contrato" Click="ApagarCampo" />
+                        </Grid>
                         <Popup x:Name="PopupContrato" PlacementTarget="{Binding ElementName=SugestaoContrato}" StaysOpen="False" Placement="Bottom">
                             <Border Width="290" Background="White" BorderBrush="#999999" BorderThickness="1" Padding="5">
                                 <ListBox x:Name="ListaContrato" MaxHeight="320" PreviewMouseLeftButtonUp="ClicarSugestao">
@@ -172,11 +206,17 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Lote" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Lote, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Lote" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoLote" Text="{Binding Lote, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Lote" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoLote}" AutomationProperties.Name="Apagar Lote" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="4">
                             <TextBlock Text="Portaria" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Portaria, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Portaria" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoPortaria" Text="{Binding Portaria, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Portaria" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoPortaria}" AutomationProperties.Name="Apagar Portaria" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
@@ -190,24 +230,39 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Processo SEI" Style="{StaticResource Rotulo}" TextTrimming="CharacterEllipsis" />
-                            <TextBox Text="{Binding ProcessoSei, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Processo SEI" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoProcessoSei" Text="{Binding ProcessoSei, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Processo SEI" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoProcessoSei}" AutomationProperties.Name="Apagar Processo SEI" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Data da OS" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding DataOsTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data da OS" t:Mascaras.Data="True" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoDataOsTexto" Text="{Binding DataOsTexto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Data da OS" t:Mascaras.Data="True" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoDataOsTexto}" AutomationProperties.Name="Apagar Data da OS" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                         <StackPanel Grid.Column="4">
                             <TextBlock Text="Fiscal" Style="{StaticResource Rotulo}" />
-                            <TextBox Text="{Binding Responsavel, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fiscal" />
+                            <Grid>
+                                <TextBox Padding="8,6,34,6" x:Name="CampoResponsavel" Text="{Binding Responsavel, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Fiscal" />
+                                <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoResponsavel}" AutomationProperties.Name="Apagar Fiscal" Click="ApagarCampo" />
+                            </Grid>
                         </StackPanel>
                     </Grid>
 
                     <TextBlock Text="Objeto" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
-                    <TextBox Text="{Binding Objeto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Objeto ou serviço" />
+                    <Grid>
+                        <TextBox Padding="8,6,34,6" x:Name="CampoObjeto" Text="{Binding Objeto, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Objeto ou serviço" />
+                        <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoObjeto}" AutomationProperties.Name="Apagar Objeto" Click="ApagarCampo" />
+                    </Grid>
 
                     <TextBlock Text="Descrição geral" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
-                    <TextBox Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição geral"
+                    <Grid>
+                        <TextBox Padding="8,6,34,6" x:Name="CampoDescricao" Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição geral"
                              AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" VerticalContentAlignment="Top" />
+                        <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoDescricao}" AutomationProperties.Name="Apagar Descrição geral" Click="ApagarCampo" />
+                    </Grid>
 
                     <ItemsControl ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,16,0,0" Focusable="False" />
                 </StackPanel>

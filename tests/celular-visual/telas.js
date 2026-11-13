@@ -117,6 +117,15 @@ async function texto(page, seletor, contem) {
     await texto(page, '.opcao', '044/EX/2026');
     if ((await page.inputValue('input >> nth=1')) !== '044/EX/2026') problemas.push(`${w}x${h} escolher o contrato nao preencheu o campo`);
 
+    const lote = page.getByLabel('Lote', { exact: true });
+    const apagarLote = page.getByRole('button', { name: 'Apagar Lote' });
+    await apagarLote.click();
+    await apagarLote.waitFor({ state: 'detached' });
+    if (await lote.inputValue() !== '') problemas.push('a borracha nao apagou o lote');
+    await foto(page, '11b-rel-lote-apagado', w, h, salvar);
+    await page.getByRole('button', { name: 'Atualizar dados pela base' }).click();
+    await apagarLote.waitFor();
+    if (await lote.inputValue() !== 'LOTE 216') problemas.push('atualizar dados nao restaurou o lote');
     await ir(page, urlPronto, 'relatorio/fotos'); await foto(page, '12-rel-fotos', w, h, salvar);
     await page.locator('button.foto').first().click(); await page.waitForTimeout(400);
     await foto(page, '15-rel-legenda', w, h, salvar);

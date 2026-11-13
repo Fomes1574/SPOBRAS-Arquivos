@@ -204,3 +204,7 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .opcao-filtro input:checked::before { content: "✓"; color: white; font-weight: 700; }
 
 .sugestoes-rel { border: 1px solid var(--borda); border-radius: 8px; padding: 0 8px; margin: -4px 0 10px; max-height: 250px; overflow: auto; }
+
+.entrada-campo { position: relative; }
+.com-borracha input, .com-borracha textarea { padding-right: 46px; }
+.apagar-campo { position: absolute; right: 3px; top: 2px; width: 40px; height: 40px; padding: 0; display: grid; place-items: center; border: 0; background: transparent; color: var(--sec); cursor: pointer; }

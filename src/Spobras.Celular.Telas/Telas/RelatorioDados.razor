@@ -13,7 +13,7 @@
     {
         <Aviso>Digite a escola ou o contrato: o resto vem da base. Campo em branco não aparece no relatório.</Aviso>
     }
-    <CampoTexto Rotulo="Unidade educacional" Valor="@D.Unidade" AoMudar="EscolaMudou" AoDigitar="v => Sugerir(v, true)" AoPerderFoco="FecharSugestoes" />
+    <CampoTexto PermiteApagar="true" Rotulo="Unidade educacional" Valor="@D.Unidade" AoApagar="() => ApagarIdentificacao(true)" AoMudar="EscolaMudou" AoDigitar="v => Sugerir(v, true)" AoPerderFoco="FecharSugestoes" />
     @if (_sugerindoEscola == true && _sugestoes.Count > 0)
     {
         <div class="sugestoes-rel">
@@ -25,7 +25,7 @@
             }
         </div>
     }
-    <CampoTexto Rotulo="Contrato" Valor="@D.Contrato" Dica="000/EX/0000" AoMudar="ContratoMudou" AoDigitar="v => Sugerir(v, false)" AoPerderFoco="FecharSugestoes" />
+    <CampoTexto PermiteApagar="true" Rotulo="Contrato" Valor="@D.Contrato" AoApagar="() => ApagarIdentificacao(false)" Dica="000/EX/0000" AoMudar="ContratoMudou" AoDigitar="v => Sugerir(v, false)" AoPerderFoco="FecharSugestoes" />
     @if (_sugerindoEscola == false && _sugestoes.Count > 0)
     {
         <div class="sugestoes-rel">
@@ -38,18 +38,18 @@
         </div>
     }
     <div class="linha-btns">
-        <CampoTexto Rotulo="Lote" Valor="@D.Lote" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Lote = v })" />
-        <CampoTexto Rotulo="Data da OS" Valor="@D.DataOs" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { DataOs = v })" />
+        <CampoTexto PermiteApagar="true" Rotulo="Lote" Valor="@D.Lote" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Lote = v })" />
+        <CampoTexto PermiteApagar="true" Rotulo="Data da OS" Valor="@D.DataOs" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { DataOs = v })" />
     </div>
-    <CampoTexto Rotulo="Portaria" Valor="@D.Portaria" AoMudar="v => Mudar(d => d with { Portaria = v })" />
-    <CampoTexto Rotulo="Contratada" Valor="@D.Contratada" AoMudar="v => Mudar(d => d with { Contratada = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Portaria" Valor="@D.Portaria" AoMudar="v => Mudar(d => d with { Portaria = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Contratada" Valor="@D.Contratada" AoMudar="v => Mudar(d => d with { Contratada = v })" />
     <div class="linha-btns">
-        <CampoTexto Rotulo="Data do relatório" Valor="@D.Data" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Data = v })" />
-        <CampoTexto Rotulo="Fiscal" Valor="@D.Fiscal" Dica="Opcional" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Fiscal = v })" />
+        <CampoTexto PermiteApagar="true" Rotulo="Data do relatório" Valor="@D.Data" Data="true" Dica="dd/mm/aaaa" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Data = v })" />
+        <CampoTexto PermiteApagar="true" Rotulo="Fiscal" Valor="@D.Fiscal" Dica="Opcional" Estilo="flex:1;min-width:0" AoMudar="v => Mudar(d => d with { Fiscal = v })" />
     </div>
-    <CampoTexto Rotulo="Processo SEI" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
-    <CampoTexto Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
-    <CampoTexto Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Processo SEI" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
     <button class="btn linha" style="margin-bottom:10px" @onclick="Atualizar" disabled="@(!App.Base.TemDados)">Atualizar dados pela base</button>
     <a class="btn primario" href="relatorio/fotos">Continuar para as fotos</a>
     @if (!App.Rascunho.Vazio)
@@ -90,6 +90,13 @@
         if (versao != _versaoSugestao) return;
         _sugestoes = escola ? ProcuraObras.SugestoesDeEscola(App.Base.Repositorio, texto)
             : ProcuraObras.SugestoesDeContrato(App.Base.Repositorio, texto);
+    }
+
+    private void ApagarIdentificacao(bool escola)
+    {
+        FecharSugestoes();
+        _escolhas = [];
+        Mudar(d => escola ? d with { Unidade = "" } : d with { Contrato = "" });
     }
 
     private void FecharSugestoes()
@@ -215,8 +222,9 @@
     /// <summary>Busca de novo pelo contrato e pela escola e diz o que mudou (data, fiscal, descricao e fotos nao mudam).</summary>
     private void Atualizar()
     {
-        var obras = Spobras.Dados.Base.ProcuraObras.DoContrato(App.Base.Repositorio, D.Contrato);
-        var obra = obras.FirstOrDefault(o => Spobras.Dados.Base.ProcuraObras.MesmaEscola(o.Empreendimento, D.Unidade))
+        var obras = D.Contrato.Trim().Length > 0 ? ProcuraObras.DoContrato(App.Base.Repositorio, D.Contrato)
+            : ProcuraObras.DaEscola(App.Base.Repositorio, D.Unidade).Where(o => ProcuraObras.MesmaEscola(o.Empreendimento, D.Unidade)).ToList();
+        var obra = obras.FirstOrDefault(o => D.Contrato.Trim().Length > 0 && ProcuraObras.MesmaEscola(o.Empreendimento, D.Unidade))
                    ?? (obras.Count == 1 ? obras[0] : null);
         if (obra is null)
         {
