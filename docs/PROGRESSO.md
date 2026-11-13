@@ -129,10 +129,13 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Totais do lote: original, aditado, contratado, pago, em trâmite (quantidade) e saldo a pagar. Lista em duas linhas por obra.
 - Conferido localmente com a mestra real (não versionada): importação em 2 s, 759 medições em trâmite em 219 obras, nenhum status desconhecido.
 
-### Celular (Android), em andamento
+### Celular (Android), primeira versão (13/11/2026)
 
-- `GeradorRelatorioPdf` (Documentos): o relatório fotográfico desenhado direto em PDF A4, a partir do mesmo plano de páginas do Excel (mesmas colunas, cabeçalho em grade, quadros e legendas, escala 88% e margens estreitas). É o que o celular usa, já que lá não há Excel. Testado (páginas, textos, imagens, nada fora da folha, nunca sobrescreve) e conferido visualmente.
-- Fonte "Roboto" (a do Android) entrou na lista de fontes do PDF.
+- Arquitetura na seção 12 da `ARQUITETURA.md`. Telas no estilo do protótipo aprovado: Início (situação da base, atalhos, rascunho e últimos gerados), Primeira vez (só a planilha mestra), Base (busca, filtros de lote, portaria, status e contrato, totais do lote), Ficha (valores com aditado e percentual, pago e saldo a pagar, prazo da OS ao término, medições em trâmite, orçamento, escopo, a escola em outros contratos), Relatório (dados com busca por escola ou contrato e escolha quando há mais de um, Atualizar dados, fotos da galeria e da câmera, legenda, girar, mudar de lugar, tirar; conferir com miniatura fiel da página; gerar Excel e/ou PDF), Câmera (formatos e flash), PDF (juntar, separar, reduzir, fotos em PDF, logo e numeração, PDF para Excel) e Configurações (planilha, pasta, pasta por escola, logo).
+- `GeradorRelatorioPdf` (Documentos): o relatório desenhado direto em PDF A4 a partir do mesmo plano do Excel. Fonte "Roboto" (a do Android) entrou na lista de fontes do PDF.
+- Buscas por contrato, escola e lote passaram para `Spobras.Dados.Base.ProcuraObras`, usadas pelo computador e pelo celular (o computador só chama).
+- Testes: 12 de lógica (`Spobras.Celular.Tests`) e o teste visual em dois tamanhos de tela, 4 cenários. O teste visual achou e já corrigiu: a folha de opções da câmera ficava por baixo da câmera, a ferramenta de PDF guardava o resultado da anterior e o ícone de busca saía enorme.
+- O C# do app Android compila aqui (com um SDK falso só para compilar); o APK de verdade sai no CI (job `celular`, artefato `ArquivosSPOBRAS-Android`).
 
 ## Testado (automático, Linux e CI Windows)
 
@@ -189,6 +192,9 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
+- **Celular, chave do APK:** para o celular aceitar as próximas versões por cima (sem desinstalar e perder o rascunho), criar uma chave uma vez e guardar nos segredos do GitHub (`ANDROID_KEYSTORE` e `ANDROID_KEYSTORE_SENHA`). Sem isso, cada versão nova pede desinstalar a anterior.
+- **Celular, ícone:** o ícone do app é genérico (o logo oficial não pode ir para o repositório público). O logo dos relatórios é escolhido nas Configurações do app, uma vez.
+
 - [ ] Logo SPOBRAS (passo 4), a ser colocado pelo próprio usuário no app; confirmar se há versão em melhor qualidade.
 - [ ] Decidir se o caminho da pasta e os códigos de contrato de receita que estão em `docs/ARQUITETURA.md` devem ser trocados por exemplos genéricos (repositório público).
 - [x] Dotação 3363: o usuário confirmou que a obra é 5100 e a remuneração 3900 (sempre essa diferença). O app corrige pela regra e avisa na linha.
@@ -214,6 +220,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Repositório público: https://github.com/Fomes1574/SPOBRAS-Arquivos
 
 ## Não testado (e por quê)
+
+- **App do celular num aparelho de verdade:** a lógica e as telas foram testadas em Linux (navegador simulando o celular). Seletor de arquivos do Android, permissão guardada da planilha no OneDrive/SharePoint, câmera real (flash e lanterna variam por aparelho), salvar na pasta escolhida, galeria e compartilhar só existem no Android: entram no roteiro de conferência do celular.
 
 - O app nunca rodou num Windows com gente usando: o CI abre as telas e confere medidas, mas ninguém viu o visual ainda. As imagens estão no artefato `telas` de cada build.
 - Bandeja, notificação agrupada, arrastar e soltar, janelas de escolher pasta/arquivo, instância única e "continua na bandeja ao fechar": só existem no Windows real, sem teste automático. Entram no roteiro de conferência.

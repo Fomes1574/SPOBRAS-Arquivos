@@ -1,0 +1,8 @@
+{
+  "name": "spobras-celular-visual",
+  "private": true,
+  "description": "Teste visual das telas do celular (host de navegador).",
+  "devDependencies": {
+    "playwright": "1.49.1"
+  }
+}

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <!-- App Android (APK instalado sem loja). Casca fina: as telas e as regras estao em Spobras.Celular.Telas.
+       Fica fora da solucao porque precisa do workload maui-android; o CI compila num job proprio. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <RootNamespace>Spobras.Celular.Android</RootNamespace>
+    <AssemblyName>ArquivosSPOBRAS.Celular</AssemblyName>
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
+
+    <ApplicationTitle>Arquivos SPOBRAS</ApplicationTitle>
+    <ApplicationId>com.arquivosspobras.celular</ApplicationId>
+    <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <SupportedOSPlatformVersion>26.0</SupportedOSPlatformVersion>
+
+    <!-- APK (nao AAB): instala direto, sem loja. -->
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <RuntimeIdentifiers>android-arm64;android-arm</RuntimeIdentifiers>
+
+    <!-- Os pacotes do MAUI usam a versao do workload, fora do controle central de versoes. -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Sem corte de codigo: as bibliotecas de Excel e PDF usam reflexao; o APK fica maior, mas sem surpresa. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#231F20" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#231F20" BaseSize="128,128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Spobras.Celular.Telas\Spobras.Celular.Telas.csproj" />
+  </ItemGroup>
+
+</Project>

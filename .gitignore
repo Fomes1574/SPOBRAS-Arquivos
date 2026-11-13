@@ -17,3 +17,7 @@ relatorio-ambiente*.txt
 !amostras/**/*.xlsx
 !amostras/**/*.pdf
 artifacts/
+node_modules/
+package-lock.json
+*.keystore
+*.jks

@@ -64,3 +64,78 @@ jobs:
           name: TesteAmbienteSPOBRAS
           path: publish/teste-ambiente/TesteAmbienteSPOBRAS.exe
           if-no-files-found: error
+
+  # App do celular: testes da logica, teste visual das telas num navegador e o APK do Android.
+  celular:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Sao_Paulo
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: 17
+
+      - name: Testar a logica do celular
+        run: dotnet test --project tests/Spobras.Celular.Tests -c Release
+
+      - name: Teste visual das telas
+        working-directory: tests/celular-visual
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          ./rodar.sh "$GITHUB_WORKSPACE/artifacts/celular"
+
+      - name: Guardar as imagens das telas do celular
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telas-celular
+          path: artifacts/celular
+          if-no-files-found: warn
+
+      - name: Instalar o workload do Android
+        run: dotnet workload install maui-android
+
+      - name: Componentes do Android SDK
+        run: >
+          dotnet build src/Spobras.Celular -t:InstallAndroidDependencies -f net10.0-android
+          -p:AndroidSdkDirectory="$ANDROID_HOME" -p:AcceptAndroidSDKLicenses=True
+
+      # Com os segredos ANDROID_KEYSTORE (arquivo .keystore em base64) e ANDROID_KEYSTORE_SENHA, o APK sai sempre
+      # com a mesma chave e o celular aceita a atualizacao por cima. Sem eles, sai com a chave de teste do CI.
+      - name: Chave de assinatura
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          SENHA: ${{ secrets.ANDROID_KEYSTORE_SENHA }}
+        run: |
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/spobras.keystore"
+            echo "ASSINATURA=-p:AndroidKeyStore=true -p:AndroidSigningKeyStore=$RUNNER_TEMP/spobras.keystore -p:AndroidSigningKeyAlias=spobras -p:AndroidSigningKeyPass=$SENHA -p:AndroidSigningStorePass=$SENHA" >> "$GITHUB_ENV"
+          else
+            echo "ASSINATURA=" >> "$GITHUB_ENV"
+            echo "::warning::Sem a chave ANDROID_KEYSTORE: o APK sai com a chave de teste e cada versao nova pede desinstalar a anterior."
+          fi
+
+      - name: Gerar o APK
+        run: >
+          dotnet publish src/Spobras.Celular -c Release -f net10.0-android
+          -p:AndroidSdkDirectory="$ANDROID_HOME" $ASSINATURA -o publish/celular
+
+      - name: Nome do APK
+        run: |
+          apk=$(ls publish/celular/*-Signed.apk | head -1)
+          cp "$apk" "publish/ArquivosSPOBRAS.apk"
+          ls -la publish/celular publish/ArquivosSPOBRAS.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArquivosSPOBRAS-Android
+          path: publish/ArquivosSPOBRAS.apk
+          if-no-files-found: error

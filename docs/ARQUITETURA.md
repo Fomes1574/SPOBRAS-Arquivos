@@ -200,3 +200,24 @@ OCR fica fora desta entrega (evolução posterior).
 - Modelos e logo entram no app pelo próprio usuário (Configurações → Modelos e logo) e ficam em `%LOCALAPPDATA%\ArquivosSPOBRAS\modelos`. O instalador não os contém.
 - Não inventar nomes de colunas: o que não estiver em `docs/FONTES.md` é pendência a perguntar.
 - Interface e mensagens em português do Brasil. Código e nomes de arquivos sem acentos.
+
+## 12. App do celular (Android)
+
+Decidido com o usuário em 13/11/2026: Android primeiro, APK gratuito instalado sem loja. No celular: Base (consulta), Relatório fotográfico (prioridade) e ferramentas de PDF. Sem cronograma e sem Excel para PDF.
+
+| Projeto | O que é |
+|---|---|
+| `src/Spobras.Celular.Telas` (net10.0, Razor) | Telas em Blazor e serviços do celular (`AppCelular`, `BaseCelular`, `RascunhoRelatorio`, `PdfCelular`). Usa Core, Dados e Documentos; testável em Linux. |
+| `src/Spobras.Celular` (net10.0-android, MAUI) | Casca fina: `BlazorWebView`, `PlataformaAndroid` (seletor de arquivos SAF com permissão guardada, salvar na pasta escolhida, galeria, compartilhar) e permissão da câmera na WebView. Fora da solução: precisa do workload `maui-android`; o CI compila no job `celular`. |
+| `tests/Spobras.Celular.Navegador` | Host de **teste**: as mesmas telas num navegador, com `PlataformaDeTeste` e dados inventados (`AmostraCelular`). Não é o app. |
+| `tests/Spobras.Celular.Tests` | Testes da lógica do celular. |
+| `tests/celular-visual` | Teste visual (Playwright): sobe o host em quatro cenários (pronto, primeira vez, planilha movida, sem internet), passa por todas as telas em 360×760 e 412×915, confere texto cortado, coisa fora da tela, alvo de toque pequeno e erro de script, e salva as imagens (artefato `telas-celular`). |
+
+Regras do celular:
+
+- Só a planilha mestra. A de Dotações não é usada no celular (a ficha e o relatório não dependem dela).
+- A planilha é escolhida uma vez pelo seletor do Android (`ACTION_OPEN_DOCUMENT` + `takePersistableUriPermission`, só leitura). Ao abrir e ao voltar para o app, ela é **copiada** para dentro do app e importada pelo mesmo `ImportadorMestra` do computador; se não mudou (mesmo SHA-256), não importa de novo. Sem internet ou planilha movida: vale a base da última leitura, com aviso.
+- O relatório usa o mesmo `PaginadorRelatorio`: o Excel sai pelo `GeradorRelatorio` e o PDF pelo `GeradorRelatorioPdf` (desenhado direto, sem Excel). Fotos ficam numa pasta do app (rascunho em JSON) e sobrevivem a fechar o app.
+- Câmera dentro do app (`getUserMedia` na WebView): formatos 4:3, 16:9, tela cheia e 1:1; flash automático, ligado, desligado e lanterna (quando o aparelho permite).
+- Arquivos gerados vão para a pasta escolhida (árvore SAF), opcionalmente numa subpasta por escola, sem nunca sobrescrever (nome ganha "(2)").
+- Assinatura do APK: com os segredos `ANDROID_KEYSTORE` e `ANDROID_KEYSTORE_SENHA` no GitHub, toda versão sai com a mesma chave e atualiza por cima. Sem eles, o CI usa a chave de teste.

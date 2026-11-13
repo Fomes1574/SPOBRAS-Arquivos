@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<application android:allowBackup="false" android:supportsRtl="true" android:label="Arquivos SPOBRAS"></application>
+	<!-- Camera do app (fotos do relatorio). A planilha, as fotos da galeria e a pasta de saida sao escolhidas
+	     pelo seletor do Android, sem permissao de armazenamento. Internet: so para o OneDrive/SharePoint baixar a planilha. -->
+	<uses-permission android:name="android.permission.CAMERA" />
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-feature android:name="android.hardware.camera" android:required="false" />
+	<queries>
+		<intent><action android:name="android.intent.action.VIEW" /><data android:mimeType="*/*" /></intent>
+	</queries>
+</manifest>

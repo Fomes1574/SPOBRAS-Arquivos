@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="456" viewBox="0 0 456 456">
+  <!-- Icone generico (o logo oficial nao vai para o repositorio publico). -->
+  <rect x="128" y="112" width="200" height="232" rx="18" fill="#FFFFFF"/>
+  <path d="M168 168h120M168 212h120M168 256h80" stroke="#231F20" stroke-width="18" stroke-linecap="round"/>
+  <rect x="128" y="300" width="200" height="44" rx="0" fill="#C8102E"/>
+</svg>
