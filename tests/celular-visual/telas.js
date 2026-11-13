@@ -178,7 +178,13 @@ async function texto(page, seletor, contem) {
     // tira a foto da camera de novo, para o relatorio ficar igual nos dois tamanhos
     await page.locator('button.foto').last().click(); await page.waitForTimeout(300);
     await texto(page, '.folha .link', 'Tirar esta foto'); await texto(page, '.folha .btn', 'Tirar do relatório');
-    await page.keyboard.press('Escape');
+    await page.locator('.folha .btn.primario').click();
+    await page.locator('.folha').waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: 'Ordenar ▾', exact: true }).click();
+    await page.getByRole('button', { name: 'Por nome do arquivo', exact: true }).waitFor();
+    await foto(page, '15c-rel-ordenar-fotos', w, h, salvar);
+    await page.getByRole('button', { name: 'Por data da foto', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Ordenar fotos', exact: true }).waitFor({ state: 'detached' });
     await ir(page, urlPronto, 'relatorio/conferir'); await page.waitForTimeout(600);
     await foto(page, '16-rel-conferir', w, h, salvar);
     await texto(page, '.btn.primario', 'Gerar relatório'); await page.waitForSelector('text=Pronto!', { timeout: 60000 });

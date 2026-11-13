@@ -24,6 +24,7 @@
         <button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button>
         @if (Fotos.Count > 0 && !_selecionando)
         {
+            <button class="btn linha pequeno" @onclick="() => _ordenar = true">Ordenar ▾</button>
             <button class="btn linha pequeno" @onclick="IniciarSelecao">Selecionar</button>
         }
     </div>
@@ -67,6 +68,11 @@
 <a class="fab" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
 <Nav Ativo="relatorio" />
 <Ocupado Texto="@Trabalhando" />
+
+<Folha Aberta="_ordenar" Titulo="Ordenar fotos" AoFechar="() => _ordenar = false">
+    <button class="opcao" @onclick="() => Ordenar(true)">Por data da foto</button>
+    <button class="opcao" @onclick="() => Ordenar(false)">Por nome do arquivo</button>
+</Folha>
 
 @if (_aberta is int a && a < Fotos.Count)
 {
@@ -134,6 +140,14 @@
         _referencia?.Dispose();
     }
 
+    private bool _ordenar;
+
+    private void Ordenar(bool porData)
+    {
+        App.Rascunho.OrdenarFotos(porData);
+        _ordenar = false;
+    }
+
     private bool _selecionando;
     private readonly HashSet<int> _marcadas = [];
     private string _legenda = "";
@@ -191,7 +205,7 @@
     private Task DaGaleria() => Executar("Copiando as fotos…", async () =>
     {
         var escolhidas = await App.Plataforma.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);
-        _recusadas = await Task.Run(() => App.Rascunho.AdicionarCopiadas(escolhidas.Where(e => e.Local is not null).Select(e => e.Local!)));
+        _recusadas = await Task.Run(() => App.Rascunho.AdicionarCopiadas(escolhidas));
     });
 
     private static string Rotulo(int n, FotoRascunho f) => f.Legenda.Length > 0 ? $"Foto {n + 1}: {f.Legenda}" : $"Foto {n + 1}";

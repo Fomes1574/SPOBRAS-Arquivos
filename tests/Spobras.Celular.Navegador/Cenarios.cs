@@ -45,7 +45,7 @@ public static class Cenarios
             App.Rascunho.AplicarObra(obra);
             p.ProximaEscolha = [.. Directory.GetFiles(p.Entrada, "foto-*.jpg").Order(StringComparer.Ordinal)];
             var escolhidas = await p.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);
-            App.Rascunho.AdicionarCopiadas(escolhidas.Select(e => e.Local!));
+            App.Rascunho.AdicionarCopiadas(escolhidas);
             string[] legendas = ["Execução do piso cerâmico da sala 3", "Fachada principal após a pintura", "", "Cobertura: troca das telhas", "Rampa de acesso", "", "Pátio coberto", "Sanitário adaptado"];
             for (int i = 0; i < legendas.Length; i++)
             {

@@ -151,6 +151,28 @@ public sealed class CelularTests : IDisposable
     }
 
     [Fact]
+    public async Task Ordenar_fotos_respeita_data_nome_e_rascunho_antigo()
+    {
+        var app = await AppComBase();
+        ComFotos(app, _p, 4);
+        var fotos = app.Rascunho.Dados.Fotos.ToArray();
+        var antiga = new FotoRascunho(fotos[0].Arquivo, "Antiga");
+        var semData = fotos[1] with { NomeOriginal = "foto 10.jpg" };
+        var recente = fotos[2] with { NomeOriginal = "foto 2.jpg", CapturadaEm = new DateTime(2026, 11, 12) };
+        var cedo = fotos[3] with { NomeOriginal = "foto 1.jpg", CapturadaEm = new DateTime(2026, 11, 11) };
+        app.Rascunho.Alterar(d => d with { Fotos = [semData, recente, antiga, cedo] });
+        var rascunho = NovoApp().Rascunho;
+        rascunho.OrdenarFotos(porData: true);
+        Assert.Equal([cedo.Arquivo, recente.Arquivo, antiga.Arquivo, semData.Arquivo], rascunho.Dados.Fotos.Select(f => f.Arquivo));
+        Assert.Equal("Antiga", rascunho.Dados.Fotos[2].Legenda);
+        rascunho.OrdenarFotos(porData: false);
+        Assert.Equal(["f1.jpg", "foto 1.jpg", "foto 2.jpg", "foto 10.jpg"], rascunho.Dados.Fotos.Select(f => f.NomeOriginal));
+        string arquivo = rascunho.AdicionarFoto(File.ReadAllBytes(rascunho.Caminho(cedo)));
+        Assert.Equal(Path.GetFileName(arquivo), rascunho.Dados.Fotos[^1].NomeOriginal);
+        Assert.NotNull(rascunho.Dados.Fotos[^1].CapturadaEm);
+    }
+
+    [Fact]
     public async Task Legenda_em_lote_respeita_as_marcadas_ou_as_vazias()
     {
         var app = await AppComBase();

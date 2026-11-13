@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Spobras.Core.Base;
+using Spobras.Core.Nomes;
 using Spobras.Core.Relatorio;
 using Spobras.Documentos.Imagens;
 using Spobras.Documentos.Relatorio;
@@ -7,7 +8,11 @@ using Spobras.Documentos.Relatorio;
 namespace Spobras.Celular.Servicos;
 
 /// <summary>Uma foto do rascunho: a copia fica na pasta do app (a original do usuario nunca muda).</summary>
-public sealed record FotoRascunho(string Arquivo, string Legenda = "", int Rotacao = 0, string Descricao = "");
+public sealed record FotoRascunho(string Arquivo, string Legenda = "", int Rotacao = 0, string Descricao = "")
+{
+    public string? NomeOriginal { get; init; }
+    public DateTime? CapturadaEm { get; init; }
+}
 
 /// <summary>Tudo que o usuario ja preencheu, guardado a cada mudanca: sair do app nao perde nada.</summary>
 public sealed record DadosRascunho
@@ -85,24 +90,29 @@ public sealed class RascunhoRelatorio
     /// <summary>Foto tirada pela camera do app.</summary>
     public string AdicionarFoto(byte[] jpeg)
     {
-        string nome = $"{_agora():yyyyMMdd-HHmmss}-{Guid.NewGuid():N}"[..24] + ".jpg";
+        DateTimeOffset agora = _agora();
+        string nome = $"{agora:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}"[..24] + ".jpg";
         string caminho = Path.Combine(PastaDasFotos, nome);
         File.WriteAllBytes(caminho, jpeg);
-        Alterar(d => d with { Fotos = [.. d.Fotos, new FotoRascunho(nome)] });
+        Alterar(d => d with { Fotos = [.. d.Fotos, new FotoRascunho(nome) { NomeOriginal = nome, CapturadaEm = agora.DateTime }] });
         return caminho;
     }
 
     /// <summary>Fotos ja copiadas para a pasta do rascunho (pela galeria). As que nao sao imagem ficam de fora.</summary>
-    public IReadOnlyList<string> AdicionarCopiadas(IEnumerable<string> caminhos)
+    public IReadOnlyList<string> AdicionarCopiadas(IEnumerable<string> caminhos) =>
+        AdicionarCopiadas(caminhos.Select(c => new Escolhido("", Path.GetFileName(c), c)));
+
+    public IReadOnlyList<string> AdicionarCopiadas(IEnumerable<Escolhido> escolhidas)
     {
         var recusadas = new List<string>();
         var novas = new List<FotoRascunho>();
-        foreach (string c in caminhos)
+        foreach (var escolhida in escolhidas)
         {
+            if (escolhida.Local is not { } c) continue;
             try
             {
-                Fotos.Ler(c);
-                novas.Add(new FotoRascunho(Path.GetFileName(c)));
+                var info = Fotos.Ler(c);
+                novas.Add(new FotoRascunho(Path.GetFileName(c)) { NomeOriginal = escolhida.Nome, CapturadaEm = info.CapturadaEm });
             }
             catch (FotoInvalidaException ex)
             {
@@ -113,6 +123,27 @@ public sealed class RascunhoRelatorio
 
         Alterar(d => d with { Fotos = [.. d.Fotos, .. novas] });
         return recusadas;
+    }
+
+    public void OrdenarFotos(bool porData)
+    {
+        FotoRascunho Completar(FotoRascunho foto)
+        {
+            if (foto.NomeOriginal is not null) return foto;
+            DateTime? captura = foto.CapturadaEm;
+            try
+            {
+                captura ??= Fotos.Ler(Caminho(foto)).CapturadaEm;
+            }
+            catch (FotoInvalidaException) { }
+            return foto with { NomeOriginal = foto.Arquivo, CapturadaEm = captura };
+        }
+
+        var fotos = Dados.Fotos.Select(Completar);
+        var ordem = porData
+            ? fotos.OrderBy(f => f.CapturadaEm is null).ThenBy(f => f.CapturadaEm).ThenBy(f => f.NomeOriginal!, OrdemNatural.Instancia)
+            : fotos.OrderBy(f => f.NomeOriginal!, OrdemNatural.Instancia);
+        Alterar(d => d with { Fotos = [.. ordem] });
     }
 
     public void Legendar(int i, string legenda) => Trocar(i, f => f with { Legenda = legenda });
