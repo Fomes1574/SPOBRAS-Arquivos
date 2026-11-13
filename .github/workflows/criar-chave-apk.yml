@@ -1,0 +1,43 @@
+name: criar chave do APK
+
+# Cria, uma vez so, a chave que assina o APK do celular e guarda direto nos segredos do repositorio
+# (ANDROID_KEYSTORE e ANDROID_KEYSTORE_SENHA). Nada aparece no log nem vira arquivo para baixar.
+# Precisa do segredo TOKEN_SEGREDOS (token do GitHub com permissao de escrever segredos neste repositorio);
+# depois de rodar, apague o token e esse segredo.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  criar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Criar a chave e guardar nos segredos
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_SEGREDOS }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Falta o segredo TOKEN_SEGREDOS. Veja o passo a passo e rode de novo."
+            exit 1
+          fi
+          # Nunca troca uma chave que ja existe: trocar faria o celular recusar a proxima atualizacao.
+          if gh secret list --repo "$REPO" | cut -f1 | grep -qx ANDROID_KEYSTORE; then
+            echo "::error::A chave ANDROID_KEYSTORE ja existe. Nada foi alterado."
+            exit 1
+          fi
+          senha=$(openssl rand -hex 20)
+          echo "::add-mask::$senha"
+          pasta=$(mktemp -d)
+          keytool -genkeypair -keystore "$pasta/spobras.keystore" -storetype PKCS12 -alias spobras \
+            -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Arquivos SPOBRAS" \
+            -storepass "$senha" -keypass "$senha" > /dev/null 2>&1
+          base64 -w0 "$pasta/spobras.keystore" > "$pasta/chave.txt"
+          gh secret set ANDROID_KEYSTORE --repo "$REPO" < "$pasta/chave.txt"
+          printf '%s' "$senha" | gh secret set ANDROID_KEYSTORE_SENHA --repo "$REPO"
+          rm -rf "$pasta"
+          echo "Chave criada e guardada nos segredos ANDROID_KEYSTORE e ANDROID_KEYSTORE_SENHA."
+          echo "Agora apague o token criado no GitHub e o segredo TOKEN_SEGREDOS."
