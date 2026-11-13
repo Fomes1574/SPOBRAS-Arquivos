@@ -200,8 +200,7 @@ public sealed class RascunhoRelatorio
     // ---- Dados da base ----
 
     /// <summary>
-    /// Os campos que vem da base, como no computador: o Processo SEI fica de fora (so se digitar), e data, fiscal,
-    /// descricao e fotos nunca mudam. Devolve o que mudou.
+    /// Atualiza os campos da obra e devolve o que mudou. Data do relatorio, fiscal, descricao e fotos sao preservados.
     /// </summary>
     public IReadOnlyList<string> AplicarObra(ObraLida obra)
     {
@@ -227,6 +226,7 @@ public sealed class RascunhoRelatorio
             Contratada = Trocar("Contratada", d.Contratada, obra.Contratada),
             DataOs = Trocar("Data da OS", d.DataOs, Formato.Data(obra.DataOs)),
             Objeto = Trocar("Objeto", d.Objeto, obra.Escopo),
+            ProcessoSei = Trocar("Processo SEI", d.ProcessoSei, obra.ProcessoSei),
         };
         Alterar(_ => d);
         return mudou;

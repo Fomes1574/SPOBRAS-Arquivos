@@ -749,8 +749,7 @@ public sealed partial class RelatorioVm : TelaVm
     }
 
     /// <summary>
-    /// Os campos que vem da base. O Processo SEI fica de fora de proposito (quase sempre nao vai no relatorio;
-    /// quem quiser digita), e data do relatorio, fiscal, descricao e fotos nunca sao tocados.
+    /// Atualiza os campos da obra. Data do relatorio, fiscal, descricao e fotos sao preservados.
     /// </summary>
     private List<string> AplicarDaBase(Spobras.Core.Base.ObraLida obra)
     {
@@ -771,6 +770,7 @@ public sealed partial class RelatorioVm : TelaVm
         Trocar("Portaria", Portaria, obra.Portaria ?? "", v => Portaria = v);
         Trocar("Data da OS", DataOsTexto, obra.DataOs?.ToString("dd/MM/yyyy", Formato.PtBr) ?? "", v => DataOsTexto = v);
         Trocar("Objeto", Objeto, obra.Escopo ?? "", v => Objeto = v);
+        Trocar("Processo SEI", ProcessoSei, obra.ProcessoSei ?? "", v => ProcessoSei = v);
         return mudou;
     }
 

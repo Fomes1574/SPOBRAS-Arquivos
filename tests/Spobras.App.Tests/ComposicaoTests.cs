@@ -148,9 +148,10 @@ public class ComposicaoProtótipoTests : IDisposable
         app.Principal.Navegar(RelatorioVm.Modulo);
         var relatorio = (RelatorioVm)app.Principal.PaginaAtual!;
         relatorio.Contrato = "004/EX/2025";
-        Assert.Equal("", relatorio.ProcessoSei); // SEI so entra se o usuario digitar
+        Assert.Equal("7910.2024/0000001-0", relatorio.ProcessoSei);
 
         relatorio.Lote = "";
+        relatorio.ProcessoSei = "";
         relatorio.Portaria = "outra";
         relatorio.Responsavel = "Fiscal Fulano";
         relatorio.Descricao = "Minha descrição";
@@ -158,7 +159,9 @@ public class ComposicaoProtótipoTests : IDisposable
 
         Assert.StartsWith("Atualizado pela Base de dados: ", relatorio.Resultado);
         Assert.Contains("Portaria", relatorio.Resultado);
-        Assert.Equal(("Fiscal Fulano", "Minha descrição", ""), (relatorio.Responsavel, relatorio.Descricao, relatorio.ProcessoSei));
+        Assert.Contains("Processo SEI", relatorio.Resultado);
+        Assert.Equal(("Fiscal Fulano", "Minha descrição", "7910.2024/0000001-0"),
+            (relatorio.Responsavel, relatorio.Descricao, relatorio.ProcessoSei));
         relatorio.AtualizarDadosCommand.Execute(null);
         Assert.Equal("Os dados já estavam iguais aos da Base de dados.", relatorio.Resultado);
 

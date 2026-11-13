@@ -132,7 +132,10 @@ public sealed class CelularTests : IDisposable
         var obra = app.Base.Buscar(new FiltroObras { Contrato = "044/EX/2026" }, 1).Obras[0];
         var mudou = app.Rascunho.AplicarObra(obra);
         Assert.Contains("Unidade", mudou);
-        Assert.Equal("", app.Rascunho.Dados.ProcessoSei); // SEI nunca vem da base
+        Assert.Equal("0000.2026/0000000-0", app.Rascunho.Dados.ProcessoSei);
+        app.Rascunho.Alterar(d => d with { ProcessoSei = "" });
+        Assert.Contains("Processo SEI", app.Rascunho.AplicarObra(obra));
+        Assert.Equal("0000.2026/0000000-0", app.Rascunho.Dados.ProcessoSei);
         ComFotos(app, _p, 3);
         app.Rascunho.Legendar(0, "Piso da sala 3");
         app.Rascunho.Girar(1);
