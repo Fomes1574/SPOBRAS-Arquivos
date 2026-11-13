@@ -121,6 +121,19 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - PDF para Excel: leitura pela **grade da tabela** (as linhas que o Excel ou o sistema desenham no PDF): colunas, mesclas, negrito, tamanho e cor da letra, fundos e alinhamento iguais ao PDF; páginas viram uma tabela só, sem repetir o cabeçalho; "Página X de Y" fica de fora; número que o PDF separou ("3 5.000,00") volta inteiro; reais em formato contábil, datas como data, NE, SEI, código e dotação como texto. Sem colunas Página/Linha, sem logo e sem a aba "Sobre". PDF sem grade: colunas pelo alinhamento da página inteira. Conferido localmente com os PDFs reais de Restos a Pagar e do Anexo I (não versionados): 80 de 80 e 739 de 739 linhas iguais ao PDF, célula por célula, e comparação visual lado a lado.
 - Base de dados: ficha da obra mais larga (lista 40% e ficha 60%, com divisória que se arrasta e fica guardada), em blocos com duas colunas (Identificação, Prazo, Valores, Orçamento, Escopo), botão "Ampliar" e filtros que se recolhem numa linha. Novo filtro **Lote**, com uma faixa de totais do lote (contratado, medido, pago, saldo a medir e a pagar; as medições ficam fora porque são do contrato inteiro).
 
+### Base: medições em trâmite e ficha nova (13/11/2026)
+
+- Ficha da obra: blocos Identificação, **Valores** (valor original, aditado com o percentual sobre o original, contratado com aditamento, pago e saldo a pagar, como na planilha; pago + saldo = contratado), **Prazo** só com Data da OS e Término (sem assinatura), Orçamento e Escopo. Medido e a medir saíram.
+- **Medições em trâmite** da obra (contrato + escola): toda medição que não está com "PAGAMENTO EFETUADO", inclusive "CADASTRADO PARA FATURAMENTO" e "DEVOLUÇÃO FISCAL", só em contrato em andamento, da mais recente para a mais antiga. Valor = VALOR CONSIDERADO + "VALOR REJUSTE" (sem remuneração). Migração 7 guarda o reajuste e o status do contrato da medição.
+- Status do contrato: andamento = vigente, vencido, suspenso, em trâmite - aditivo, não iniciado, rescisão em trâmite; concluído = concluído, encerrado / TRD, TRP assinado, TRD em tramitação, em encerramento, rescindido; "SOB GESTÃO DA SIURB" não aparece; status desconhecido vale como andamento, com aviso.
+- Totais do lote: original, aditado, contratado, pago, em trâmite (quantidade) e saldo a pagar. Lista em duas linhas por obra.
+- Conferido localmente com a mestra real (não versionada): importação em 2 s, 759 medições em trâmite em 219 obras, nenhum status desconhecido.
+
+### Celular (Android), em andamento
+
+- `GeradorRelatorioPdf` (Documentos): o relatório fotográfico desenhado direto em PDF A4, a partir do mesmo plano de páginas do Excel (mesmas colunas, cabeçalho em grade, quadros e legendas, escala 88% e margens estreitas). É o que o celular usa, já que lá não há Excel. Testado (páginas, textos, imagens, nada fora da folha, nunca sobrescreve) e conferido visualmente.
+- Fonte "Roboto" (a do Android) entrou na lista de fontes do PDF.
+
 ## Testado (automático, Linux e CI Windows)
 
 `dotnet test`: 285 testes passam em Linux, 1 pulado (Excel real); no CI Windows roda também o teste que abre as telas. Casos da especificação cobertos até aqui:
@@ -186,6 +199,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - **Cronograma:** só o mês importa (nada de dia); portaria no formato "Nº 03 (2021)"; remuneração com padrão de 10% e opção de mudar; um arquivo novo por cronograma basta. O app faz o cronograma inteiro (sem modelo): uma ou várias escolas, breve escopo digitado, total por ano, total solicitado, ajuste de valor ou percentual num mês com os seguintes recalculados, tabela por dotação completa. Arredondar sempre para cima no centavo; a sobra fica no último mês.
 - **Dotações:** remuneração termina em 3900 e obra em 5100, sempre, menos 2830, 2878 e 2879, em que a 3900 serve às duas. Vale também para a 3363, que na planilha veio com 3900 na obra.
 - **Relatório:** foto inteira (sem cortar), mas sem uma encostar na outra.
+- **Base (13/11/2026):** em trâmite = tudo que não foi pago (contrato em andamento, por escola), com valor considerado + reajuste e sem remuneração; saldo = saldo a pagar da planilha; só Data da OS e término; percentual do aditado sem aviso de limite.
+- **Celular:** Android primeiro, APK gratuito sem loja (iPhone talvez depois). Base, relatório fotográfico (prioridade) e ferramentas de PDF; sem cronograma. Só a planilha mestra (Dotações não é usada no celular), escolhida uma vez, só leitura, relida ao abrir. Fotos ficam no rascunho; câmera com 4:3, 16:9, tela cheia, 1:1 e flash; salva Excel e/ou PDF numa pasta escolhida (opção de uma pasta por escola); mesmo logo do PC.
 - **Edição no app:** qualquer dado pode ser mudado no app; o dado da planilha vem por padrão e o usuário pode mudar.
 - **Macros:** nenhum modelo precisa rodar macro depois de preenchido.
 - **Bases:** a planilha mestra (Escolas_Contratos_Com_Relatorio, com as tabelas do SGCOE e de contratos) e a de Dotações Completas. Nenhuma planilha complementar. O relatório do Jardim Paulistano (fotos que nunca se encostam) e o Cronograma revisado são os modelos de referência.

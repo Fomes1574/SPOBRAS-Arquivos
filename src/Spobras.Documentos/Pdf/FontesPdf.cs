@@ -10,7 +10,7 @@ namespace Spobras.Documentos.Pdf;
 public sealed class FontesPdf : IFontResolver
 {
     public const string Familia = "Arquivos SPOBRAS";
-    private static readonly string[] Preferidas = ["Segoe UI", "Arial", "Inter", "DejaVu Sans", "Liberation Sans", "FreeSans"];
+    private static readonly string[] Preferidas = ["Segoe UI", "Arial", "Inter", "Roboto", "DejaVu Sans", "Liberation Sans", "FreeSans"];
     private static readonly Lazy<byte[]> Regular = new(() => Carregar(SKFontStyle.Normal));
     private static readonly Lazy<byte[]> Negrito = new(() => Carregar(SKFontStyle.Bold));
     private static readonly object Trava = new();
