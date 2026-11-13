@@ -100,6 +100,13 @@
                             <ComboBox ItemsSource="{Binding Lotes}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Lote}" AutomationProperties.Name="Lote" />
                         </DockPanel>
                     </StackPanel>
+                    <StackPanel Margin="6,0">
+                        <TextBlock Text="Empresa" Style="{StaticResource Rotulo}" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource LimparFiltro}" Command="{Binding LimparCommand}" CommandParameter="empresa" AutomationProperties.Name="Limpar o filtro de empresa" />
+                            <ComboBox ItemsSource="{Binding Empresas}" ItemTemplate="{StaticResource OpcaoTexto}" SelectedItem="{Binding Empresa}" AutomationProperties.Name="Empresa" />
+                        </DockPanel>
+                    </StackPanel>
                 </UniformGrid>
 
                 <Expander Header="Mais filtros: contrato de receita, dotação, valores e Data da OS" Margin="0,12,0,0">

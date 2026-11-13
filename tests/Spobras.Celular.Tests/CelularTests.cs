@@ -112,6 +112,19 @@ public sealed class CelularTests : IDisposable
         Assert.Equal(t.Contratado, t.Pago + t.SaldoAPagar);
     }
 
+    [Fact]
+    public async Task Base_filtra_por_empresa_e_oferece_opcoes_compativeis()
+    {
+        var app = await AppComBase();
+        const string empresa = "Construtora Exemplo Ltda";
+        var filtro = new FiltroObras { Empresa = empresa, Lote = "LOTE 216" };
+        Assert.Equal([empresa], app.Base.Opcoes(filtro).Empresas);
+        var obras = app.Base.Buscar(filtro, 50).Obras;
+        Assert.Equal(3, obras.Count);
+        Assert.All(obras, o => Assert.Equal(empresa, o.Contratada));
+        Assert.Empty(app.Base.Buscar(filtro with { Empresa = "Empresa inexistente" }, 50).Obras);
+    }
+
     // ---- Rascunho do relatorio ----
 
     private static void ComFotos(AppCelular app, PlataformaDeTeste p, int n)

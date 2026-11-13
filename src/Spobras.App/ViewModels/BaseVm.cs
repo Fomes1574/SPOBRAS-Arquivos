@@ -177,6 +177,7 @@ public sealed record ConsultaSalva
     public string? Contrato { get; init; }
     public string? Escola { get; init; }
     public string? Lote { get; init; }
+    public string? Empresa { get; init; }
     public string? ContratoReceita { get; init; }
     public string? Dotacao { get; init; }
     public string? Status { get; init; }
@@ -404,7 +405,7 @@ public sealed partial class BaseVm : TelaVm
     {
         get
         {
-            var partes = new[] { Portaria, Contrato, Escola, Lote, ContratoReceita, Dotacao, Status, Texto.Trim().Length > 0 ? $"“{Texto.Trim()}”" : null }
+            var partes = new[] { Portaria, Contrato, Escola, Lote, Empresa, ContratoReceita, Dotacao, Status, Texto.Trim().Length > 0 ? $"“{Texto.Trim()}”" : null }
                 .Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
             return partes.Count == 0 ? "Sem filtros" : string.Join(" · ", partes);
         }
@@ -418,6 +419,7 @@ public sealed partial class BaseVm : TelaVm
         double valor = Math.Round(Math.Clamp(proporcao, 0.3, 0.8), 3);
         _apoio?.Preferencias.Alterar(p => p with { ProporcaoDaFichaBase = valor });
     }
+    public ObservableCollection<string> Empresas { get; } = [];
     public ObservableCollection<string> Dotacoes { get; } = [];
     public ObservableCollection<string> Situacoes { get; } = [];
     public IReadOnlyList<CampoValorVm> CamposDeValor { get; }
@@ -433,6 +435,9 @@ public sealed partial class BaseVm : TelaVm
 
     [ObservableProperty]
     private string? _lote;
+
+    [ObservableProperty]
+    private string? _empresa;
 
     [ObservableProperty]
     private string? _contratoReceita;
@@ -512,7 +517,7 @@ public sealed partial class BaseVm : TelaVm
 
         switch (e.PropertyName)
         {
-            case nameof(Portaria) or nameof(Contrato) or nameof(Escola) or nameof(Lote) or nameof(ContratoReceita) or nameof(Dotacao) or nameof(Status)
+            case nameof(Portaria) or nameof(Contrato) or nameof(Escola) or nameof(Lote) or nameof(Empresa) or nameof(ContratoReceita) or nameof(Dotacao) or nameof(Status)
                 or nameof(Texto) or nameof(ValorFiltrado) or nameof(ValorDe) or nameof(ValorAte) or nameof(ValorSemInformacao)
                 or nameof(OsDe) or nameof(OsAte) or nameof(SemDataOs) or nameof(Ordem):
                 _mostrando = Pagina;
@@ -539,6 +544,7 @@ public sealed partial class BaseVm : TelaVm
             case "contrato": Contrato = null; break;
             case "escola": Escola = null; break;
             case "lote": Lote = null; break;
+            case "empresa": Empresa = null; break;
             case "receita": ContratoReceita = null; break;
             case "dotacao": Dotacao = null; break;
             case "status": Status = null; break;
@@ -550,7 +556,7 @@ public sealed partial class BaseVm : TelaVm
     {
         FichaAmpliada = false;
         _atualizando = true;
-        Portaria = Contrato = Escola = Lote = ContratoReceita = Dotacao = Status = null;
+        Portaria = Contrato = Escola = Lote = Empresa = ContratoReceita = Dotacao = Status = null;
         Texto = ValorDe = ValorAte = OsDe = OsAte = "";
         ValorSemInformacao = SemDataOs = false;
         _atualizando = false;
@@ -606,7 +612,7 @@ public sealed partial class BaseVm : TelaVm
 
     private ConsultaSalva Atual() => new()
     {
-        Portaria = Portaria, Contrato = Contrato, Escola = Escola, Lote = Lote, ContratoReceita = ContratoReceita, Dotacao = Dotacao, Status = Status,
+        Portaria = Portaria, Contrato = Contrato, Escola = Escola, Lote = Lote, Empresa = Empresa, ContratoReceita = ContratoReceita, Dotacao = Dotacao, Status = Status,
         Texto = Texto, CampoValor = ValorFiltrado.Campo, ValorDe = ValorDe, ValorAte = ValorAte, ValorSemInformacao = ValorSemInformacao,
         OsDe = OsDe, OsAte = OsAte, SemDataOs = SemDataOs, Ordem = Ordem,
     };
@@ -618,6 +624,7 @@ public sealed partial class BaseVm : TelaVm
         Contrato = c.Contrato;
         Escola = c.Escola;
         Lote = c.Lote;
+        Empresa = c.Empresa;
         ContratoReceita = c.ContratoReceita;
         Dotacao = c.Dotacao;
         Status = c.Status;
@@ -662,6 +669,7 @@ public sealed partial class BaseVm : TelaVm
         Por("Contrato", Contrato);
         Por("Escola", Escola);
         Por("Lote", Lote);
+        Por("Empresa", Empresa);
         Por("Contrato de receita", ContratoReceita);
         Por("Dotação", Dotacao);
         Por("Status", Status);
@@ -872,6 +880,7 @@ public sealed partial class BaseVm : TelaVm
             Contrato = Contrato,
             Escola = Escola,
             Lote = Lote,
+            Empresa = Empresa,
             ContratoReceita = ContratoReceita,
             Dotacao = Dotacao,
             Status = Status,
@@ -914,6 +923,7 @@ public sealed partial class BaseVm : TelaVm
         Contrato = Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
         Escola = Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
         Lote = Trocar(Lotes, opcoes.Lotes, Lote, "Lote");
+        Empresa = Trocar(Empresas, opcoes.Empresas, Empresa, "Empresa");
         ContratoReceita = Trocar(ContratosReceita, opcoes.ContratosReceita, ContratoReceita, "Contrato de receita");
         Dotacao = Trocar(Dotacoes, opcoes.Dotacoes, Dotacao, "Dotação");
         Status = Trocar(Situacoes, opcoes.Status, Status, "Status");

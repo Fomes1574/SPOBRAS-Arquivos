@@ -246,6 +246,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             Distintos("portaria", "portaria"), Distintos("contrato", "contrato"), Distintos("empreendimento", "escola"),
             receitas, Distintos("atividade", "dotacao"), Distintos("status", "status"))
         {
+            Empresas = Distintos("contratada", "empresa"),
             Lotes = [.. Distintos("lote", "lote").OrderBy(l => System.Text.RegularExpressions.Regex.Match(l, @"\d+") is { Success: true } m ? int.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture) : int.MaxValue)
                 .ThenBy(l => l, StringComparer.OrdinalIgnoreCase)],
         };
@@ -423,6 +424,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         Igual("contrato", f.Contrato, "contrato");
         Igual("empreendimento", f.Escola, "escola");
         Igual("lote", f.Lote, "lote");
+        Igual("contratada", f.Empresa, "empresa");
         Igual("atividade", f.Dotacao, "dotacao");
         Igual("status", f.Status, "status");
         if (!string.IsNullOrWhiteSpace(f.ContratoReceita) && menos != "receita")
