@@ -27,6 +27,7 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Sem corte de codigo: as bibliotecas de Excel e PDF usam reflexao; o APK fica maior, mas sem surpresa. -->
     <PublishTrimmed>false</PublishTrimmed>
+    <RunAOTCompilation>false</RunAOTCompilation>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,6 +38,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
+    <!-- Mesma versao corrigida usada no resto da solucao (o PDFsharp traz uma antiga, com falha conhecida). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>
