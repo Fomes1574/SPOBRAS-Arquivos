@@ -151,6 +151,23 @@ public sealed class CelularTests : IDisposable
     }
 
     [Fact]
+    public async Task Arrastar_ultima_foto_preserva_legenda_descricao_e_giro()
+    {
+        var app = await AppComBase();
+        ComFotos(app, _p, 10);
+        app.Rascunho.Legendar(9, "Última foto");
+        app.Rascunho.Girar(9);
+        app.Rascunho.Alterar(d => d with
+        {
+            Fotos = d.Fotos.Select((foto, i) => i == 9 ? foto with { Descricao = "Descrição" } : foto).ToList(),
+        });
+        var ordem = app.Rascunho.Dados.Fotos.ToArray();
+        app.Rascunho.Mover(9, 0);
+        Assert.Equal([ordem[9], .. ordem.Take(9)], app.Rascunho.Dados.Fotos);
+        Assert.Equal(ordem[9], NovoApp().Rascunho.Dados.Fotos[0]);
+    }
+
+    [Fact]
     public async Task Rascunho_continua_igual_depois_de_fechar_o_app()
     {
         var app = await AppComBase();

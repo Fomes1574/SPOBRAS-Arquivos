@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Media;
 using Spobras.Dados.Base;
 using Spobras.App.ViewModels;
 
@@ -75,6 +76,82 @@ public partial class RelatorioTela : UserControl
             campo.SetCurrentValue(TextBox.TextProperty, "");
             campo.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
         });
+    }
+
+    private const string FormatoFoto = "Spobras.FotoRelatorio";
+    private Point _origemFoto;
+    private ListBoxItem? _fotoArrastada;
+    private ListBoxItem? _destinoFoto;
+
+    private void IniciarArrasteFoto(object sender, MouseButtonEventArgs e)
+    {
+        _fotoArrastada = null;
+        var origem = e.OriginalSource as DependencyObject;
+        for (var elemento = origem; elemento is Visual && elemento != ListaFotos; elemento = VisualTreeHelper.GetParent(elemento))
+        {
+            if (elemento is ButtonBase or TextBoxBase or ScrollBar) return;
+            if (elemento is ListBoxItem item)
+            {
+                _fotoArrastada = item;
+                _origemFoto = e.GetPosition(ListaFotos);
+                return;
+            }
+        }
+    }
+
+    private void ArrastarFoto(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed || _fotoArrastada?.DataContext is not FotoVm foto) return;
+        var deslocamento = e.GetPosition(ListaFotos) - _origemFoto;
+        if (Math.Abs(deslocamento.X) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(deslocamento.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+        var item = _fotoArrastada;
+        _fotoArrastada = null;
+        DragDrop.DoDragDrop(item, new DataObject(FormatoFoto, foto), DragDropEffects.Move);
+        LimparDestinoFoto();
+    }
+
+    private void MarcarDestinoFoto(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(FormatoFoto)) return;
+        e.Handled = true;
+        var alvo = ItemsControl.ContainerFromElement(ListaFotos, e.OriginalSource as DependencyObject) as ListBoxItem;
+        if (alvo != _destinoFoto)
+        {
+            LimparDestinoFoto();
+            _destinoFoto = alvo;
+        }
+        e.Effects = alvo is null ? DragDropEffects.None : DragDropEffects.Move;
+        if (alvo is not null)
+        {
+            alvo.BorderBrush = Brushes.SteelBlue;
+            alvo.BorderThickness = e.GetPosition(alvo).Y < alvo.ActualHeight / 2
+                ? new Thickness(0, 2, 0, 0) : new Thickness(0, 0, 0, 2);
+        }
+    }
+
+    private void SoltarFoto(object sender, DragEventArgs e)
+    {
+        if (!e.Data.GetDataPresent(FormatoFoto)) return;
+        e.Handled = true;
+        if (e.Data.GetData(FormatoFoto) is FotoVm foto && DataContext is RelatorioVm vm &&
+            ItemsControl.ContainerFromElement(ListaFotos, e.OriginalSource as DependencyObject) is ListBoxItem alvo &&
+            alvo.DataContext is FotoVm destino)
+        {
+            int de = vm.Fotos.IndexOf(foto);
+            int inserir = vm.Fotos.IndexOf(destino) + (e.GetPosition(alvo).Y >= alvo.ActualHeight / 2 ? 1 : 0);
+            vm.MoverFoto(de, inserir > de ? inserir - 1 : inserir);
+        }
+        LimparDestinoFoto();
+    }
+
+    private void SairArrasteFoto(object sender, DragEventArgs e) => LimparDestinoFoto();
+
+    private void LimparDestinoFoto()
+    {
+        _destinoFoto?.ClearValue(Border.BorderBrushProperty);
+        _destinoFoto?.ClearValue(Border.BorderThicknessProperty);
+        _destinoFoto = null;
     }
 
     private void AoArrastar(object sender, DragEventArgs e)

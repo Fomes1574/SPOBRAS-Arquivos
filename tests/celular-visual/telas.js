@@ -127,6 +127,30 @@ async function texto(page, seletor, contem) {
     await apagarLote.waitFor();
     if (await lote.inputValue() !== 'LOTE 216') problemas.push('atualizar dados nao restaurou o lote');
     await ir(page, urlPronto, 'relatorio/fotos'); await foto(page, '12-rel-fotos', w, h, salvar);
+    const fotos = page.locator('button[data-foto]');
+    const ultima = fotos.last();
+    const legendaUltima = await ultima.locator('.leg').textContent();
+    const miniaturaUltima = await ultima.locator('img').getAttribute('src');
+    await ultima.scrollIntoViewIfNeeded();
+    const inicioArraste = await ultima.boundingBox();
+    await page.mouse.move(inicioArraste.x + inicioArraste.width / 2, inicioArraste.y + inicioArraste.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(500);
+    const areaFotos = page.locator('.conteudo');
+    const caixaArea = await areaFotos.boundingBox();
+    await page.mouse.move(caixaArea.x + 60, caixaArea.y + 8, { steps: 12 });
+    await page.waitForTimeout(500);
+    const primeira = await fotos.first().boundingBox();
+    await page.mouse.move(primeira.x + primeira.width / 2, primeira.y + primeira.height / 2, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForFunction(({ legenda, miniatura }) => {
+      const primeira = document.querySelector('button[data-foto]');
+      return primeira?.querySelector('.leg')?.textContent === legenda &&
+        primeira.querySelector('img')?.getAttribute('src') === miniatura &&
+        !document.querySelector('.foto-flutuante') &&
+        [...document.querySelectorAll('button[data-foto]')].every(f => getComputedStyle(f).transform === 'none');
+    }, { legenda: legendaUltima, miniatura: miniaturaUltima });
+    await foto(page, '12b-rel-fotos-reordenadas', w, h, salvar);
     await page.locator('button.foto').first().click(); await page.waitForTimeout(400);
     await foto(page, '15-rel-legenda', w, h, salvar);
     await page.locator('.folha .btn.primario').click(); await page.waitForTimeout(300);

@@ -12,6 +12,21 @@ public class RelatorioVmTests : ComApp
         [.. Enumerable.Range(1, quantidade).Select(n => CriarFoto(Path.Combine("Downloads", "Fotos", $"foto {n}.jpg"), n % 4 == 0 ? 300 : 400, n % 4 == 0 ? 400 : 300))];
 
     [Fact]
+    public async Task Mover_ultima_foto_para_primeira_preserva_os_dados()
+    {
+        var vm = NovoRelatorio();
+        vm.Adicionar(CriarFotos(10));
+        var fotos = vm.Fotos.ToArray();
+        fotos[9].Legenda = "Última";
+        fotos[9].Descricao = "Descrição";
+        vm.GirarDireitaCommand.Execute(fotos[9]);
+        vm.MoverFoto(9, 0);
+        Assert.Equal([fotos[9], .. fotos.Take(9)], vm.Fotos);
+        Assert.Equal(("Última", "Descrição", 90), (vm.Fotos[0].Legenda, vm.Fotos[0].Descricao, vm.Fotos[0].Rotacao));
+        await vm.Miniaturas;
+    }
+
+    [Fact]
     public async Task Fluxo_completo_dados_fotos_conferencia_e_geracao_em_excel_e_pdf()
     {
         CriarFotos(8);

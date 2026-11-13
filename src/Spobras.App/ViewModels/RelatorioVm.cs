@@ -917,12 +917,15 @@ public sealed partial class RelatorioVm : TelaVm
 
     private void Mover(FotoVm foto, int passo)
     {
-        int de = Fotos.IndexOf(foto), para = de + passo;
-        if (de >= 0 && para >= 0 && para < Fotos.Count)
-        {
-            Fotos.Move(de, para);
-            Replanejar();
-        }
+        int de = Fotos.IndexOf(foto);
+        MoverFoto(de, de + passo);
+    }
+
+    public void MoverFoto(int de, int para)
+    {
+        if (de == para || de < 0 || de >= Fotos.Count || para < 0 || para >= Fotos.Count) return;
+        Fotos.Move(de, para);
+        Replanejar();
     }
 
     private void Reordenar(IEnumerable<FotoVm> ordem)

@@ -1,5 +1,7 @@
 @page "/relatorio/fotos"
 @inherits Tela
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
 <Barra Titulo="Relatório fotográfico" Sub="@Resumo" Voltar="relatorio">
     <a class="acao texto" href="relatorio/conferir" style="text-decoration:none">Seguir</a>
@@ -15,12 +17,12 @@
         <Aviso Tipo="atencao">@r</Aviso>
     }
     <div class="linha-btns" style="margin-bottom:10px"><button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button></div>
-    <div class="fotos">
+    <div class="fotos" @ref="_grade">
         @for (int i = 0; i < Fotos.Count; i++)
         {
             int n = i;
             var f = Fotos[n];
-            <button class="foto" @onclick="() => _aberta = n" aria-label="@Rotulo(n, f)">
+            <button class="foto" @key="f.Arquivo" data-foto="true" @onclick="() => _aberta = n" aria-label="@Rotulo(n, f)">
                 <img src="@App.Rascunho.Miniatura(f)" alt="" />
                 <span class="n">@(n + 1)</span>
                 @if (f.Legenda.Length > 0)
@@ -70,6 +72,40 @@
 }
 
 @code {
+    private ElementReference _grade;
+    private IJSObjectReference? _arrastar;
+    private DotNetObjectReference<RelatorioFotos>? _referencia;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _arrastar = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/arrastar.js");
+        _referencia = DotNetObjectReference.Create(this);
+        await _arrastar.InvokeVoidAsync("ligar", _grade, _referencia);
+    }
+
+    [JSInvokable]
+    public void ReordenarFoto(int de, int para)
+    {
+        App.Rascunho.Mover(de, para);
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        try
+        {
+            if (_arrastar is not null)
+            {
+                await _arrastar.InvokeVoidAsync("desligar", _grade);
+                await _arrastar.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        _referencia?.Dispose();
+    }
+
     private int? _aberta;
     private bool _confirmarRemocao;
     private IReadOnlyList<string> _recusadas = [];
