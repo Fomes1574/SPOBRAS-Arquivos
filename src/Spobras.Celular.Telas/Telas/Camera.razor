@@ -18,7 +18,8 @@
     <div class="visor" @ref="_visor">
         <div class="moldura" style="@Moldura">
             <video @ref="_video" autoplay playsinline muted></video>
-            <div class="flashou @(_disparou ? "on" : "")"></div>
+            <div class="flashou"></div>
+            <div class="segure" @ref="_segure" hidden>Segure firme…</div>
         </div>
         @if (_erroCamera is not null)
         {
@@ -30,8 +31,11 @@
         }
     </div>
     <div class="rodape-cam">
-        <a class="btn linha pequeno" style="background:none;color:#fff;border-color:#666;text-decoration:none" href="relatorio/fotos">Pronto (@App.Rascunho.Dados.Fotos.Count)</a>
-        <button class="disparo" aria-label="Tirar foto" @onclick="Tirar" disabled="@(_erroCamera is not null || _tirando)"></button>
+        <a class="pronto-cam" href="relatorio/fotos" aria-label="Pronto, @Formato.Plural(App.Rascunho.Dados.Fotos.Count, "foto", "fotos")">
+            <img @ref="_miniatura" class="ultima" alt="" hidden="@(_inicial is null)" src="@_inicial" />
+            <span>Pronto (@App.Rascunho.Dados.Fotos.Count)</span>
+        </a>
+        <button class="disparo" @ref="_disparo" aria-label="Tirar foto" disabled="@(_erroCamera is not null)"></button>
         <button class="btn linha pequeno" style="background:none;color:#fff;border-color:#666" aria-label="Virar câmera" @onclick="Virar">⟲</button>
     </div>
     @if (Erro is not null)
@@ -63,10 +67,11 @@
 </Folha>
 
 @code {
-    private ElementReference _video, _visor;
+    private ElementReference _video, _visor, _disparo, _miniatura, _segure;
     private IJSObjectReference? _modulo;
+    private DotNetObjectReference<Camera>? _ref;
     private string? _erroCamera;
-    private bool _opcoes, _tirando, _disparou, _frente, _temLanterna, _semFlash;
+    private bool _opcoes, _frente, _temLanterna, _semFlash;
     private double _proporcaoVisor = 3.0 / 4.0;
 
     private static string NomeFormato(FormatoFoto f) => f switch
@@ -109,6 +114,17 @@
         ? "width:100%;height:100%"
         : $"aspect-ratio:{_proporcaoVisor.ToString(System.Globalization.CultureInfo.InvariantCulture)};width:100%;max-height:100%";
 
+    // A miniatura da ultima foto: a que ja existia ao abrir; depois quem troca e a propria camera (na hora do toque).
+    private string? _inicial;
+
+    protected override void Iniciar()
+    {
+        if (App.Rascunho.Dados.Fotos.Count > 0 && App.Rascunho.Miniatura(App.Rascunho.Dados.Fotos[^1]) is { Length: > 0 } url)
+        {
+            _inicial = url;
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool primeira)
     {
         if (primeira)
@@ -127,7 +143,13 @@
             return;
         }
 
-        _modulo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
+        if (_modulo is null)
+        {
+            _modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
+            _ref = DotNetObjectReference.Create(this);
+            await _modulo.InvokeVoidAsync("ligarDisparo", _disparo, _miniatura, _visor, _segure, _ref);
+        }
+
         var r = await _modulo.InvokeAsync<InicioCamera>("iniciar", _video, _frente);
         if (!r.Ok)
         {
@@ -137,38 +159,31 @@
         {
             _temLanterna = r.Lanterna;
             _semFlash = !r.Flash;
-            if (App.Config.Flash == Flash.Lanterna)
-            {
-                await _modulo.InvokeAsync<bool>("lanterna", true);
-            }
-
-            await AjustarVisor();
+            await Configurar();
         }
 
         StateHasChanged();
     }
 
-    private async Task AjustarVisor()
+    /// <summary>Passa formato e flash para a camera (o disparo acontece direto no navegador).</summary>
+    private async Task Configurar()
     {
         if (_modulo is not null)
         {
-            _proporcaoVisor = await _modulo.InvokeAsync<double>("formatoDoVisor", Proporcao(App.Config.FormatoFoto), _visor);
+            _proporcaoVisor = await _modulo.InvokeAsync<double>("configurar", Proporcao(App.Config.FormatoFoto), App.Config.Flash.ToString().ToLowerInvariant());
         }
     }
 
     private async Task Formato_(FormatoFoto f)
     {
         App.Configurar(p => p with { FormatoFoto = f });
-        await AjustarVisor();
+        await Configurar();
     }
 
     private async Task DefinirFlash(Flash f)
     {
         App.Configurar(p => p with { Flash = f });
-        if (_modulo is not null)
-        {
-            await _modulo.InvokeAsync<bool>("lanterna", f == Flash.Lanterna);
-        }
+        await Configurar();
     }
 
     private void Galeria() => App.Configurar(p => p with { FotosNaGaleria = !p.FotosNaGaleria });
@@ -179,39 +194,25 @@
         await Abrir();
     }
 
-    private async Task Tirar()
+    /// <summary>A foto ja foi pega no toque; aqui ela so e gravada no rascunho (e na galeria, se pedido).</summary>
+    [JSInvokable]
+    public async Task FotoTirada(byte[] jpeg)
     {
-        if (_modulo is null || _tirando)
-        {
-            return;
-        }
-
-        _tirando = true;
-        _disparou = true;
         Erro = null;
-        StateHasChanged();
-        try
+        string caminho = await Task.Run(() => App.Rascunho.AdicionarFoto(jpeg));
+        await InvokeAsync(StateHasChanged);
+        if (App.Config.FotosNaGaleria)
         {
-            await AjustarVisor();
-            string flash = App.Config.Flash.ToString().ToLowerInvariant();
-            byte[] jpeg = await _modulo.InvokeAsync<byte[]>("capturar", TimeSpan.FromSeconds(20), _proporcaoVisor, flash);
-            string caminho = App.Rascunho.AdicionarFoto(jpeg);
-            if (App.Config.FotosNaGaleria)
-            {
-                await App.Plataforma.GuardarNaGaleriaAsync(caminho);
-            }
-        }
-        catch (JSException ex)
-        {
-            Erro = "Não foi possível tirar a foto: " + ex.Message;
-        }
-        finally
-        {
-            _tirando = false;
-            _disparou = false;
-            StateHasChanged();
+            _ = Task.Run(() => App.Plataforma.GuardarNaGaleriaAsync(caminho));
         }
     }
+
+    [JSInvokable]
+    public Task FalhaAoTirar(string motivo) => InvokeAsync(() =>
+    {
+        Erro = "Não foi possível tirar a foto: " + motivo;
+        StateHasChanged();
+    });
 
     public async ValueTask DisposeAsync()
     {
@@ -220,13 +221,15 @@
         {
             try
             {
-                await _modulo.InvokeVoidAsync("parar");
+                await _modulo.InvokeVoidAsync("desligar");
                 await _modulo.DisposeAsync();
             }
             catch (JSDisconnectedException)
             {
             }
         }
+
+        _ref?.Dispose();
     }
 
     private sealed record InicioCamera(bool Ok, string? Erro, bool Lanterna, bool Flash);

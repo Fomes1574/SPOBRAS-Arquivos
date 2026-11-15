@@ -31,15 +31,22 @@
     @if (_selecionando)
     {
         <div class="painel legenda-varias">
-            <div class="linha-btns">
-                <button class="btn linha pequeno" @onclick="MarcarTodas">Marcar todas</button>
+            <div class="barra-selecao">
+                <span class="conta" aria-live="polite">@Formato.Plural(_marcadas.Count, "marcada", "marcadas")</span>
                 <button class="btn linha pequeno" @onclick="CancelarSelecao">Cancelar</button>
+            </div>
+            <div class="linha-btns" style="margin-bottom:10px">
+                <button class="btn linha pequeno" disabled="@(_marcadas.Count == Fotos.Count)" @onclick="MarcarTodas">Marcar todas</button>
+                <button class="btn linha pequeno" disabled="@(_marcadas.Count == 0)" @onclick="DesmarcarTodas">Desmarcar todas</button>
             </div>
             <div class="campo">
                 <label for="legenda-varias">Legenda para as marcadas</label>
-                <input id="legenda-varias" type="text" @bind="_legenda" @bind:event="oninput" />
+                <input id="legenda-varias" type="text" value="@_legenda" @oninput="e => _legenda = e.Value?.ToString() ?? string.Empty" />
             </div>
-            <button class="btn primario" @onclick="AplicarLegenda">Aplicar</button>
+            <div class="linha-btns">
+                <button class="btn primario" @onclick="AplicarLegenda">Aplicar legenda</button>
+                <button class="btn pequeno perigo" disabled="@(_marcadas.Count == 0)" @onclick="() => _confirmarVarias = true">Tirar do relatório</button>
+            </div>
         </div>
     }
     <div class="fotos" @ref="_grade" data-selecao="@(_selecionando ? "true" : "false")">
@@ -48,7 +55,11 @@
             int n = i;
             var f = Fotos[n];
             <button class="foto" @key="f.Arquivo" data-foto="true" @onclick="() => TocarFoto(n)" aria-pressed="@(_selecionando ? (_marcadas.Contains(n) ? "true" : "false") : null)" aria-label="@Rotulo(n, f)">
-                <img src="@App.Rascunho.Miniatura(f)" alt="" />
+                @{ string mini = App.Rascunho.Miniatura(f); }
+                @if (mini.Length > 0)
+                {
+                    <img src="@mini" alt="" />
+                }
                 <span class="n">@(n + 1)</span>
                 @if (_selecionando && _marcadas.Contains(n))
                 {
@@ -65,9 +76,34 @@
     <Aviso Tipo="ok"><span>Fotos guardadas no rascunho dentro do app. Pode sair, atender ligação ou desligar o celular: ao voltar, está tudo aqui.</span></Aviso>
     <p class="mini" style="margin:10px 2px 0">Toque numa foto para escrever a legenda, girar, mudar de lugar ou tirar. Foto sem legenda vai sem texto embaixo.</p>
 </div>
-<a class="fab" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
+@if (!_selecionando)
+{
+    <a class="fab @(_removidas > 0 ? "acima" : "")" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
+}
+@if (_removidas > 0)
+{
+    <div class="desfazer" role="status" aria-live="polite">
+        @if (_ultimaRemovida is { Length: > 0 } urlRemovida)
+        {
+            <img class="mini-foto" src="@urlRemovida" alt="" />
+        }
+        <span class="txt">@(_removidas == 1 ? "Foto removida" : $"{_removidas} fotos removidas")</span>
+        <button @onclick="Desfazer">Desfazer</button>
+        <i class="tempo-desfazer" @key="_rodada"></i>
+    </div>
+}
 <Nav Ativo="relatorio" />
 <Ocupado Texto="@Trabalhando" />
+
+@if (_confirmarVarias)
+{
+    <div class="veu" @onclick="() => _confirmarVarias = false"></div>
+    <div class="dialogo" role="dialog" aria-label="Tirar fotos do relatório">
+        <h3>Tirar @Formato.Plural(_marcadas.Count, "foto", "fotos") do relatório?</h3>
+        <p class="texto2" style="margin:0">As fotos da galeria do celular não são apagadas. Dá para desfazer logo depois.</p>
+        <div class="linha-btns"><button class="btn linha" @onclick="() => _confirmarVarias = false">Manter</button><button class="btn primario" @onclick="RemoverMarcadas">Tirar @_marcadas.Count</button></div>
+    </div>
+}
 
 <Folha Aberta="_ordenar" Titulo="Ordenar fotos" AoFechar="() => _ordenar = false">
     <button class="opcao" @onclick="() => Ordenar(true)">Por data da foto</button>
@@ -78,7 +114,7 @@
 {
     var f = Fotos[a];
     <Folha Aberta="true" Titulo="@($"Foto {a + 1} de {Fotos.Count}")" AoFechar="() => _aberta = null">
-        <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" />
+        <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" hidden="@(App.Rascunho.Miniatura(f).Length == 0)" />
         <CampoTexto @key="f.Arquivo" Rotulo="Legenda (opcional)" Valor="@f.Legenda" Dica="Ex.: execução do piso da sala 3" AoMudar="v => App.Rascunho.Legendar(a, v)" />
         <div class="linha-btns" style="margin-bottom:8px">
             <button class="btn linha pequeno" @onclick="() => App.Rascunho.Girar(a)">Girar ↻</button>
@@ -89,18 +125,7 @@
             <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => _aberta = a - 1">‹ Anterior</button>
             <button class="btn linha pequeno" disabled="@(a == Fotos.Count - 1)" @onclick="() => _aberta = a + 1">Próxima ›</button>
         </div>
-        @if (_confirmarRemocao)
-        {
-            <Aviso Tipo="atencao">Tirar esta foto do relatório? A foto da galeria do celular não é apagada.</Aviso>
-            <div class="linha-btns" style="margin-bottom:8px">
-                <button class="btn pequeno" style="border-color:var(--vermelho);color:var(--vermelho)" @onclick="() => Remover(a)">Tirar do relatório</button>
-                <button class="btn linha pequeno" @onclick="() => _confirmarRemocao = false">Manter</button>
-            </div>
-        }
-        else
-        {
-            <button class="link" style="color:var(--vermelho);margin-bottom:6px" @onclick="() => _confirmarRemocao = true">Tirar esta foto do relatório</button>
-        }
+        <button class="link" style="color:var(--vermelho);margin-bottom:6px" @onclick="() => Remover([a])">Tirar esta foto do relatório</button>
         <button class="btn primario" @onclick="() => _aberta = null">Pronto</button>
     </Folha>
 }
@@ -128,6 +153,14 @@
     public async ValueTask DisposeAsync()
     {
         Dispose();
+        App.Rascunho.MiniaturaPronta -= AoFicarPronta;
+        // Saiu da tela com o Desfazer aberto: a remocao vale.
+        if (_removidas > 0)
+        {
+            _relogio?.Cancel();
+            App.Rascunho.FinalizarRemocoes();
+        }
+
         try
         {
             if (_arrastar is not null)
@@ -167,6 +200,8 @@
 
     private void MarcarTodas() => _marcadas.UnionWith(Enumerable.Range(0, Fotos.Count));
 
+    private void DesmarcarTodas() => _marcadas.Clear();
+
     private void CancelarSelecao()
     {
         _selecionando = false;
@@ -174,15 +209,74 @@
         _legenda = "";
     }
 
+    /// <summary>Aplica e continua selecionando: marca o proximo grupo e digita outra legenda.</summary>
     private void AplicarLegenda()
     {
         int total = App.Rascunho.LegendarVarias(_marcadas, _legenda);
         _avisoLegenda = $"Legenda aplicada a {Formato.Plural(total, "foto", "fotos")}.";
+        _marcadas.Clear();
+        _legenda = "";
+    }
+
+    // ---- Remover com Desfazer (5 s) ----
+    private const int SegundosDesfazer = 5;
+    private bool _confirmarVarias;
+    private int _removidas, _rodada;
+    private string? _ultimaRemovida;
+    private CancellationTokenSource? _relogio;
+
+    private void RemoverMarcadas()
+    {
+        _confirmarVarias = false;
+        var indices = _marcadas.ToList();
         CancelarSelecao();
+        Remover(indices);
+    }
+
+    private void Remover(IReadOnlyList<int> indices)
+    {
+        if (indices.Count == 0)
+        {
+            return;
+        }
+
+        var ultima = Fotos.ElementAtOrDefault(indices.Max());
+        _ultimaRemovida = ultima is null ? null : App.Rascunho.Miniatura(ultima);
+        _removidas = App.Rascunho.Remover(indices);
+        _aberta = null;
+        _rodada++; // a barra vermelha comeca cheia de novo
+        _relogio?.Cancel();
+        var esta = _relogio = new CancellationTokenSource();
+        _ = Contar(esta.Token);
+    }
+
+    private async Task Contar(CancellationToken cancelar)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(SegundosDesfazer), cancelar);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await InvokeAsync(() =>
+        {
+            App.Rascunho.FinalizarRemocoes();
+            _removidas = 0;
+            StateHasChanged();
+        });
+    }
+
+    private void Desfazer()
+    {
+        _relogio?.Cancel();
+        App.Rascunho.Desfazer();
+        _removidas = 0;
     }
 
     private int? _aberta;
-    private bool _confirmarRemocao;
     private IReadOnlyList<string> _recusadas = [];
 
     private List<FotoRascunho> Fotos => App.Rascunho.Dados.Fotos;
@@ -216,10 +310,7 @@
         _aberta = para;
     }
 
-    private void Remover(int i)
-    {
-        App.Rascunho.Remover(i);
-        _confirmarRemocao = false;
-        _aberta = Fotos.Count == 0 ? null : Math.Min(i, Fotos.Count - 1);
-    }
+    protected override void Iniciar() => App.Rascunho.MiniaturaPronta += AoFicarPronta;
+
+    private void AoFicarPronta() => InvokeAsync(StateHasChanged);
 }

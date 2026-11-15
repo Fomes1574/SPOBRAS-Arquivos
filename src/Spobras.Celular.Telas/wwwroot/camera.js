@@ -1,6 +1,8 @@
-// Camera do app (dentro da tela, sem abrir outro app). Formato da foto, flash e lanterna.
-// Usa getUserMedia e, quando o aparelho permite, ImageCapture.takePhoto (foto na resolucao do sensor e flash).
+// Camera do app (dentro da tela). A foto e pega no proprio toque, aqui no navegador, sem esperar o .NET:
+// o que estava no visor no instante do toque e o que fica. So depois a tela pisca e a foto vai para o rascunho.
 let stream = null, track = null, captura = null, video = null, frente = false;
+let alvo = 4 / 3, flash = "auto", dotnet = null, botao = null, miniatura = null, visor = null, aviso = null;
+let fotografando = false, salvando = 0;
 
 export async function iniciar(elemento, usarFrente) {
   parar();
@@ -33,7 +35,23 @@ export async function iniciar(elemento, usarFrente) {
       flashes = (foto && foto.fillLightMode) || [];
     }
   } catch (e) { /* sem informacao: segue sem flash */ }
+  if (flash === "lanterna") lanterna(true);
   return { ok: true, lanterna: temLanterna, flash: flashes.indexOf("flash") >= 0 };
+}
+
+// Liga o botao de disparo direto aqui (o toque nao passa pelo .NET antes de pegar a foto).
+export function ligarDisparo(elBotao, elMiniatura, elVisor, elAviso, ref) {
+  botao = elBotao; miniatura = elMiniatura; visor = elVisor; aviso = elAviso; dotnet = ref;
+  botao.addEventListener("click", disparar);
+}
+
+// proporcao: largura/altura com o celular deitado (4/3, 16/9, 1). 0 = tela cheia (formato do visor).
+export function configurar(proporcao, modoFlash) {
+  const mudouFlash = modoFlash !== flash;
+  flash = modoFlash;
+  alvo = formatoDoVisor(proporcao);
+  if (mudouFlash) lanterna(flash === "lanterna");
+  return alvo;
 }
 
 export async function lanterna(ligar) {
@@ -43,34 +61,66 @@ export async function lanterna(ligar) {
 
 function retrato() { return window.innerHeight >= window.innerWidth; }
 
-// proporcao: largura/altura com o celular deitado (4/3, 16/9, 1). 0 = tela cheia (formato do visor).
-export function formatoDoVisor(proporcao, visor) {
+export function formatoDoVisor(proporcao) {
   if (proporcao > 0) return retrato() ? 1 / proporcao : proporcao;
-  const r = visor.getBoundingClientRect();
+  const r = (visor || video).getBoundingClientRect();
   return r.width / Math.max(1, r.height);
 }
 
-async function quadro(flash) {
-  // Foto do sensor (melhor qualidade e com flash) quando der; senao, o quadro do video.
-  if (captura && flash !== "lanterna") {
-    try {
-      const modo = flash === "ligado" ? "flash" : flash === "auto" ? "auto" : "off";
-      const blob = await captura.takePhoto({ fillLightMode: modo });
-      const img = await createImageBitmap(blob);
-      const videoRetrato = video.videoHeight > video.videoWidth;
-      const imgRetrato = img.height > img.width;
-      return { fonte: img, largura: img.width, altura: img.height, girar: videoRetrato !== imgRetrato };
-    } catch (e) { /* cai para o quadro do video */ }
-  }
-  return { fonte: video, largura: video.videoWidth, altura: video.videoHeight, girar: false };
+function piscar() {
+  const f = document.querySelector(".camera .flashou");
+  if (!f) return;
+  f.classList.remove("on"); void f.offsetWidth; f.classList.add("on");
+  setTimeout(() => f.classList.remove("on"), 140);
 }
 
-// Tira a foto ja recortada no formato escolhido. Devolve os bytes do JPEG.
-export async function capturar(alvo, flash) {
-  if (!video || !video.videoWidth) throw new Error("A câmera ainda não está pronta.");
-  const q = await quadro(flash);
-  let w = q.girar ? q.altura : q.largura, h = q.girar ? q.largura : q.altura;
-  // recorte central no formato do visor
+function segurar(sim) { if (aviso) aviso.hidden = !sim; }
+
+async function disparar() {
+  if (!video || !video.videoWidth || fotografando) return;
+  const usarSensor = captura && (flash === "auto" || flash === "ligado");
+  let quadro;
+  if (usarSensor) {
+    // Com flash a foto precisa do sensor: o Android ajusta foco, luz e flash antes de registrar.
+    fotografando = true;
+    segurar(true);
+    try {
+      const blob = await captura.takePhoto({ fillLightMode: flash === "ligado" ? "flash" : "auto" });
+      const img = await createImageBitmap(blob);
+      const girar = (video.videoHeight > video.videoWidth) !== (img.height > img.width);
+      quadro = recortar(img, img.width, img.height, girar);
+    } catch (e) {
+      quadro = recortar(video, video.videoWidth, video.videoHeight, false);
+    } finally {
+      fotografando = false;
+      segurar(false);
+    }
+  } else {
+    quadro = recortar(video, video.videoWidth, video.videoHeight, false); // o instante do toque
+  }
+  piscar();
+  salvando++;
+  try {
+    const blob = await new Promise(r => quadro.toBlob(r, "image/jpeg", 0.88));
+    if (miniatura) {
+      const antigo = miniatura.dataset.url;
+      miniatura.dataset.url = URL.createObjectURL(blob);
+      miniatura.src = miniatura.dataset.url;
+      miniatura.hidden = false;
+      if (antigo) URL.revokeObjectURL(antigo);
+    }
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    await dotnet.invokeMethodAsync("FotoTirada", bytes);
+  } catch (e) {
+    try { await dotnet.invokeMethodAsync("FalhaAoTirar", String(e && e.message || e)); } catch (x) { }
+  } finally {
+    salvando--;
+  }
+}
+
+// Recorte central no formato do visor, com o maior lado limitado (o relatorio usa ate 1600 px).
+function recortar(fonte, largura, altura, girar) {
+  let w = girar ? altura : largura, h = girar ? largura : altura;
   let cw = w, ch = h;
   if (w / h > alvo) cw = Math.round(h * alvo); else ch = Math.round(w / alvo);
   const lado = 2400, escala = Math.min(1, lado / Math.max(cw, ch));
@@ -81,12 +131,19 @@ export async function capturar(alvo, flash) {
   ctx.save();
   ctx.scale(escala, escala);
   ctx.translate(-(w - cw) / 2, -(h - ch) / 2);
-  if (q.girar) { ctx.translate(w, 0); ctx.rotate(Math.PI / 2); }
-  if (frente) { ctx.translate(q.girar ? q.largura : w, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(q.fonte, 0, 0);
+  if (girar) { ctx.translate(w, 0); ctx.rotate(Math.PI / 2); }
+  if (frente) { ctx.translate(girar ? altura : w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(fonte, 0, 0);
   ctx.restore();
-  const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.88));
-  return new Uint8Array(await blob.arrayBuffer());
+  return canvas;
+}
+
+export function emAndamento() { return salvando + (fotografando ? 1 : 0); }
+
+export function desligar() {
+  if (botao) botao.removeEventListener("click", disparar);
+  botao = null;
+  parar();
 }
 
 export function parar() {

@@ -236,6 +236,8 @@ public sealed class CelularTests : IDisposable
         ComFotos(app, _p, 2);
         string copia = app.Rascunho.Caminho(app.Rascunho.Dados.Fotos[0]);
         app.Rascunho.Remover(0);
+        Assert.True(File.Exists(copia)); // ainda pode voltar (Desfazer)
+        app.Rascunho.FinalizarRemocoes();
         Assert.False(File.Exists(copia));
         Assert.True(File.Exists(Path.Combine(_p.Entrada, "f1.jpg")));
         Assert.Single(app.Rascunho.Dados.Fotos);

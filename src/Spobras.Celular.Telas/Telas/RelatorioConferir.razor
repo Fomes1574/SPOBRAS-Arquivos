@@ -92,7 +92,7 @@
     private string MiniaturaDe(FotoRelatorio f)
     {
         var r = App.Rascunho.Dados.Fotos.FirstOrDefault(x => App.Rascunho.Caminho(x) == f.Caminho);
-        return r is null ? "" : App.Rascunho.Miniatura(r);
+        return r is null ? "" : App.Rascunho.Miniatura(r) is { Length: > 0 } pronta ? pronta : App.Rascunho.MiniaturaAgora(r);
     }
 
     private void PorPagina(int n)

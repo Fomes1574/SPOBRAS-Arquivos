@@ -216,3 +216,34 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 
 .legenda-varias { margin-bottom: 12px; }
 .foto-marcada { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--vermelho); color: white; font-weight: 700; }
+
+/* ---------- Camera: foto no toque ---------- */
+.camera .flashou { transition: opacity .12s ease-out; }
+.camera .flashou.on { opacity: .85; transition: none; }
+.camera .segure { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: rgba(0,0,0,.65); color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 999px; font-size: 14px; }
+.camera .pronto-cam { display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; border: 1px solid #666; border-radius: 10px; min-height: 48px; padding: 0 12px 0 4px; font-weight: 600; font-size: 14px; }
+.camera .pronto-cam:not(:has(img:not([hidden]))) { padding-left: 12px; }
+.camera .pronto-cam .ultima { width: 40px; height: 40px; border-radius: 7px; object-fit: cover; background: #333; }
+
+/* ---------- Fotos: remover com Desfazer, selecao ---------- */
+.desfazer { position: absolute; left: 12px; right: 12px; bottom: calc(58px + 12px + env(safe-area-inset-bottom)); z-index: 25;
+  background: var(--preto); color: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.28); overflow: hidden;
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 14px; min-height: 56px; animation: subir .18s ease-out; }
+@keyframes subir { from { transform: translateY(16px); opacity: 0; } }
+.desfazer .mini-foto { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex: none; margin-left: -6px; }
+.desfazer .txt { flex: 1; min-width: 0; font-size: 14.5px; }
+.desfazer button { flex: none; background: none; border: 0; color: #FF8A9B; font-weight: 800; font-size: 15px; letter-spacing: .02em;
+  min-height: 48px; min-width: 96px; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+.desfazer button:active { background: rgba(255,255,255,.12); }
+.desfazer .tempo-desfazer { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--vermelho);
+  transform-origin: left center; animation: acabar 5s linear forwards; }
+@keyframes acabar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.fab { transition: transform .18s ease-out; }
+.fab.acima { transform: translateY(-68px); }
+.barra-selecao { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.barra-selecao .conta { font-weight: 700; margin-right: auto; }
+.btn.perigo { border-color: var(--vermelho); color: var(--vermelho); background: var(--branco); }
+.dialogo { position: absolute; left: 20px; right: 20px; top: 30%; z-index: 30; background: #fff; border-radius: 16px; padding: 18px; box-shadow: 0 12px 32px rgba(0,0,0,.3); }
+.dialogo h3 { margin: 0 0 6px; font-size: 17px; }
+.dialogo .linha-btns { margin-top: 14px; }
+.foto { background: var(--borda-clara); }

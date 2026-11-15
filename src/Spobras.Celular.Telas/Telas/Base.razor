@@ -76,7 +76,8 @@
     {
         <div class="busca"><input type="search" aria-label="Pesquisar opções" placeholder="Pesquisar opções" value="@_pesquisa" @oninput="Pesquisar" /></div>
         <div class="opcoes-filtro">
-            @foreach (var op in OpcoesVisiveis())
+            @{ var visiveis = OpcoesVisiveis(); }
+            @foreach (var op in visiveis.Take(MaximoDeOpcoes))
             {
                 bool marcado = filtro.Valor(App.FiltroBase).Contains(op, StringComparer.OrdinalIgnoreCase);
                 <label class="opcao opcao-filtro">
@@ -85,6 +86,14 @@
                 </label>
             }
         </div>
+        @if (visiveis.Count > MaximoDeOpcoes)
+        {
+            <p class="mini" style="margin:-4px 2px 10px">Mostrando @MaximoDeOpcoes de @visiveis.Count.ToString("N0", Formato.PtBr). Pesquise para achar as outras.</p>
+        }
+        else if (visiveis.Count == 0)
+        {
+            <p class="mini" style="margin:-4px 2px 10px">Nenhuma opção com esse texto.</p>
+        }
         <button class="btn primario" @onclick="FecharFiltro">Pronto</button>
     }
 </Folha>
@@ -112,7 +121,8 @@
     private FiltroChip? _aberto;
     private string _pesquisa = "";
     private readonly Dictionary<string, string> _pesquisas = [];
-    private IReadOnlyList<string> _opcoes = [];
+    private IReadOnlyList<(string Valor, string Chave)> _opcoes = [];
+    private const int MaximoDeOpcoes = 100;
     private CancellationTokenSource? _digitando;
 
     private string Subtitulo => App.Base.UltimaLeitura is { } u
@@ -174,14 +184,21 @@
         _aberto = null;
     }
 
-    private void RecarregarOpcoes(FiltroChip filtro) =>
-        _opcoes = filtro.Opcoes(App.Base.Opcoes(App.FiltroBase))
-            .Union(filtro.Valor(App.FiltroBase), StringComparer.OrdinalIgnoreCase).ToList();
+    // As marcadas ficam no topo (sempre visiveis); o texto para pesquisar e preparado uma vez so.
+    private void RecarregarOpcoes(FiltroChip filtro)
+    {
+        var marcadas = filtro.Valor(App.FiltroBase);
+        _opcoes = [.. marcadas.Concat(filtro.Opcoes(App.Base.Opcoes(App.FiltroBase)).Except(marcadas, StringComparer.OrdinalIgnoreCase))
+            .Select(o => (o, Normalizacao.Busca(o)))];
+    }
 
     private void Pesquisar(ChangeEventArgs e) => _pesquisa = e.Value?.ToString() ?? "";
 
-    private IEnumerable<string> OpcoesVisiveis() =>
-        _opcoes.Where(o => Normalizacao.Busca(o).Contains(Normalizacao.Busca(_pesquisa), StringComparison.Ordinal));
+    private List<string> OpcoesVisiveis()
+    {
+        string busca = Normalizacao.Busca(_pesquisa);
+        return busca.Length == 0 ? [.. _opcoes.Select(o => o.Valor)] : [.. _opcoes.Where(o => o.Chave.Contains(busca, StringComparison.Ordinal)).Select(o => o.Valor)];
+    }
 
     private void Escolher(FiltroChip filtro, string valor)
     {
@@ -191,7 +208,7 @@
         App.FiltroBase = filtro.Definir(App.FiltroBase, outros);
         _limite = Pagina;
         Carregar();
-        RecarregarOpcoes(filtro);
+        // As opcoes deste filtro nao dependem dele mesmo: a lista fica parada (nada pula de lugar ao marcar).
     }
 
     private void Limpar(string id)

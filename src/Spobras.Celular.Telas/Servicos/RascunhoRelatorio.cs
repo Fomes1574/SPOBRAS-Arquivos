@@ -12,7 +12,14 @@ public sealed record FotoRascunho(string Arquivo, string Legenda = "", int Rotac
 {
     public string? NomeOriginal { get; init; }
     public DateTime? CapturadaEm { get; init; }
+
+    /// <summary>Tamanho ja na orientacao da camera (sem o giro manual), guardado ao entrar: conferir nao rele a foto.</summary>
+    public int? Largura { get; init; }
+    public int? Altura { get; init; }
 }
+
+/// <summary>Foto tirada do relatorio que ainda pode voltar (Desfazer): a posicao de onde saiu.</summary>
+public sealed record FotoRemovida(FotoRascunho Foto, int Posicao);
 
 /// <summary>Tudo que o usuario ja preencheu, guardado a cada mudanca: sair do app nao perde nada.</summary>
 public sealed record DadosRascunho
@@ -31,6 +38,9 @@ public sealed record DadosRascunho
     public int FotosPorPagina { get; init; } = 6;
     public List<FotoRascunho> Fotos { get; init; } = [];
     public DateTimeOffset? Alterado { get; init; }
+
+    /// <summary>Removidas ha pouco, na ordem em que sairam. So sao apagadas de vez quando o tempo do Desfazer acaba.</summary>
+    public List<FotoRemovida> Removidas { get; init; } = [];
 }
 
 public sealed record RelatorioPronto(string Nome, IReadOnlyList<Salvo> Arquivos, int Paginas, int Fotos, string Onde, IReadOnlyList<string> Locais);
@@ -41,7 +51,11 @@ public sealed class RascunhoRelatorio
     private readonly string _pasta;
     private readonly string _arquivo;
     private readonly Func<DateTimeOffset> _agora;
-    private readonly Dictionary<string, string> _miniaturas = [];
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _miniaturas = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<FotoRascunho> _fila = new();
+    private readonly SemaphoreSlim _sinal = new(0);
+    private readonly HashSet<string> _naFila = [];
+    private int _trabalhando;
 
     public RascunhoRelatorio(string pastaDoApp, Func<DateTimeOffset>? agora = null)
     {
@@ -49,11 +63,21 @@ public sealed class RascunhoRelatorio
         _arquivo = Path.Combine(_pasta, "rascunho.json");
         _agora = agora ?? (() => DateTimeOffset.Now);
         PastaDasFotos = Path.Combine(_pasta, "fotos");
+        PastaDasMiniaturas = Path.Combine(_pasta, "miniaturas");
         Directory.CreateDirectory(PastaDasFotos);
+        Directory.CreateDirectory(PastaDasMiniaturas);
         Dados = Carregar();
+        if (Dados.Removidas.Count > 0)
+        {
+            FinalizarRemocoes(); // o app fechou durante o Desfazer: a remocao vale
+        }
     }
 
     public string PastaDasFotos { get; }
+    public string PastaDasMiniaturas { get; }
+
+    /// <summary>Uma miniatura ficou pronta em segundo plano (a tela atualiza).</summary>
+    public event Action? MiniaturaPronta;
     public DadosRascunho Dados { get; private set; }
     public bool Vazio => Dados.Fotos.Count == 0 && string.IsNullOrWhiteSpace(Dados.Unidade) && string.IsNullOrWhiteSpace(Dados.Contrato);
 
@@ -65,7 +89,7 @@ public sealed class RascunhoRelatorio
             {
                 var d = JsonSerializer.Deserialize<DadosRascunho>(File.ReadAllText(_arquivo), Json) ?? new();
                 // Foto cuja copia sumiu (limpeza do sistema) sai do rascunho em vez de quebrar a geracao.
-                return d with { Fotos = [.. d.Fotos.Where(f => File.Exists(Caminho(f)))] };
+                return d with { Fotos = [.. d.Fotos.Where(f => File.Exists(Caminho(f)))], Removidas = d.Removidas ?? [] };
             }
         }
         catch (JsonException)
@@ -94,7 +118,9 @@ public sealed class RascunhoRelatorio
         string nome = $"{agora:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}"[..24] + ".jpg";
         string caminho = Path.Combine(PastaDasFotos, nome);
         File.WriteAllBytes(caminho, jpeg);
-        Alterar(d => d with { Fotos = [.. d.Fotos, new FotoRascunho(nome) { NomeOriginal = nome, CapturadaEm = agora.DateTime }] });
+        var foto = Medir(new FotoRascunho(nome) { NomeOriginal = nome, CapturadaEm = agora.DateTime });
+        Alterar(d => d with { Fotos = [.. d.Fotos, foto] });
+        PedirMiniatura(foto);
         return caminho;
     }
 
@@ -112,7 +138,7 @@ public sealed class RascunhoRelatorio
             try
             {
                 var info = Fotos.Ler(c);
-                novas.Add(new FotoRascunho(Path.GetFileName(c)) { NomeOriginal = escolhida.Nome, CapturadaEm = info.CapturadaEm });
+                novas.Add(new FotoRascunho(Path.GetFileName(c)) { NomeOriginal = escolhida.Nome, CapturadaEm = info.CapturadaEm, Largura = info.Largura, Altura = info.Altura });
             }
             catch (FotoInvalidaException ex)
             {
@@ -122,6 +148,11 @@ public sealed class RascunhoRelatorio
         }
 
         Alterar(d => d with { Fotos = [.. d.Fotos, .. novas] });
+        foreach (var f in novas)
+        {
+            PedirMiniatura(f);
+        }
+
         return recusadas;
     }
 
@@ -180,19 +211,111 @@ public sealed class RascunhoRelatorio
         });
     }
 
-    /// <summary>Tira a foto do relatorio e apaga a copia que o app guardou (a da galeria fica).</summary>
-    public void Remover(int i)
+    /// <summary>
+    /// Tira fotos do relatorio na hora. A copia do app so e apagada em <see cref="FinalizarRemocoes"/> (fim do tempo
+    /// do Desfazer). Removidas seguidas se juntam: o Desfazer devolve todas. Devolve quantas estao esperando.
+    /// </summary>
+    public int Remover(IEnumerable<int> indices)
     {
-        if (i < 0 || i >= Dados.Fotos.Count)
+        // Da maior posicao para a menor, para cada posicao guardada ser a de onde a foto saiu de verdade.
+        var alvo = indices.Where(i => i >= 0 && i < Dados.Fotos.Count).Distinct().OrderByDescending(i => i).ToList();
+        if (alvo.Count > 0)
+        {
+            Alterar(d =>
+            {
+                var fotos = d.Fotos.ToList();
+                var removidas = d.Removidas.ToList();
+                foreach (int i in alvo)
+                {
+                    removidas.Add(new FotoRemovida(fotos[i], i));
+                    fotos.RemoveAt(i);
+                }
+
+                return d with { Fotos = fotos, Removidas = removidas };
+            });
+        }
+
+        return Dados.Removidas.Count;
+    }
+
+    public int Remover(int i) => Remover([i]);
+
+    /// <summary>Devolve as fotos removidas ha pouco, cada uma para a posicao de onde saiu (na ordem inversa).</summary>
+    public int Desfazer()
+    {
+        int n = Dados.Removidas.Count;
+        if (n > 0)
+        {
+            Alterar(d =>
+            {
+                var fotos = d.Fotos.ToList();
+                foreach (var r in Enumerable.Reverse(d.Removidas))
+                {
+                    fotos.Insert(Math.Min(r.Posicao, fotos.Count), r.Foto);
+                }
+
+                return d with { Fotos = fotos, Removidas = [] };
+            });
+        }
+
+        return n;
+    }
+
+    /// <summary>Acabou o tempo do Desfazer: apaga as copias que o app guardou (as fotos da galeria ficam).</summary>
+    public void FinalizarRemocoes()
+    {
+        var removidas = Dados.Removidas;
+        if (removidas.Count == 0)
         {
             return;
         }
 
-        string caminho = Caminho(Dados.Fotos[i]);
-        Alterar(d => d with { Fotos = [.. d.Fotos.Where((_, n) => n != i)] });
-        if (File.Exists(caminho))
+        Alterar(d => d with { Removidas = [] });
+        foreach (var r in removidas)
         {
-            File.Delete(caminho);
+            if (Dados.Fotos.Any(f => f.Arquivo == r.Foto.Arquivo))
+            {
+                continue; // a mesma foto voltou por outro caminho
+            }
+
+            Apagar(Caminho(r.Foto));
+            foreach (var m in Directory.GetFiles(PastaDasMiniaturas, Path.GetFileNameWithoutExtension(r.Foto.Arquivo) + "-*"))
+            {
+                Apagar(m);
+            }
+
+            foreach (var chave in _miniaturas.Keys.Where(k => k.StartsWith(r.Foto.Arquivo + "|", StringComparison.Ordinal)).ToList())
+            {
+                _miniaturas.TryRemove(chave, out _);
+            }
+        }
+    }
+
+    private static void Apagar(string caminho)
+    {
+        try
+        {
+            if (File.Exists(caminho))
+            {
+                File.Delete(caminho); // copia do proprio app
+            }
+        }
+        catch (IOException)
+        {
+        }
+    }
+
+    /// <summary>Le so o cabecalho da foto (rapido) para guardar o tamanho.</summary>
+    private FotoRascunho Medir(FotoRascunho foto)
+    {
+        try
+        {
+            var info = Fotos.Ler(Caminho(foto));
+            return foto with { Largura = info.Largura, Altura = info.Altura, CapturadaEm = foto.CapturadaEm ?? info.CapturadaEm };
+        }
+        catch (FotoInvalidaException)
+        {
+            return foto;
         }
     }
 
@@ -207,9 +330,9 @@ public sealed class RascunhoRelatorio
     /// <summary>Comeca um relatorio novo: limpa o rascunho e as copias das fotos guardadas pelo app.</summary>
     public void Recomecar()
     {
-        foreach (var f in Directory.GetFiles(PastaDasFotos))
+        foreach (var f in Directory.GetFiles(PastaDasFotos).Concat(Directory.GetFiles(PastaDasMiniaturas)))
         {
-            File.Delete(f);
+            Apagar(f);
         }
 
         _miniaturas.Clear();
@@ -220,25 +343,123 @@ public sealed class RascunhoRelatorio
         }
     }
 
-    /// <summary>Miniatura em data URL para a tela (guardada em memoria).</summary>
+    private string ArquivoDaMiniatura(FotoRascunho foto) =>
+        Path.Combine(PastaDasMiniaturas, $"{Path.GetFileNameWithoutExtension(foto.Arquivo)}-{foto.Rotacao}.jpg");
+
+    /// <summary>
+    /// Miniatura em data URL para a tela. Ja pronta: na hora (memoria ou arquivo). Ainda nao: devolve vazio e gera em
+    /// segundo plano (a tela nao trava; <see cref="MiniaturaPronta"/> avisa quando ficar pronta).
+    /// </summary>
     public string Miniatura(FotoRascunho foto)
     {
         string chave = foto.Arquivo + "|" + foto.Rotacao;
-        if (!_miniaturas.TryGetValue(chave, out string? url))
+        if (_miniaturas.TryGetValue(chave, out string? url))
+        {
+            return url;
+        }
+
+        string arquivo = ArquivoDaMiniatura(foto);
+        if (File.Exists(arquivo))
         {
             try
             {
-                url = "data:image/jpeg;base64," + Convert.ToBase64String(Fotos.Miniatura(Caminho(foto), 360, foto.Rotacao));
+                url = "data:image/jpeg;base64," + Convert.ToBase64String(File.ReadAllBytes(arquivo));
+                _miniaturas[chave] = url;
+                return url;
             }
-            catch (FotoInvalidaException)
+            catch (IOException)
             {
-                url = "";
             }
-
-            _miniaturas[chave] = url;
         }
 
-        return url;
+        PedirMiniatura(foto);
+        return "";
+    }
+
+    /// <summary>Gera a miniatura agora, no proprio fio (testes e a primeira geracao).</summary>
+    public string MiniaturaAgora(FotoRascunho foto)
+    {
+        Gerar(foto);
+        return Miniatura(foto);
+    }
+
+    /// <summary>Espera a fila de miniaturas esvaziar (testes).</summary>
+    public async Task MiniaturasProntasAsync(TimeSpan limite)
+    {
+        var fim = DateTime.UtcNow + limite;
+        while ((!_fila.IsEmpty || Volatile.Read(ref _trabalhando) > 0) && DateTime.UtcNow < fim)
+        {
+            await Task.Delay(20);
+        }
+    }
+
+    private void PedirMiniatura(FotoRascunho foto)
+    {
+        lock (_naFila)
+        {
+            if (!_naFila.Add(foto.Arquivo + "|" + foto.Rotacao))
+            {
+                return;
+            }
+        }
+
+        _fila.Enqueue(foto);
+        if (Interlocked.CompareExchange(ref _trabalhando, 1, 0) == 0)
+        {
+            _ = Task.Run(Processar);
+        }
+    }
+
+    /// <summary>Uma miniatura por vez (memoria baixa no celular), em segundo plano.</summary>
+    private void Processar()
+    {
+        try
+        {
+            while (_fila.TryDequeue(out var foto))
+            {
+                Gerar(foto);
+                lock (_naFila)
+                {
+                    _naFila.Remove(foto.Arquivo + "|" + foto.Rotacao);
+                }
+
+                MiniaturaPronta?.Invoke();
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _trabalhando, 0);
+            if (!_fila.IsEmpty && Interlocked.CompareExchange(ref _trabalhando, 1, 0) == 0)
+            {
+                _ = Task.Run(Processar);
+            }
+        }
+    }
+
+    private void Gerar(FotoRascunho foto)
+    {
+        string arquivo = ArquivoDaMiniatura(foto);
+        try
+        {
+            if (!File.Exists(arquivo))
+            {
+                if (!File.Exists(Caminho(foto)))
+                {
+                    return;
+                }
+
+                byte[] jpeg = Fotos.Preparar(Caminho(foto), 320, 75, foto.Rotacao);
+                string temp = arquivo + ".tmp";
+                File.WriteAllBytes(temp, jpeg);
+                File.Move(temp, arquivo, overwrite: true);
+            }
+
+            _miniaturas[foto.Arquivo + "|" + foto.Rotacao] = "data:image/jpeg;base64," + Convert.ToBase64String(File.ReadAllBytes(arquivo));
+        }
+        catch (Exception ex) when (ex is FotoInvalidaException or IOException or UnauthorizedAccessException)
+        {
+            _miniaturas[foto.Arquivo + "|" + foto.Rotacao] = "";
+        }
     }
 
     // ---- Dados da base ----
@@ -320,8 +541,14 @@ public sealed class RascunhoRelatorio
         var fotos = Dados.Fotos.Select(f =>
         {
             string c = Caminho(f);
-            var info = Fotos.Ler(c, f.Rotacao);
-            return new FotoRelatorio(c, info.Largura, info.Altura) { Legenda = f.Legenda.Trim(), Descricao = f.Descricao.Trim(), Rotacao = f.Rotacao };
+            // Tamanho guardado ao entrar; so rascunhos antigos (sem ele) leem o cabecalho da foto.
+            var (l, a) = f.Largura is { } lg && f.Altura is { } al ? (lg, al) : (Fotos.Ler(c).Largura, Fotos.Ler(c).Altura);
+            if (f.Rotacao % 180 != 0)
+            {
+                (l, a) = (a, l);
+            }
+
+            return new FotoRelatorio(c, l, a) { Legenda = f.Legenda.Trim(), Descricao = f.Descricao.Trim(), Rotacao = f.Rotacao };
         }).ToList();
         return PaginadorRelatorio.Paginar(fotos, new OpcoesRelatorio { FotosPorPagina = Dados.FotosPorPagina }, Cabecalho());
     }
