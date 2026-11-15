@@ -29,6 +29,15 @@ async function conferir(page, nome, tamanho) {
       if (toque && b.height < 36 && !el.closest('.pagina-previa')) out.push('alvo de toque baixo (' + Math.round(b.height) + 'px): "' + el.textContent.trim().slice(0, 30) + '"');
     });
     if (document.querySelectorAll('.nav').length > 1) out.push('mais de uma barra de navegacao');
+    // botao de folha ou janela por cima de tudo nao pode estar coberto por outra coisa (ex.: aviso de desfazer)
+    document.querySelectorAll('.folha button, .folha a.btn, .dialogo button').forEach(b => {
+      const r = b.getBoundingClientRect();
+      if (!r.width || !r.height || b.disabled) return;
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (cy < 0 || cy > innerHeight) return; // fora da vista (a folha rola)
+      const no = document.elementFromPoint(cx, cy);
+      if (no && !b.contains(no) && !no.contains(b)) out.push('botao coberto: "' + b.textContent.trim().slice(0, 30) + '" por ' + (no.className || no.tagName));
+    });
     const conteudo = document.querySelector('.conteudo');
     if (conteudo && conteudo.scrollWidth > conteudo.clientWidth + 1) out.push('rolagem horizontal na tela');
     const titulo = document.querySelector('.barra h1');
@@ -66,6 +75,11 @@ async function foto(page, nome, w, h, salvar) {
 async function ir(page, url, rota) {
   await page.evaluate(r => { Blazor.navigateTo(r); }, rota);
   await page.waitForTimeout(500);
+}
+
+// Espera a tela chegar ao estado esperado; se nao chegar em 4 s, registra o problema.
+async function esperar(page, condicao, arg, problema) {
+  try { await page.waitForFunction(condicao, arg, { timeout: 4000 }); } catch { problemas.push(problema); }
 }
 
 async function texto(page, seletor, contem) {
@@ -126,7 +140,10 @@ async function texto(page, seletor, contem) {
     await page.getByRole('button', { name: 'Atualizar dados pela base' }).click();
     await apagarLote.waitFor();
     if (await lote.inputValue() !== 'LOTE 216') problemas.push('atualizar dados nao restaurou o lote');
-    await ir(page, urlPronto, 'relatorio/fotos'); await foto(page, '12-rel-fotos', w, h, salvar);
+    await ir(page, urlPronto, 'relatorio/fotos');
+    // miniaturas sao feitas em segundo plano: a tela abre na hora e elas aparecem em seguida
+    await page.waitForFunction(() => { const b = [...document.querySelectorAll('button[data-foto]')]; return b.length > 0 && b.every(x => x.querySelector('img')); }, null, { timeout: 15000 });
+    await foto(page, '12-rel-fotos', w, h, salvar);
     const fotos = page.locator('button[data-foto]');
     const ultima = fotos.last();
     const legendaUltima = await ultima.locator('.leg').textContent();
@@ -165,24 +182,73 @@ async function texto(page, seletor, contem) {
     const legendaEmLote = page.getByLabel('Legenda para as marcadas', { exact: true });
     await legendaEmLote.fill('Vistoria em lote');
     await foto(page, '15b-rel-legenda-varias', w, h, salvar);
-    await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
+    await page.getByRole('button', { name: 'Aplicar legenda', exact: true }).click();
     await page.getByText('Legenda aplicada a 2 fotos.', { exact: true }).waitFor();
     await page.waitForFunction(() => [...document.querySelectorAll('button[data-foto] .leg')].filter(e => e.textContent === 'Vistoria em lote').length === 2);
+    // continua selecionando: marcacoes e campo limpos para o proximo grupo
+    if (!(await page.getByText('0 marcadas', { exact: true }).isVisible())) problemas.push(`${w}x${h} depois de aplicar a legenda nao continuou no modo selecao`);
+    await page.getByRole('button', { name: 'Marcar todas', exact: true }).click();
+    await esperar(page, () => document.querySelectorAll('.foto-marcada').length === document.querySelectorAll('button[data-foto]').length, null, `${w}x${h} marcar todas nao marcou todas`);
+    await page.getByRole('button', { name: 'Desmarcar todas', exact: true }).click();
+    await esperar(page, () => document.querySelectorAll('.foto-marcada').length === 0 && document.body.innerText.includes('0 marcadas'), null, `${w}x${h} desmarcar todas nao desmarcou`);
+    if (await page.locator('.fab').count() > 0) problemas.push(`${w}x${h} botao Tirar foto aparece no modo selecao`);
+    // tirar varias com uma confirmacao e desfazer
+    const total = await fotos.count();
+    await fotos.nth(1).click(); await fotos.nth(2).click();
+    await page.getByRole('button', { name: 'Tirar do relatório', exact: true }).click();
+    await page.getByRole('dialog').waitFor();
+    await foto(page, '15e-rel-tirar-varias', w, h, salvar);
+    await page.getByRole('button', { name: 'Tirar 2', exact: true }).click();
+    await page.locator('.desfazer').waitFor();
+    if (await fotos.count() !== total - 2) problemas.push(`${w}x${h} tirar 2 fotos nao tirou`);
+    if (!(await page.locator('.desfazer .txt').textContent()).includes('2 fotos removidas')) problemas.push(`${w}x${h} aviso de remover varias errado`);
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await page.locator('.desfazer').waitFor({ state: 'detached' });
+    if (await fotos.count() !== total) problemas.push(`${w}x${h} desfazer nao devolveu as 2 fotos`);
     const antes = await page.locator('button.foto').count();
     await ir(page, urlPronto, 'relatorio/camera'); await page.waitForTimeout(1500);
     await foto(page, '13-rel-camera', w, h, salvar);
-    await page.locator('.disparo').click(); await page.waitForTimeout(1500);
+    // flash desligado: a foto e o quadro do instante do toque
+    await page.locator('.topo-cam .bt-cam', { hasText: '⚡' }).click();
+    await page.locator('.folha .btn', { hasText: 'Desligado' }).click();
+    await page.locator('.folha .btn.primario').click(); await page.waitForTimeout(300);
+    const contaAntes = await page.locator('.pronto-cam span').textContent();
+    await page.locator('.disparo').click();
+    await page.waitForFunction(t => document.querySelector('.pronto-cam span').textContent !== t, contaAntes, { timeout: 5000 });
+    const tempoQuadro = await page.evaluate(() => window.__spobrasTempoDoQuadro);
+    if (!(tempoQuadro < 150)) problemas.push(`${w}x${h} do toque ate pegar a foto: ${tempoQuadro} ms`);
+    if (!(await page.locator('.pronto-cam img.ultima').isVisible())) problemas.push(`${w}x${h} miniatura da ultima foto nao apareceu na camera`);
+    // fotos seguidas
+    await page.locator('.disparo').click(); await page.locator('.disparo').click();
+    await page.waitForTimeout(1200);
+    await foto(page, '13b-rel-camera-depois', w, h, salvar);
     await page.locator('.topo-cam .bt-cam', { hasText: '⚡' }).click(); await page.waitForTimeout(400);
     await foto(page, '14-rel-camera-opcoes', w, h, salvar);
     await page.locator('.folha .btn.primario').click(); await page.waitForTimeout(300);
     await ir(page, urlPronto, 'relatorio/fotos');
     const depois = await page.locator('button.foto').count();
-    if (depois !== antes + 1) problemas.push(`${w}x${h} a foto da camera nao entrou no rascunho (${antes} -> ${depois})`);
-    // tira a foto da camera de novo, para o relatorio ficar igual nos dois tamanhos
+    if (depois !== antes + 3) problemas.push(`${w}x${h} as 3 fotos da camera nao entraram no rascunho (${antes} -> ${depois})`);
+    // tirar uma foto: sem confirmacao, com Desfazer por 5 s
     await page.locator('button.foto').last().click(); await page.waitForTimeout(300);
-    await texto(page, '.folha .link', 'Tirar esta foto'); await texto(page, '.folha .btn', 'Tirar do relatório');
-    await page.locator('.folha .btn.primario').click();
-    await page.locator('.folha').waitFor({ state: 'detached' });
+    await texto(page, '.folha .link', 'Tirar esta foto');
+    await page.locator('.desfazer').waitFor();
+    await foto(page, '15d-rel-desfazer', w, h, salvar);
+    if (await page.locator('button.foto').count() !== antes + 2) problemas.push(`${w}x${h} tirar uma foto pediu confirmacao ou nao tirou`);
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await esperar(page, n => document.querySelectorAll('button.foto').length === n && !document.querySelector('.desfazer'), antes + 3, `${w}x${h} desfazer nao devolveu a foto`);
+    // tira as 3 da camera de novo (para o relatorio ficar igual nos dois tamanhos) e deixa o tempo acabar
+    for (let k = 0; k < 3; k++) {
+      const n = await page.locator('button.foto').count();
+      await page.locator('button.foto').last().evaluate(e => e.scrollIntoView({ block: 'center' }));
+      await page.locator('button.foto').last().click(); await page.waitForTimeout(400);
+      if (k > 0) await conferir(page, 'folha com o aviso de desfazer', `${w}x${h}`);
+      await texto(page, '.folha .link', 'Tirar esta foto');
+      await esperar(page, n => document.querySelectorAll('button.foto').length === n - 1, n, `${w}x${h} tirar foto ${k + 1} nao tirou`);
+    }
+    await esperar(page, () => (document.querySelector('.desfazer .txt')?.textContent || '').includes('3 fotos removidas'), null, `${w}x${h} remocoes seguidas nao se juntaram: ` + (await page.locator(".desfazer .txt").textContent().catch(() => "sem aviso")));
+    await page.waitForTimeout(5600);
+    if (await page.locator('.desfazer').count() > 0) problemas.push(`${w}x${h} aviso de desfazer nao sumiu em 5 s`);
+    if (await page.locator('button.foto').count() !== antes) problemas.push(`${w}x${h} fotos voltaram depois do tempo`);
     await page.getByRole('button', { name: 'Ordenar ▾', exact: true }).click();
     await page.getByRole('button', { name: 'Por nome do arquivo', exact: true }).waitFor();
     await foto(page, '15c-rel-ordenar-fotos', w, h, salvar);

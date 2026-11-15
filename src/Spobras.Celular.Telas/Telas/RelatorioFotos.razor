@@ -6,7 +6,7 @@
 <Barra Titulo="Relatório fotográfico" Sub="@Resumo" Voltar="relatorio">
     <a class="acao texto" href="relatorio/conferir" style="text-decoration:none">Seguir</a>
 </Barra>
-<div class="conteudo" style="padding-bottom:90px">
+<div class="conteudo" style="padding-bottom:@(_removidas > 0 ? "170px" : "90px")">
     <Etapas Atual="1" />
     @if (Erro is not null)
     {

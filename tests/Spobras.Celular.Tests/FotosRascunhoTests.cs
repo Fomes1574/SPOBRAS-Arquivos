@@ -7,7 +7,22 @@ public sealed class FotosRascunhoTests : IDisposable
 {
     private readonly string _raiz = Directory.CreateTempSubdirectory("spobras-fotos-").FullName;
 
-    public void Dispose() => Directory.Delete(_raiz, recursive: true);
+    // As miniaturas sao feitas em segundo plano: a limpeza tenta de novo se ainda houver uma sendo gravada.
+    public void Dispose()
+    {
+        for (int tentativa = 0; ; tentativa++)
+        {
+            try
+            {
+                Directory.Delete(_raiz, recursive: true);
+                return;
+            }
+            catch (IOException) when (tentativa < 20)
+            {
+                Thread.Sleep(100);
+            }
+        }
+    }
 
     private RascunhoRelatorio NovoComFotos(int n)
     {
@@ -122,5 +137,16 @@ public sealed class FotosRascunhoTests : IDisposable
         r.LegendarVarias([0, 1, 2], "Troca de telha");
         r.LegendarVarias([3, 4, 5], "Montagem da estrutura metálica");
         Assert.Equal("Troca de telha,Troca de telha,Troca de telha,Montagem da estrutura metálica,Montagem da estrutura metálica,Montagem da estrutura metálica", Ordem(r));
+    }
+
+    [Fact]
+    public async Task Fotos_seguidas_da_camera_ao_mesmo_tempo_nenhuma_se_perde()
+    {
+        var r = new RascunhoRelatorio(Path.Combine(_raiz, "app"));
+        byte[] jpeg = File.ReadAllBytes(AmostraCelular.Foto(Path.Combine(_raiz, "cam"), "c.jpg", 640, 480, 1));
+        await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => Task.Run(() => r.AdicionarFoto(jpeg))));
+        Assert.Equal(20, r.Dados.Fotos.Count);
+        Assert.Equal(20, r.Dados.Fotos.Select(f => f.Arquivo).Distinct().Count());
+        Assert.Equal(20, new RascunhoRelatorio(Path.Combine(_raiz, "app")).Dados.Fotos.Count);
     }
 }

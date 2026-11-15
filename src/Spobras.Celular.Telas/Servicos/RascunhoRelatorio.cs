@@ -103,12 +103,21 @@ public sealed class RascunhoRelatorio
 
     public string Caminho(FotoRascunho foto) => Path.Combine(PastaDasFotos, foto.Arquivo);
 
+    private readonly object _gravando = new();
+
+    /// <summary>
+    /// Muda e grava o rascunho. Uma mudanca por vez: fotos seguidas da camera chegam ao mesmo tempo e nenhuma pode
+    /// se perder.
+    /// </summary>
     public void Alterar(Func<DadosRascunho, DadosRascunho> mudar)
     {
-        Dados = mudar(Dados) with { Alterado = _agora() };
-        string temp = _arquivo + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(Dados, Json));
-        File.Move(temp, _arquivo, overwrite: true);
+        lock (_gravando)
+        {
+            Dados = mudar(Dados) with { Alterado = _agora() };
+            string temp = _arquivo + ".tmp";
+            File.WriteAllText(temp, JsonSerializer.Serialize(Dados, Json));
+            File.Move(temp, _arquivo, overwrite: true);
+        }
     }
 
     /// <summary>Foto tirada pela camera do app.</summary>

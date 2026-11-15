@@ -17,7 +17,21 @@ public sealed class CelularTests : IDisposable
         AmostraCelular.GravarMestra(_p.Mestra);
     }
 
-    public void Dispose() => Directory.Delete(_raiz, recursive: true);
+    public void Dispose()
+    {
+        for (int tentativa = 0; ; tentativa++)
+        {
+            try
+            {
+                Directory.Delete(_raiz, recursive: true);
+                return;
+            }
+            catch (IOException) when (tentativa < 20)
+            {
+                Thread.Sleep(100); // miniatura ainda sendo gravada em segundo plano
+            }
+        }
+    }
 
     private AppCelular NovoApp() => new(_p, () => Hoje);
 

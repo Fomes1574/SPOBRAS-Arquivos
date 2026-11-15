@@ -78,6 +78,7 @@ function segurar(sim) { if (aviso) aviso.hidden = !sim; }
 
 async function disparar() {
   if (!video || !video.videoWidth || fotografando) return;
+  const inicio = performance.now();
   const usarSensor = captura && (flash === "auto" || flash === "ligado");
   let quadro;
   if (usarSensor) {
@@ -98,6 +99,7 @@ async function disparar() {
   } else {
     quadro = recortar(video, video.videoWidth, video.videoHeight, false); // o instante do toque
   }
+  window.__spobrasTempoDoQuadro = performance.now() - inicio; // do toque ate a imagem pega (conferido nos testes)
   piscar();
   salvando++;
   try {
