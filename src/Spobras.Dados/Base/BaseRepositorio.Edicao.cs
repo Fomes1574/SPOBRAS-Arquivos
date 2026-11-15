@@ -56,6 +56,7 @@ public sealed partial class BaseRepositorio
                 ("$j", JsonSerializer.Serialize(gravada)), ("$q", Iso(quando)), ("$id", -obra.Id));
             AtualizarBusca(conexao, tx, obra.Id);
             tx.Commit();
+            Invalidar();
             return;
         }
 
@@ -90,6 +91,7 @@ public sealed partial class BaseRepositorio
         ContarEditados(conexao, tx, obra);
         AtualizarBusca(conexao, tx, obra.Id);
         tx.Commit();
+        Invalidar();
     }
 
     /// <summary>Desfaz a mudanca de um campo: volta ao valor que a planilha tem.</summary>
@@ -107,6 +109,8 @@ public sealed partial class BaseRepositorio
         }
 
         tx.Commit();
+
+        Invalidar();
     }
 
     /// <summary>Inclui uma obra que nao esta na planilha. Devolve a obra gravada (com Id negativo).</summary>
@@ -132,6 +136,7 @@ public sealed partial class BaseRepositorio
         var gravada = obra with { Id = -id, IncluidaNoApp = true };
         InserirObraLocal(conexao, tx, gravada);
         tx.Commit();
+        Invalidar();
         return gravada;
     }
 
@@ -148,6 +153,7 @@ public sealed partial class BaseRepositorio
         Comando(conexao, tx, "delete from ObraLocal where id = $id", ("$id", -obra.Id));
         Comando(conexao, tx, "delete from Obra where id = $id", ("$id", obra.Id));
         tx.Commit();
+        Invalidar();
     }
 
     private void AplicarEdicoesDeObras(SqliteConnection conexao, SqliteTransaction tx, bool releitura)
@@ -350,6 +356,7 @@ public sealed partial class BaseRepositorio
             ("$a", acao), ("$c", chave), ("$j", limpo is null ? null : JsonSerializer.Serialize(limpo)), ("$q", Iso(quando)));
         Aplicar(conexao, tx, acao, chave, limpo);
         tx.Commit();
+        Invalidar();
     }
 
     private void AplicarEdicoesDeVinculos(SqliteConnection conexao, SqliteTransaction tx)

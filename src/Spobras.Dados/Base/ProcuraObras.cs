@@ -14,7 +14,7 @@ public static class ProcuraObras
     {
         string alvo = Normalizacao.Busca(texto.Trim());
         if (alvo.Length < 2) return [];
-        var escolas = base_.Opcoes(new FiltroObras()).Escolas
+        var escolas = base_.OpcoesGerais().Escolas
             .Where(e => Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal))
             .OrderByDescending(e => Normalizacao.Busca(e).StartsWith(alvo, StringComparison.Ordinal))
             .ThenBy(e => e, StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("pt-BR"), true)).Take(max).ToArray();
@@ -34,7 +34,7 @@ public static class ProcuraObras
         static int Ano(string codigo) => int.TryParse(
             System.Text.RegularExpressions.Regex.Match(codigo, @"(?<![0-9])[0-9]{4}(?![0-9])",
                 System.Text.RegularExpressions.RegexOptions.RightToLeft).Value, out int ano) ? ano : 0;
-        var contratos = base_.Opcoes(new FiltroObras()).Contratos
+        var contratos = base_.OpcoesGerais().Contratos
             .Where(c => Normalizacao.Busca(c).Contains(alvo, StringComparison.Ordinal))
             .OrderByDescending(Ano).ThenBy(c => c, StringComparer.OrdinalIgnoreCase).Take(max).ToArray();
         if (contratos.Length == 0) return [];
@@ -53,7 +53,7 @@ public static class ProcuraObras
     public static IReadOnlyList<ObraLida> DoContrato(BaseRepositorio base_, string digitado)
     {
         string alvo = digitado.Trim().Replace('-', '/').Replace(' ', '/');
-        string? contrato = base_.Opcoes(new FiltroObras()).Contratos
+        string? contrato = base_.OpcoesGerais().Contratos
             .FirstOrDefault(c => string.Equals(c.Trim(), alvo, StringComparison.OrdinalIgnoreCase));
         return contrato is null ? [] : base_.Buscar(new FiltroObras { Contrato = [contrato] }, 100).Obras;
     }
@@ -70,7 +70,7 @@ public static class ProcuraObras
             return [];
         }
 
-        var escolas = base_.Opcoes(new FiltroObras()).Escolas;
+        var escolas = base_.OpcoesGerais().Escolas;
         var exatas = escolas.Where(e => Normalizacao.Busca(e.Trim()) == alvo).ToList();
         var achadas = exatas.Count > 0 ? exatas : escolas.Where(e => Normalizacao.Busca(e).Contains(alvo, StringComparison.Ordinal)).Take(10).ToList();
         return [.. achadas.SelectMany(e => base_.Buscar(new FiltroObras { Escola = [e] }, 100).Obras).Take(20)];
@@ -85,7 +85,7 @@ public static class ProcuraObras
             return [];
         }
 
-        var lotes = base_.Opcoes(new FiltroObras()).Lotes.Where(l => ChaveDoLote(l) == alvo).ToList();
+        var lotes = base_.OpcoesGerais().Lotes.Where(l => ChaveDoLote(l) == alvo).ToList();
         return [.. lotes.SelectMany(l => base_.Buscar(new FiltroObras { Lote = [l] }, 200).Obras)];
     }
 

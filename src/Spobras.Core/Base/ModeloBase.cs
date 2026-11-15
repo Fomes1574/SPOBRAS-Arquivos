@@ -52,6 +52,9 @@ public sealed record FiltroObras
     public bool SemDataOs { get; init; }
     public IReadOnlyDictionary<CampoValor, FaixaValor> Valores { get; init; } = new Dictionary<CampoValor, FaixaValor>();
 
+    /// <summary>Status do contrato que nao aparecem (ex.: sob gestao da SIURB). Aplicado no banco, nao conta como filtro do usuario.</summary>
+    public IReadOnlyList<string> OcultarStatusContrato { get; init; } = [];
+
     public static string TituloLotes(IReadOnlyList<string> lotes)
     {
         if (lotes.Count == 0) return "";

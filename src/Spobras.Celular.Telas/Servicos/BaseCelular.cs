@@ -46,6 +46,7 @@ public sealed class BaseCelular
         _agora = agora ?? (() => DateTimeOffset.Now);
         Repositorio = new BaseRepositorio(new BancoApp(Path.Combine(plataforma.PastaDoApp, "base", "base.db"), copiasGuardadas: 2));
         var p = preferencias.Ler();
+        MedicoesEmTramite.DefinirRegras(p.RegrasStatus);
         Estado = p.Mestra is null ? EstadoBase.SemPlanilha : EstadoBase.Atualizada;
     }
 
@@ -105,6 +106,7 @@ public sealed class BaseCelular
             if (resultado != Copia.Ok)
             {
                 string desde = p.UltimaLeitura is { } u ? $" Você está vendo a base lida {Formato.Quando(u, _agora())}." : " Ainda não há dados lidos.";
+                Repositorio.RegistrarImportacao(Fontes.Mestra, _agora(), false, resultado == Copia.SemConexao ? "Sem internet." : "Planilha sem acesso.", 0, 0);
                 Definir(resultado == Copia.SemConexao ? EstadoBase.SemConexao : EstadoBase.Inacessivel,
                     (resultado == Copia.SemConexao
                         ? "Sem internet."
@@ -115,6 +117,7 @@ public sealed class BaseCelular
             string hash = await Task.Run(() => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(copia))));
             if (!forcar && hash == p.HashDaMestra && TemDados)
             {
+                Repositorio.RegistrarImportacao(Fontes.Mestra, _agora(), true, "Sem mudança.", TotalDeObras, 0);
                 _preferencias.Gravar(p with { UltimaLeitura = _agora() });
                 Definir(EstadoBase.Atualizada, "");
                 return;
@@ -122,10 +125,13 @@ public sealed class BaseCelular
 
             var agora = _agora();
             var info = new FileInfo(copia);
+            var relogio = System.Diagnostics.Stopwatch.StartNew();
+            int linhas = 0;
             await Task.Run(() =>
             {
                 using var planilha = new LeitorXlsx(copia);
-                var dados = ImportadorMestra.Importar(planilha);
+                var dados = ImportadorMestra.Importar(planilha, p.Mapeamento);
+                linhas = dados.Obras.Count;
                 var fonte = (Repositorio.Fonte(Fontes.Mestra) ?? new FonteInfo { Id = Fontes.Mestra, Nome = "Planilha mestra" }) with
                 {
                     Caminho = p.Mestra.Nome,
@@ -140,10 +146,12 @@ public sealed class BaseCelular
                 Repositorio.GravarMestra(dados, fonte with { Versao = fonte.Versao + 1 });
             });
             _preferencias.Gravar(_preferencias.Ler() with { HashDaMestra = hash, UltimaLeitura = agora });
+            Repositorio.RegistrarImportacao(Fontes.Mestra, agora, true, "Leitura concluída.", linhas, relogio.ElapsedMilliseconds);
             Definir(EstadoBase.Atualizada, "");
         }
         catch (Exception ex) when (ex is ImportacaoInvalidaException or PlanilhaInvalidaException or IOException or InvalidDataException)
         {
+            Repositorio.RegistrarImportacao(Fontes.Mestra, _agora(), false, ex.Message, 0, 0);
             Definir(EstadoBase.Invalida, $"A planilha escolhida não pôde ser lida: {ex.Message}" +
                 (TemDados ? " A base anterior continua valendo." : ""));
         }
@@ -160,6 +168,67 @@ public sealed class BaseCelular
         }
     }
 
+    // ---- Configuracoes da base ----
+
+    public MapeamentoMestra Mapeamento => _preferencias.Ler().Mapeamento;
+
+    /// <summary>Confere a ultima copia lida da planilha contra um mapeamento (sem importar nada).</summary>
+    public Task<ConferenciaMapeamento?> ConferirAsync(MapeamentoMestra mapa) => Task.Run(() =>
+    {
+        string copia = Path.Combine(_plataforma.PastaDoApp, "base", "mestra-lida.xlsx");
+        if (!File.Exists(copia))
+        {
+            return null;
+        }
+
+        using var planilha = new LeitorXlsx(copia);
+        return (ConferenciaMapeamento?)ConferenciaMestra.Conferir(planilha, mapa);
+    });
+
+    /// <summary>Le a ultima copia com o mapeamento, sem gravar nada: o "Testar leitura".</summary>
+    public Task<MestraImportada> TestarAsync(MapeamentoMestra mapa) => Task.Run(() =>
+    {
+        using var planilha = new LeitorXlsx(Path.Combine(_plataforma.PastaDoApp, "base", "mestra-lida.xlsx"));
+        return ImportadorMestra.Importar(planilha, mapa);
+    });
+
+    /// <summary>Guarda o mapeamento e le a planilha de novo com ele.</summary>
+    public async Task SalvarMapeamentoAsync(MapeamentoMestra mapa)
+    {
+        _preferencias.Gravar(_preferencias.Ler() with { Mapeamento = mapa });
+        await AtualizarAsync(forcar: true);
+    }
+
+    public IReadOnlyList<(string Status, int Obras)> StatusDoContrato() => Repositorio.StatusDoContrato();
+
+    public void DefinirRegra(string status, SituacaoContrato situacao)
+    {
+        var regras = new Dictionary<string, SituacaoContrato>(_preferencias.Ler().RegrasStatus, StringComparer.OrdinalIgnoreCase);
+        if (MedicoesEmTramite.ClassificarPadrao(status) == situacao)
+        {
+            regras.Remove(status);
+        }
+        else
+        {
+            regras[status] = situacao;
+        }
+
+        _preferencias.Gravar(_preferencias.Ler() with { RegrasStatus = regras });
+        MedicoesEmTramite.DefinirRegras(regras);
+        Mudou?.Invoke();
+    }
+
+    /// <summary>Colunas, tabelas e status voltam aos que vem com o app; a planilha e lida de novo.</summary>
+    public async Task VoltarAoPadraoAsync()
+    {
+        _preferencias.Gravar(_preferencias.Ler() with { Mapeamento = new MapeamentoMestra(), RegrasStatus = new Dictionary<string, SituacaoContrato>() });
+        MedicoesEmTramite.DefinirRegras(null);
+        await AtualizarAsync(forcar: true);
+    }
+
+    public IReadOnlyList<(DateTimeOffset Quando, bool Ok, string Mensagem, int Linhas)> Leituras(int maximo = 8) =>
+        Repositorio.HistoricoDeImportacoes(Fontes.Mestra, maximo);
+
     private void Definir(EstadoBase estado, string mensagem)
     {
         Estado = estado;
@@ -169,15 +238,20 @@ public sealed class BaseCelular
 
     // ---- Consultas ----
 
-    /// <summary>Obras do filtro, sem as de contrato sob gestao da SIURB (nao aparecem no app).</summary>
+    /// <summary>Status do contrato que nao aparecem no app (ex.: sob gestao da SIURB), pelas regras atuais.</summary>
+    private IReadOnlyList<string> Ocultos() =>
+        [.. Repositorio.StatusDoContrato().Where(s => s.Status.Length > 0 && MedicoesEmTramite.Classificar(s.Status) == SituacaoContrato.Ignorado).Select(s => s.Status)];
+
+    private FiltroObras Visivel(FiltroObras filtro) => filtro with { OcultarStatusContrato = Ocultos() };
+
+    /// <summary>Obras do filtro, sem as que nao aparecem no app. O banco ja devolve so a pagina pedida.</summary>
     public (IReadOnlyList<ObraLida> Obras, int Total) Buscar(FiltroObras filtro, int limite)
     {
-        var r = Repositorio.Buscar(filtro, int.MaxValue, 0, OrdemObras.Contrato);
-        var visiveis = r.Obras.Where(o => MedicoesEmTramite.Classificar(o.StatusContrato) != SituacaoContrato.Ignorado).ToList();
-        return (visiveis.Take(limite).ToList(), visiveis.Count);
+        var r = Repositorio.Buscar(Visivel(filtro), limite, 0, OrdemObras.Contrato);
+        return (r.Obras, r.Total);
     }
 
-    public OpcoesFiltro Opcoes(FiltroObras filtro) => Repositorio.Opcoes(filtro);
+    public OpcoesFiltro Opcoes(FiltroObras filtro) => Repositorio.Opcoes(Visivel(filtro));
 
     public ObraLida? Obra(long id) => Repositorio.Obra(id);
 
@@ -193,7 +267,8 @@ public sealed class BaseCelular
     {
         var obras = Buscar(filtro, int.MaxValue).Obras;
         decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
-        var tramite = obras.SelectMany(EmTramite).ToList();
+        var medicoes = Repositorio.Medicoes(obras.Select(o => o.Contrato));
+        var tramite = obras.SelectMany(o => MedicoesEmTramite.DaObra(o, medicoes[o.Contrato])).ToList();
         return new TotaisLote(FiltroObras.TituloLotes(filtro.Lote), obras.Count, obras.Select(o => Normalizacao.Busca(o.Empreendimento.Trim())).Distinct().Count(),
             Soma(o => o.ValorEmpreendimento), Soma(o => o.ValorAditado), Soma(o => o.ValorContratadoComAditamento), Soma(o => o.ValorPago),
             tramite.Count, tramite.Sum(m => m.Valor), Soma(o => o.SaldoAPagar));

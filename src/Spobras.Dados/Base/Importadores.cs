@@ -20,21 +20,23 @@ public static class ImportadorMestra
     public const string TabelaMedicoes = "preCadastro_VW_RELATORIO_MEDICOES";
     public const string TabelaEmpenhos = "contratos_VW_EMPENHOS_SOF";
 
-    public static MestraImportada Importar(ILeitorPlanilha planilha)
+    /// <summary>Le a mestra com os nomes padrao ou com o mapeamento escolhido nas Configuracoes da base.</summary>
+    public static MestraImportada Importar(ILeitorPlanilha planilha, MapeamentoMestra? mapa = null)
     {
+        mapa ??= MapeamentoMestra.Padrao;
         var existentes = planilha.Tabelas().Select(t => t.Nome).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (string nome in new[] { TabelaObras, TabelaMedicoes, TabelaEmpenhos })
+        foreach (var t in Enum.GetValues<TabelaMestra>())
         {
-            if (!existentes.Contains(nome))
+            if (!existentes.Contains(mapa.Tabela(t)))
             {
-                throw new ImportacaoInvalidaException($"A tabela \"{nome}\" não foi encontrada na planilha. A base anterior foi mantida.");
+                throw new ImportacaoInvalidaException($"A tabela \"{mapa.Tabela(t)}\" ({CamposMestra.NomeDaTabela(t)}) não foi encontrada na planilha. A base anterior foi mantida.");
             }
         }
 
         var avisos = new List<string>();
-        var medicoes = Medicoes(planilha.LerTabela(TabelaMedicoes));
-        var (obras, originais) = Obras(planilha.LerTabela(TabelaObras), medicoes, avisos);
-        var empenhos = Empenhos(planilha.LerTabela(TabelaEmpenhos));
+        var medicoes = Medicoes(planilha.LerTabela(mapa.Tabela(TabelaMestra.Medicoes)), mapa);
+        var (obras, originais) = Obras(planilha.LerTabela(mapa.Tabela(TabelaMestra.Obras)), medicoes, avisos, mapa);
+        var empenhos = Empenhos(planilha.LerTabela(mapa.Tabela(TabelaMestra.Empenhos)), mapa);
         if (obras.Count == 0)
         {
             throw new ImportacaoInvalidaException("A tabela de contratos veio sem nenhuma linha. A base anterior foi mantida.");
@@ -43,9 +45,9 @@ public static class ImportadorMestra
         return new MestraImportada(obras, medicoes, empenhos, originais, avisos);
     }
 
-    private static (List<ObraLida>, Dictionary<long, string?>) Obras(TabelaLida t, List<MedicaoLida> medicoes, List<string> avisos)
+    private static (List<ObraLida>, Dictionary<long, string?>) Obras(TabelaLida t, List<MedicaoLida> medicoes, List<string> avisos, MapeamentoMestra mapa)
     {
-        var c = new Colunas(t);
+        var c = new Colunas(t, TabelaMestra.Obras, mapa);
         int contrato = c["CONTRATO"], empreendimento = c["EMPREENDIMENTO"], contratada = c["CONTRATADA"], portaria = c["PORTARIA"],
             dotacao = c["DOTACAO"], atividade = c["ATIVIDADE"], lote = c["nmLote"], modalidade = c["MODALIDADE"], tipo = c["TIPO"],
             tipoObra = c["TIPO DE OBRA"], sei = c["PROCESSO SEI"], status = c["STATUS"], statusContrato = c["STATUS CONTRATO"],
@@ -147,9 +149,9 @@ public static class ImportadorMestra
         return (obras, originais);
     }
 
-    private static List<MedicaoLida> Medicoes(TabelaLida t)
+    private static List<MedicaoLida> Medicoes(TabelaLida t, MapeamentoMestra mapa)
     {
-        var c = new Colunas(t);
+        var c = new Colunas(t, TabelaMestra.Medicoes, mapa);
         int contrato = c["NR. DO CONTRATO"], numero = c["NR. DA MEDIÇÃO"], emp = c["EMPREENDIMENTO"], inicio = c["DATA DE INÍCIO"],
             fim = c["DATA FIM"], protocolado = c["VALOR PROTOCOLADO"], liberado = c["VALOR LIBERADO"], considerado = c["VALOR CONSIDERADO"],
             pago = c["VALOR PAGO"], status = c["STATUS DA MEDIÇÃO"], receita = c["CONTRATO RECEITA"], pagamento = c["DATA DE PAGAMENTO"];
@@ -157,7 +159,8 @@ public static class ImportadorMestra
 
         // Opcionais: sem elas a importacao continua, so sem reajuste e sem o status do contrato na medicao.
         // "VALOR REJUSTE" e o nome como esta na planilha (sem o "a").
-        int reajuste = t.Indice("VALOR REJUSTE"), statusContrato = t.Indice("STATUS DO CONTRATO");
+        int reajuste = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "VALOR REJUSTE"))),
+            statusContrato = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "STATUS DO CONTRATO")));
 
         var lista = new List<MedicaoLida>(t.Linhas.Count);
         foreach (var l in t.Linhas)
@@ -173,9 +176,9 @@ public static class ImportadorMestra
         return lista;
     }
 
-    private static List<EmpenhoLido> Empenhos(TabelaLida t)
+    private static List<EmpenhoLido> Empenhos(TabelaLida t, MapeamentoMestra mapa)
     {
-        var c = new Colunas(t);
+        var c = new Colunas(t, TabelaMestra.Empenhos, mapa);
         int contrato = c["Nr.Contrato"], numero = c["Nr.Empenho"], data = c["Data do Empenho"], ano = c["Ano do Empenho"],
             sei = c["Processo SEI"], total = c["Vl.Total Empenhado"], liquido = c["Vl.Empenhado Liquido"], liquidado = c["Vl. Liquidado"],
             anulado = c["Vl.Anulado"], pagoEx = c["Vl.Pago no Exercício"], pagoRestos = c["Vl.Pago Restos"], credor = c["Credor"],
@@ -194,14 +197,16 @@ public static class ImportadorMestra
     }
 
     /// <summary>Localiza colunas pelo nome e junta as que faltarem numa mensagem so.</summary>
-    private sealed class Colunas(TabelaLida tabela)
+    private sealed class Colunas(TabelaLida tabela, TabelaMestra qual, MapeamentoMestra mapa)
     {
         private readonly List<string> _faltando = [];
 
-        public int this[string nome]
+        /// <summary>Pelo nome padrao; o mapeamento diz o nome que a coluna tem nesta planilha.</summary>
+        public int this[string padrao]
         {
             get
             {
+                string nome = mapa.Coluna(CamposMestra.Campo(qual, padrao));
                 int i = tabela.Indice(nome);
                 if (i < 0)
                 {
@@ -218,7 +223,7 @@ public static class ImportadorMestra
             {
                 throw new ImportacaoInvalidaException(
                     $"Na tabela \"{nomeTabela}\" não foi encontrada a coluna {string.Join(", ", _faltando.Select(f => $"\"{f}\""))}. " +
-                    "A planilha pode ter mudado de estrutura. A base anterior foi mantida.");
+                    "A planilha pode ter mudado de estrutura (dá para ajustar na engrenagem da Base de dados). A base anterior foi mantida.");
             }
         }
     }
@@ -231,6 +236,13 @@ public static class ImportadorMestra
         decimal d => d.ToString(System.Globalization.CultureInfo.InvariantCulture),
         DateTime dt => dt.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture),
         _ => valor.ToString(),
+    };
+
+    /// <summary>Valor como aparece para o usuario (datas em dd/mm/aaaa, reais com duas casas), para os exemplos.</summary>
+    public static string? TextoDeExemplo(object? valor) => valor switch
+    {
+        decimal d when d != Math.Round(d) => d.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("pt-BR")),
+        _ => Texto(valor),
     };
 
     internal static DateOnly? Data(object? valor) => valor is DateTime d ? DateOnly.FromDateTime(d) : null;

@@ -23,6 +23,12 @@ public sealed record Preferencias
 
     /// <summary>Quanto da largura a ficha da obra ocupa na Base de dados (0,6 = 60%), como o usuario deixou.</summary>
     public double ProporcaoDaFichaBase { get; init; } = 0.6;
+
+    /// <summary>Configuracoes da base: onde estao as tabelas e colunas, se a planilha mudou de estrutura.</summary>
+    public Spobras.Core.Base.MapeamentoMestra Mapeamento { get; init; } = new();
+
+    /// <summary>Configuracoes da base: situacao escolhida para cada status do contrato (por cima das padrao).</summary>
+    public Dictionary<string, Spobras.Core.Base.SituacaoContrato> RegrasStatus { get; init; } = [];
 }
 
 public sealed class ServicoPreferencias

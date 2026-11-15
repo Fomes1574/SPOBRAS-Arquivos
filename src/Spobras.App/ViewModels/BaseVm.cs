@@ -981,7 +981,8 @@ public sealed partial class BaseVm : TelaVm
         var obras = _base.Buscar(filtro, int.MaxValue).Obras;
         decimal Soma(Func<ObraLida, decimal?> valor) => obras.Sum(o => valor(o) ?? 0m);
         TituloDoLote = $"{FiltroObras.TituloLotes(Lote)} · {Formato.Plural(obras.Count, "obra", "obras")} · {Formato.Plural(obras.Select(o => o.Empreendimento).Distinct(StringComparer.OrdinalIgnoreCase).Count(), "escola", "escolas")}";
-        var tramite = obras.SelectMany(o => MedicoesEmTramite.DaObra(o, _base.Medicoes(o.Contrato))).ToList();
+        var medicoes = _base.Medicoes(obras.Select(o => o.Contrato));
+        var tramite = obras.SelectMany(o => MedicoesEmTramite.DaObra(o, medicoes[o.Contrato])).ToList();
         TotaisDoLote.Add(new ItemCronograma("Valor original", FormatoBase.Reais(Soma(o => o.ValorEmpreendimento))));
         TotaisDoLote.Add(new ItemCronograma("Aditado", FormatoBase.Reais(Soma(o => o.ValorAditado))));
         TotaisDoLote.Add(new ItemCronograma("Contratado c/ aditamento", FormatoBase.Reais(Soma(o => o.ValorContratadoComAditamento))));

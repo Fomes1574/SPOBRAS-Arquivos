@@ -47,7 +47,33 @@ public static class MedicoesEmTramite
     private static string Chave(string? texto) =>
         string.Join(" ", Normalizacao.Busca(texto ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries));
 
+    private static IReadOnlyDictionary<string, SituacaoContrato> _personalizadas = new Dictionary<string, SituacaoContrato>();
+
+    /// <summary>
+    /// Regras escolhidas nas Configuracoes da base (status → situacao), por cima das padrao. Vazio = so as padrao.
+    /// Trocadas de uma vez (o dicionario e substituido, nunca alterado), entao leitura em paralelo e segura.
+    /// </summary>
+    public static IReadOnlyDictionary<string, SituacaoContrato> Personalizadas => _personalizadas;
+
+    public static void DefinirRegras(IReadOnlyDictionary<string, SituacaoContrato>? regras) =>
+        Volatile.Write(ref _personalizadas, (regras ?? new Dictionary<string, SituacaoContrato>())
+            .Where(r => Chave(r.Key).Length > 0)
+            .GroupBy(r => Chave(r.Key))
+            .ToDictionary(g => g.Key, g => g.Last().Value));
+
     public static SituacaoContrato Classificar(string? statusDoContrato)
+    {
+        string chave = Chave(statusDoContrato);
+        if (chave.Length > 0 && Volatile.Read(ref _personalizadas).TryGetValue(chave, out var escolhida))
+        {
+            return escolhida;
+        }
+
+        return ClassificarPadrao(statusDoContrato);
+    }
+
+    /// <summary>Classificacao que vem com o app (sem as regras escolhidas pelo usuario).</summary>
+    public static SituacaoContrato ClassificarPadrao(string? statusDoContrato)
     {
         string chave = Chave(statusDoContrato);
         return chave.Length == 0 ? SituacaoContrato.Desconhecido

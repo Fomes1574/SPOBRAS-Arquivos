@@ -21,6 +21,7 @@ public sealed class Composicao : IDisposable
         var banco = new BancoApp(Path.Combine(pastaDados, "arquivos-spobras.db"));
 
         Preferencias = new ServicoPreferencias(new ConfigRepositorio(banco), pastaTrabalhoPadrao);
+        Spobras.Core.Base.MedicoesEmTramite.DefinirRegras(Preferencias.Atual.RegrasStatus);
         Operacoes = new ServicoOperacoes(arquivos, new HistoricoSqlite(banco), relogio, new FilaTarefas());
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);

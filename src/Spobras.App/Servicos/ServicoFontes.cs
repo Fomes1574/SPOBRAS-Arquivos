@@ -279,7 +279,7 @@ public sealed class ServicoFontes : IDisposable
             {
                 if (fonte.Id == Core.Base.Fontes.Mestra)
                 {
-                    var dados = ImportadorMestra.Importar(planilha);
+                    var dados = ImportadorMestra.Importar(planilha, _preferencias.Atual.Mapeamento);
                     ConferirQueNaoMudou(fonte.Caminho, modificado, tamanho);
                     (linhas, avisos) = (dados.Obras.Count, dados.Avisos);
                     _base.GravarMestra(dados, nova with { Linhas = linhas, Avisos = avisos });

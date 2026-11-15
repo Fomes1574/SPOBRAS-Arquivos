@@ -85,6 +85,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         GravarFonte(conexao, tx, fonte);
         AplicarEdicoesDeObras(conexao, tx, releitura: true);
         tx.Commit();
+        Invalidar();
     }
 
     public void GravarDotacoes(DotacoesImportadas dados, FonteInfo fonte)
@@ -119,6 +120,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         GravarFonte(conexao, tx, fonte);
         AplicarEdicoesDeVinculos(conexao, tx);
         tx.Commit();
+        Invalidar();
     }
 
     // ---- Fontes ----
@@ -237,6 +239,30 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             return lista;
         }
 
+        // A mesma empresa pode vir com espaco sobrando ou outra caixa: uma opcao so (a grafia mais comum).
+        List<string> Empresas()
+        {
+            using var cmd = conexao.CreateCommand();
+            cmd.CommandText = $"""
+                select {EmpresaNormalizada}, contratada, count(*) from Obra
+                where contratada is not null and trim(contratada) <> '' and {Onde(filtro, cmd, "empresa")}
+                group by {EmpresaNormalizada}, contratada
+                """;
+            using var r = cmd.ExecuteReader();
+            var grupos = new Dictionary<string, (string Grafia, int Vezes)>();
+            while (r.Read())
+            {
+                string chave = r.GetString(0), grafia = r.GetString(1).Trim();
+                int vezes = r.GetInt32(2);
+                if (!grupos.TryGetValue(chave, out var atual) || vezes > atual.Vezes)
+                {
+                    grupos[chave] = (grafia, vezes);
+                }
+            }
+
+            return [.. grupos.Values.Select(g => g.Grafia).Order(StringComparer.Create(CultureInfo.GetCultureInfo("pt-BR"), true))];
+        }
+
         // O contrato de receita pode vir combinado ("015/SIURB/2025 | 128/SIURB/2021"): cada codigo e uma opcao.
         var receitas = Distintos("contrato_receita", "receita")
             .SelectMany(t => t.Split([" | ", ", "], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -246,10 +272,78 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             Distintos("portaria", "portaria"), Distintos("contrato", "contrato"), Distintos("empreendimento", "escola"),
             receitas, Distintos("atividade", "dotacao"), Distintos("status", "status"))
         {
-            Empresas = Distintos("contratada", "empresa"),
+            Empresas = Empresas(),
             Lotes = [.. Distintos("lote", "lote").OrderBy(l => System.Text.RegularExpressions.Regex.Match(l, @"\d+") is { Success: true } m ? int.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture) : int.MaxValue)
                 .ThenBy(l => l, StringComparer.OrdinalIgnoreCase)],
         };
+    }
+
+    /// <summary>
+    /// Opcoes de todos os filtros sem filtro nenhum (usadas nas buscas por escola, contrato e lote). Montadas uma vez
+    /// por leitura da planilha, e nao a cada letra digitada.
+    /// </summary>
+    public OpcoesFiltro OpcoesGerais()
+    {
+        lock (_trava)
+        {
+            return _opcoesGerais ??= Opcoes(new FiltroObras());
+        }
+    }
+
+    /// <summary>Cada status do contrato que existe na base, com quantas obras tem (guardado ate a proxima leitura).</summary>
+    public IReadOnlyList<(string Status, int Obras)> StatusDoContrato()
+    {
+        lock (_trava)
+        {
+            if (_statusContrato is null)
+            {
+                using var conexao = banco.Abrir();
+                using var cmd = conexao.CreateCommand();
+                cmd.CommandText = "select coalesce(trim(status_contrato), ''), count(*) from Obra group by 1 order by 2 desc, 1";
+                using var r = cmd.ExecuteReader();
+                var lista = new List<(string, int)>();
+                while (r.Read())
+                {
+                    lista.Add((r.GetString(0), r.GetInt32(1)));
+                }
+
+                _statusContrato = lista;
+            }
+
+            return _statusContrato;
+        }
+    }
+
+    /// <summary>Medicoes de varios contratos numa consulta so (totais do lote), por contrato.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<MedicaoLida>> Medicoes(IEnumerable<string> contratos)
+    {
+        var todos = contratos.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var resultado = new Dictionary<string, List<MedicaoLida>>(StringComparer.OrdinalIgnoreCase);
+        using var conexao = banco.Abrir();
+        foreach (var bloco in todos.Chunk(400))
+        {
+            using var cmd = conexao.CreateCommand();
+            var nomes = bloco.Select((c, i) => { cmd.Parameters.AddWithValue("$c" + i, c); return "$c" + i; });
+            cmd.CommandText = $"""
+                select contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago, status, contrato_receita, pagamento,
+                    valor_reajuste, status_contrato
+                from Medicao where contrato collate nocase in ({string.Join(", ", nomes)}) order by numero, inicio
+                """;
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var m = new MedicaoLida(r.GetString(0), Txt(r, 1), Txt(r, 2), Dia(r, 3), Dia(r, 4), Reais(r, 5), Reais(r, 6), Reais(r, 7), Reais(r, 8),
+                    Txt(r, 9), Txt(r, 10), Dia(r, 11), Reais(r, 12), Txt(r, 13));
+                if (!resultado.TryGetValue(m.Contrato, out var lista))
+                {
+                    resultado[m.Contrato] = lista = [];
+                }
+
+                lista.Add(m);
+            }
+        }
+
+        return todos.ToDictionary(c => c, c => (IReadOnlyList<MedicaoLida>)(resultado.TryGetValue(c, out var l) ? l : []), StringComparer.OrdinalIgnoreCase);
     }
 
     public ObraLida? Obra(long id)
@@ -400,6 +494,22 @@ public sealed partial class BaseRepositorio(BancoApp banco)
 
     // ---- Interno ----
 
+    private const string EmpresaNormalizada = "upper(trim(replace(replace(contratada, '  ', ' '), '  ', ' ')))";
+
+    private readonly object _trava = new();
+    private OpcoesFiltro? _opcoesGerais;
+    private IReadOnlyList<(string Status, int Obras)>? _statusContrato;
+
+    /// <summary>Qualquer gravacao muda a base: as listas guardadas sao montadas de novo na proxima consulta.</summary>
+    private void Invalidar()
+    {
+        lock (_trava)
+        {
+            _opcoesGerais = null;
+            _statusContrato = null;
+        }
+    }
+
     /// <summary>Monta o WHERE com todos os filtros, menos o do campo indicado (usado para montar as opcoes dele).</summary>
     private static string Onde(FiltroObras f, SqliteCommand cmd, string? menos)
     {
@@ -424,7 +534,15 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         Incluir("contrato", f.Contrato, "contrato");
         Incluir("empreendimento", f.Escola, "escola");
         Incluir("lote", f.Lote, "lote");
-        Incluir("contratada", f.Empresa, "empresa");
+        if (f.Empresa.Count > 0 && menos != "empresa")
+        {
+            partes.Add($"{EmpresaNormalizada} in ({string.Join(", ", f.Empresa.Select(v => $"upper(trim(replace(replace({P(v)}, '  ', ' '), '  ', ' ')))"))})");
+        }
+
+        if (f.OcultarStatusContrato.Count > 0)
+        {
+            partes.Add($"coalesce(status_contrato, '') collate nocase not in ({string.Join(", ", f.OcultarStatusContrato.Select(v => P(v)))})");
+        }
         Incluir("atividade", f.Dotacao, "dotacao");
         Incluir("status", f.Status, "status");
         if (f.ContratoReceita.Count > 0 && menos != "receita")

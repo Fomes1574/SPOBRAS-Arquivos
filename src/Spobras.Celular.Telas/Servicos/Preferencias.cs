@@ -44,6 +44,12 @@ public sealed record Preferencias
     public DateTimeOffset? UltimaLeitura { get; init; }
 
     public IReadOnlyList<Salvo> UltimosGerados { get; init; } = [];
+
+    /// <summary>Configuracoes da base: onde estao as tabelas e colunas, se a planilha mudou de estrutura.</summary>
+    public Spobras.Core.Base.MapeamentoMestra Mapeamento { get; init; } = new();
+
+    /// <summary>Configuracoes da base: situacao escolhida para cada status do contrato (por cima das padrao).</summary>
+    public IReadOnlyDictionary<string, Spobras.Core.Base.SituacaoContrato> RegrasStatus { get; init; } = new Dictionary<string, Spobras.Core.Base.SituacaoContrato>();
 }
 
 public sealed class ArquivoPreferencias(string pasta)
