@@ -1,0 +1,329 @@
+@page "/base/configuracoes"
+@using Spobras.Dados.Base
+@inherits Tela
+@inject IJSRuntime JS
+
+<Barra Titulo="Configurações da base" Sub="Vale só neste aparelho" Voltar="base" />
+<div class="abas" role="tablist">
+    @foreach (var (id, nome) in Abas)
+    {
+        <button role="tab" aria-selected="@(_aba == id ? "true" : "false")" class="@(_aba == id ? "on" : "")" @onclick="() => _aba = id">@nome</button>
+    }
+</div>
+
+<div class="conteudo">
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    @switch (_aba)
+    {
+        case "planilha":
+            <div class="aviso-config" role="note"><b>Antes de mexer aqui</b>Estes ajustes mudam a forma como o app lê a planilha. Use só quando a planilha mudar, por exemplo uma coluna com nome novo ou um status que o app ainda não conhece. Uma escolha errada pode deixar a Base incompleta neste aparelho. Se isso acontecer, toque em “Voltar ao padrão”, no fim da página.</div>
+            <div class="painel">
+                <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h2 style="margin:0">Arquivo</h2>
+                    @if (App.Base.UltimaLeitura is { } u)
+                    {
+                        <span class="selo concluido">LIDO @u.ToLocalTime().ToString("HH:mm", Formato.PtBr)</span>
+                    }</div>
+                <p class="texto2" style="margin:6px 0 10px;overflow-wrap:anywhere">@(App.Base.Planilha?.Nome ?? "Nenhuma planilha escolhida")</p>
+                <button class="btn linha pequeno" style="width:100%" @onclick="TrocarArquivo">Trocar arquivo</button>
+            </div>
+            @if (_conf is null)
+            {
+                <Aviso Tipo="atencao">A planilha ainda não foi lida neste aparelho. Escolha a planilha mestra e espere a leitura terminar.</Aviso>
+            }
+            else
+            {
+                @if (_conf.Faltando.Count > 0 || _conf.Tabelas.Any(t => !t.Encontrada))
+                {
+                    int n = _conf.Faltando.Count + _conf.Tabelas.Count(t => !t.Encontrada);
+                    <Aviso Tipo="atencao">@(n == 1 ? "1 item não encontrado na planilha." : $"{n} itens não encontrados na planilha.") Escolha o nome novo para o app voltar a ler tudo.</Aviso>
+                }
+                else
+                {
+                    <Aviso Tipo="ok">As @_conf.Campos.Count(c => c.Encontrada) colunas usadas pelo app foram encontradas.</Aviso>
+                }
+                <div class="titulo-secao">Tabelas</div>
+                <div class="painel" style="padding:4px 14px">
+                    @foreach (var t in _conf.Tabelas)
+                    {
+                        <div class="item-col @(t.Encontrada ? "" : "falta")">
+                            <span class="st @(t.Encontrada ? "ok" : "falta")">@(t.Encontrada ? "✓" : "!")</span>
+                            <span class="nome"><b>@CamposMestra.NomeDaTabela(t.Tabela)</b><small>@(t.Encontrada ? $"{t.Nome} · {Formato.Plural(t.Linhas, "linha", "linhas")}" : $"“{t.Nome}” não existe mais")</small></span>
+                            <button class="btn pequeno @(t.Encontrada ? "linha" : "primario")" style="flex:none" @onclick="() => AbrirTabela(t.Tabela)">@(t.Encontrada ? "Trocar" : "Escolher")</button>
+                        </div>
+                    }
+                </div>
+                <div class="titulo-secao">Colunas usadas pelo app</div>
+                @foreach (var grupo in _conf.Campos.GroupBy(c => c.Campo.Tabela))
+                {
+                    <div class="painel" style="padding:4px 14px">
+                        <h2 style="margin:10px 0 0">@CamposMestra.NomeDaTabela(grupo.Key)</h2>
+                        @foreach (var c in grupo.OrderBy(c => c.Encontrada || !c.Campo.Obrigatorio))
+                        {
+                            bool falta = !c.Encontrada && c.Campo.Obrigatorio;
+                            <div class="item-col @(falta ? "falta" : "")">
+                                <span class="st @(c.Encontrada ? "ok" : falta ? "falta" : "opcional")">@(c.Encontrada ? "✓" : falta ? "!" : "–")</span>
+                                <span class="nome"><b>@c.Campo.Rotulo</b><small>@(c.Encontrada ? c.Coluna : falta ? $"“{c.Coluna}” não existe mais" : "Opcional, não está na planilha")</small></span>
+                                <button class="btn pequeno @(falta ? "primario" : "linha")" style="flex:none" @onclick="() => AbrirColuna(c.Campo)" aria-label="@(falta ? "Escolher" : "Trocar") @c.Campo.Rotulo">@(falta ? "Escolher" : "Trocar")</button>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (_resultado is not null)
+                {
+                    <div class="painel">
+                        <Aviso Tipo="@(_testeOk ? "ok" : "erro")">@_resultado</Aviso>
+                        @if (_amostra.Count > 0)
+                        {
+                            <b style="font-size:14px">Primeiras linhas</b>
+                            <div class="previa"><table>
+                                <tr><th>Contrato</th><th>Escola</th><th>Data da OS</th><th>Saldo a pagar</th></tr>
+                                @foreach (var o in _amostra)
+                                {
+                                    <tr><td>@o.Contrato</td><td>@o.Empreendimento</td><td>@(o.DataOs is null ? "—" : Formato.Data(o.DataOs))</td><td>@Formato.Reais(o.SaldoAPagar)</td></tr>
+                                }
+                            </table></div>
+                        }
+                    </div>
+                }
+                <div class="linha-btns" style="margin-top:4px">
+                    <button class="btn linha" @onclick="Testar">Testar leitura</button>
+                    <button class="btn primario" disabled="@(!_testeOk || !_mudou)" @onclick="Salvar">Salvar</button>
+                </div>
+            }
+            <button class="btn linha padrao" @onclick="() => _confirmarPadrao = true">Voltar ao padrão</button>
+            break;
+
+        case "status":
+            <p class="texto2" style="margin:0 0 10px">Status do contrato encontrados na planilha. Define o que conta como em andamento (mostra medições em trâmite), concluído e o que não aparece no app.</p>
+            <div class="painel" style="padding:4px 14px">
+                @foreach (var (status, obras) in App.Base.StatusDoContrato().Where(s => s.Status.Length > 0))
+                {
+                    var atual = MedicoesEmTramite.Classificar(status);
+                    bool novo = atual == SituacaoContrato.Desconhecido;
+                    <div class="status-linha">
+                        <div class="topo-st"><b>@status @if (novo)
+                            {
+                                <span class="selo atencao">NOVO</span>
+                            }</b><span class="mini">@Formato.Plural(obras, "obra", "obras")</span></div>
+                        <div class="segmento" role="radiogroup" aria-label="@status">
+                            @foreach (var (sit, nome) in Situacoes)
+                            {
+                                bool on = atual == sit || (novo && sit == SituacaoContrato.Andamento);
+                                <button role="radio" aria-checked="@(on ? "true" : "false")" class="@(on ? "on" : "")" @onclick="() => App.Base.DefinirRegra(status, sit)">@nome</button>
+                            }
+                        </div>
+                        @if (novo)
+                        {
+                            <p class="mini" style="margin:6px 0 0;color:var(--laranja)">Status novo na planilha: até escolher, conta como andamento.</p>
+                        }
+                    </div>
+                }
+            </div>
+            break;
+
+        default:
+            var fonte = App.Base.Repositorio.Fonte(Fontes.Mestra);
+            <div class="painel" style="padding:4px 14px">
+                <div class="linha-diag"><span>Versão do app</span><b>@Versao</b></div>
+                <div class="linha-diag"><span>Última leitura</span><b>@(App.Base.UltimaLeitura is { } ul ? Formato.Quando(ul, App.Agora()) : "ainda não lida")</b></div>
+                <div class="linha-diag"><span>Obras</span><b>@App.Base.TotalDeObras.ToString("N0", Formato.PtBr)</b></div>
+                <div class="linha-diag"><span>Colunas fora do padrão</span><b>@(App.Base.Mapeamento.EPadrao ? "nenhuma" : (App.Base.Mapeamento.Colunas.Count + App.Base.Mapeamento.Tabelas.Count).ToString(Formato.PtBr))</b></div>
+                <div class="linha-diag"><span>Regras de status próprias</span><b>@(MedicoesEmTramite.Personalizadas.Count == 0 ? "nenhuma" : MedicoesEmTramite.Personalizadas.Count.ToString(Formato.PtBr))</b></div>
+            </div>
+            @if (fonte?.Avisos.Count > 0)
+            {
+                <div class="titulo-secao">Avisos da última leitura</div>
+                <div class="painel">
+                    @foreach (var a in fonte.Avisos)
+                    {
+                        <p class="texto2" style="margin:0 0 6px">@a</p>
+                    }
+                </div>
+            }
+            <div class="titulo-secao">Últimas leituras</div>
+            <div class="painel" style="padding:4px 14px">
+                @foreach (var l in App.Base.Leituras())
+                {
+                    <div class="linha-diag"><span>@Formato.Quando(l.Quando, App.Agora())</span><b style="color:@(l.Ok ? "var(--verde)" : "var(--vermelho-escuro)")">@(l.Ok ? (l.Mensagem.StartsWith("Sem", StringComparison.Ordinal) ? "sem mudança" : $"ok · {Formato.Plural(l.Linhas, "obra", "obras")}") : l.Mensagem)</b></div>
+                }
+                @if (App.Base.Leituras().Count == 0)
+                {
+                    <div class="linha-diag"><span>Nenhuma leitura registrada</span></div>
+                }
+            </div>
+            <button class="btn linha" @onclick="Copiar">@(_copiado ? "Copiado" : "Copiar diagnóstico")</button>
+            break;
+    }
+</div>
+<Ocupado Texto="@Trabalhando" />
+
+<Folha Aberta="_escolhendoTabela is not null" Titulo="@($"Tabela de {(_escolhendoTabela is { } et ? CamposMestra.NomeDaTabela(et).ToLowerInvariant() : "")}")" AoFechar="() => _escolhendoTabela = null">
+    <p class="texto2" style="margin:0 0 8px">Tabelas que existem na planilha.</p>
+    @foreach (var nome in _conf?.TabelasDaPlanilha ?? [])
+    {
+        bool on = _escolhendoTabela is { } t && string.Equals(_mapa.Tabela(t), nome, StringComparison.OrdinalIgnoreCase);
+        <button class="opcao @(on ? "on" : "")" @onclick="() => EscolherTabela(nome)"><span style="overflow-wrap:anywhere">@nome</span><span class="marca"></span></button>
+    }
+</Folha>
+
+<Folha Aberta="_escolhendoCampo is not null" Titulo="@($"Coluna para “{_escolhendoCampo?.Rotulo}”")" AoFechar="() => _escolhendoCampo = null">
+    <p class="texto2" style="margin:0 0 8px">Colunas da tabela na planilha, com um exemplo de valor.</p>
+    <div class="busca"><input type="search" placeholder="Pesquisar coluna" aria-label="Pesquisar coluna" value="@_pesquisa" @oninput="e => _pesquisa = e.Value?.ToString() ?? string.Empty" /></div>
+    <div style="max-height:44vh;overflow:auto">
+        @foreach (var col in ColunasDaTabela())
+        {
+            bool on = _escolhendoCampo is { } ec && string.Equals(_mapa.Coluna(ec), col.Nome, StringComparison.OrdinalIgnoreCase);
+            <button class="opcao opcao-col @(on ? "on" : "")" @onclick="() => EscolherColuna(col.Nome)"><span>@col.Nome<small>@(col.Exemplo is null ? "sem valor nas primeiras linhas" : "ex.: " + col.Exemplo)</small></span><span class="marca"></span></button>
+        }
+    </div>
+</Folha>
+
+<Folha Aberta="_confirmarPadrao" Titulo="Voltar ao padrão?" AoFechar="() => _confirmarPadrao = false">
+    <p class="texto2" style="margin:0 0 12px">As colunas e os status voltam a ser os que vêm com o app. A planilha não muda, e a Base é lida de novo em seguida.</p>
+    <div class="linha-btns"><button class="btn linha" @onclick="() => _confirmarPadrao = false">Cancelar</button><button class="btn primario" @onclick="VoltarAoPadrao">Voltar ao padrão</button></div>
+</Folha>
+
+@code {
+    private static readonly (string Id, string Nome)[] Abas = [("planilha", "Planilha"), ("status", "Status"), ("diagnostico", "Diagnóstico")];
+    private static readonly (SituacaoContrato Sit, string Nome)[] Situacoes =
+        [(SituacaoContrato.Andamento, "Andamento"), (SituacaoContrato.Concluido, "Concluído"), (SituacaoContrato.Ignorado, "Não mostrar")];
+
+    private string _aba = "planilha";
+    private MapeamentoMestra _mapa = new();
+    private ConferenciaMapeamento? _conf;
+    private TabelaMestra? _escolhendoTabela;
+    private CampoMestra? _escolhendoCampo;
+    private string _pesquisa = "";
+    private string? _resultado;
+    private bool _testeOk, _mudou, _confirmarPadrao, _copiado;
+    private IReadOnlyList<ObraLida> _amostra = [];
+
+    private static string Versao => typeof(ConfigBase).Assembly.GetName().Version?.ToString(3) ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _mapa = App.Base.Mapeamento;
+        await Conferir();
+    }
+
+    private async Task Conferir()
+    {
+        try
+        {
+            _conf = await App.Base.ConferirAsync(_mapa);
+        }
+        catch (Exception ex) when (ex is IOException or Spobras.Documentos.Planilhas.PlanilhaInvalidaException)
+        {
+            _conf = null;
+            Erro = "Não foi possível abrir a última cópia da planilha: " + ex.Message;
+        }
+    }
+
+    private void Mexeu()
+    {
+        _mudou = true;
+        _testeOk = false;
+        _resultado = null;
+        _amostra = [];
+    }
+
+    private void AbrirTabela(TabelaMestra t) => _escolhendoTabela = t;
+
+    private async Task EscolherTabela(string nome)
+    {
+        _mapa = _mapa.ComTabela(_escolhendoTabela!.Value, nome);
+        _escolhendoTabela = null;
+        Mexeu();
+        await Conferir();
+    }
+
+    private void AbrirColuna(CampoMestra c)
+    {
+        _pesquisa = "";
+        _escolhendoCampo = c;
+    }
+
+    private IEnumerable<ColunaDaPlanilha> ColunasDaTabela()
+    {
+        var t = _conf?.Tabelas.FirstOrDefault(x => _escolhendoCampo is { } c && x.Tabela == c.Tabela);
+        string busca = Normalizacao.Busca(_pesquisa);
+        return (t?.Colunas ?? []).Where(c => busca.Length == 0 || Normalizacao.Busca(c.Nome).Contains(busca, StringComparison.Ordinal));
+    }
+
+    private async Task EscolherColuna(string nome)
+    {
+        _mapa = _mapa.ComColuna(_escolhendoCampo!, nome);
+        _escolhendoCampo = null;
+        Mexeu();
+        await Conferir();
+    }
+
+    private Task Testar() => Executar("Lendo a planilha com estas colunas…", async () =>
+    {
+        try
+        {
+            var dados = await App.Base.TestarAsync(_mapa);
+            _testeOk = true;
+            _resultado = $"Leitura de teste ok: {Formato.Plural(dados.Obras.Count, "obra", "obras")}, {Formato.Plural(dados.Medicoes.Count, "medição", "medições")} e {Formato.Plural(dados.Empenhos.Count, "empenho", "empenhos")}.";
+            _amostra = [.. dados.Obras.Take(3)];
+        }
+        catch (ImportacaoInvalidaException ex)
+        {
+            _testeOk = false;
+            _resultado = ex.Message.Replace(" A base anterior foi mantida.", "", StringComparison.Ordinal);
+            _amostra = [];
+        }
+    });
+
+    private Task Salvar() => Executar("Salvando e lendo a planilha…", async () =>
+    {
+        await App.Base.SalvarMapeamentoAsync(_mapa);
+        _mudou = false;
+        _resultado = "Colunas salvas. A Base foi lida de novo com elas.";
+        _amostra = [];
+        await Conferir();
+    });
+
+    private Task VoltarAoPadrao() => Executar("Voltando ao padrão…", async () =>
+    {
+        _confirmarPadrao = false;
+        await App.Base.VoltarAoPadraoAsync();
+        _mapa = new MapeamentoMestra();
+        _mudou = false;
+        _testeOk = false;
+        _resultado = null;
+        _amostra = [];
+        await Conferir();
+    });
+
+    private Task TrocarArquivo() => Executar("Lendo a planilha…", async () =>
+    {
+        await App.Base.EscolherPlanilhaAsync();
+        await Conferir();
+    });
+
+    private async Task Copiar()
+    {
+        var linhas = new List<string>
+        {
+            $"Arquivos SPOBRAS {Versao}",
+            $"Planilha: {App.Base.Planilha?.Nome}",
+            $"Obras: {App.Base.TotalDeObras}",
+            $"Colunas fora do padrão: {string.Join("; ", App.Base.Mapeamento.Tabelas.Concat(App.Base.Mapeamento.Colunas).Select(kv => $"{kv.Key} = {kv.Value}"))}",
+            $"Regras de status: {string.Join("; ", MedicoesEmTramite.Personalizadas.Select(kv => $"{kv.Key} = {kv.Value}"))}",
+        };
+        linhas.AddRange(App.Base.Leituras().Select(l => $"{l.Quando:dd/MM/yyyy HH:mm} {(l.Ok ? "ok" : "erro")} {l.Mensagem} {l.Linhas}"));
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", linhas));
+            _copiado = true;
+        }
+        catch (JSException)
+        {
+            Erro = "Não foi possível copiar neste aparelho.";
+        }
+    }
+}

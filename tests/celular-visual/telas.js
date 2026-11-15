@@ -6,7 +6,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const [, , pasta, urlPronto, urlNovo, urlMovido, urlSemRede] = process.argv;
+const [, , pasta, urlPronto, urlNovo, urlMovido, urlSemRede, urlColuna] = process.argv;
 fs.mkdirSync(pasta, { recursive: true });
 const problemas = [];
 
@@ -21,7 +21,7 @@ async function conferir(page, nome, tamanho) {
       if (b.width === 0 || b.height === 0) return;
       const st = getComputedStyle(el);
       if (st.visibility === 'hidden' || st.display === 'none') return;
-      const rolavel = el.closest('.chips') || el.closest('.pagina-previa');
+      const rolavel = el.closest('.chips') || el.closest('.pagina-previa') || el.closest('.previa');
       if (!rolavel && (b.right > ab.right + 1 || b.left < ab.left - 1)) out.push('fora da largura: ' + (el.className || el.tagName) + ' "' + (el.textContent || '').trim().slice(0, 40) + '"');
       if (el.children.length === 0 && el.scrollWidth > el.clientWidth + 1 && st.overflow !== 'visible' && st.textOverflow !== 'ellipsis' && !rolavel && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')
         out.push('texto cortado: "' + el.textContent.trim().slice(0, 40) + '"');
@@ -270,6 +270,51 @@ async function texto(page, seletor, contem) {
     await ir(page, urlPronto, 'config'); await foto(page, '23-config', w, h, salvar);
     await page.context().close();
 
+    // Configuracoes da base: engrenagem discreta, tres abas
+    {
+      const p = await abrir(browser, urlPronto, w, h);
+      await ir(p, urlPronto, 'base');
+      const g = await p.locator('a.engrenagem').boundingBox(), ico = await p.locator('a.engrenagem svg').boundingBox();
+      if (!(g.height >= 44 && ico.width <= 20)) problemas.push(`${w}x${h} engrenagem nao esta discreta com toque bom`);
+      await p.locator('a.engrenagem').click(); await p.waitForSelector('.aviso-config');
+      await foto(p, '26-config-base', w, h, salvar);
+      await p.getByRole('tab', { name: 'Status' }).click(); await p.waitForTimeout(300);
+      await foto(p, '27-config-status', w, h, salvar);
+      await p.getByRole('tab', { name: 'Diagnóstico' }).click(); await p.waitForTimeout(300);
+      await foto(p, '28-config-diagnostico', w, h, salvar);
+      await p.getByRole('tab', { name: 'Planilha' }).click(); await p.waitForTimeout(200);
+      await p.locator('.btn.padrao').click(); await p.getByRole('dialog', { name: 'Voltar ao padrão?' }).waitFor();
+      await foto(p, '29-config-padrao', w, h, salvar);
+      await p.getByRole('dialog').getByRole('button', { name: 'Cancelar' }).click();
+      await p.context().close();
+    }
+    if (urlColuna) {
+      // planilha com coluna renomeada: escolher a coluna nova, testar e salvar
+      const p = await abrir(browser, urlColuna, w, h);
+      await ir(p, urlColuna, 'base/configuracoes');
+      try { await p.waitForSelector('.item-col.falta', { timeout: 15000 }); }
+      catch (e) { await p.screenshot({ path: path.join(pasta, 'erro-coluna.png') }); throw new Error('sem coluna faltando: ' + (await p.locator('.app').innerText()).slice(0, 300)); }
+      await foto(p, '30-config-coluna-falta', w, h, salvar);
+      if (!(await p.locator('button.primario', { hasText: 'Salvar' }).isDisabled())) problemas.push(`${w}x${h} salvar liberado sem testar`);
+      await p.getByRole('button', { name: 'Escolher Data da OS' }).click();
+      await p.getByLabel('Pesquisar coluna').fill('inicio obra'); await p.waitForTimeout(250);
+      await foto(p, '31-config-escolher-coluna', w, h, salvar);
+      await p.locator('.folha .opcao', { hasText: 'DATA INÍCIO OBRA' }).click(); await p.waitForTimeout(400);
+      if (await p.locator('.item-col.falta').count() !== 0) problemas.push(`${w}x${h} coluna escolhida continua faltando`);
+      await p.getByRole('button', { name: 'Testar leitura' }).click();
+      await p.getByText('Leitura de teste ok', { exact: false }).waitFor({ timeout: 15000 });
+      await foto(p, '32-config-teste', w, h, salvar);
+      await p.locator('button.primario', { hasText: 'Salvar' }).click();
+      await p.getByText('Colunas salvas', { exact: false }).waitFor({ timeout: 15000 });
+      await ir(p, urlColuna, 'base'); await p.waitForTimeout(400);
+      if (await p.locator('a.obra').count() === 0) problemas.push(`${w}x${h} a base nao voltou a ler depois de salvar as colunas`);
+      // voltar ao padrao desfaz o ajuste: a coluna volta a faltar (e deixa o cenario pronto para o proximo tamanho)
+      await ir(p, urlColuna, 'base/configuracoes'); await p.waitForSelector('.btn.padrao');
+      await p.locator('.btn.padrao').click();
+      await p.getByRole('dialog').getByRole('button', { name: 'Voltar ao padrão' }).click();
+      try { await p.waitForSelector('.item-col.falta', { timeout: 15000 }); } catch { problemas.push(`${w}x${h} voltar ao padrao nao desfez o ajuste da coluna`); }
+      await p.context().close();
+    }
     for (const [url, nome] of [[urlNovo, '01-primeira'], [urlMovido, '25-movido'], [urlSemRede, '24-sem-internet']]) {
       if (!url) continue;
       const p = await abrir(browser, url, w, h);

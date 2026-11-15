@@ -58,6 +58,15 @@ public static class Cenarios
             File.Move(p.Mestra, p.Mestra + ".movida", overwrite: true);
             await App.Base.AtualizarAsync();
         }
+        else if (cenario == "colunamudou")
+        {
+            // A planilha mudou: "INÍCIO EXECUÇÃO" virou "DATA INÍCIO OBRA" (a leitura falha ate ajustar a coluna).
+            var mestra = AmostraCelular.Mestra();
+            var obras = mestra.TabelasPorNome["contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS"];
+            mestra.Tabela(obras.Nome, [.. obras.Colunas.Select(c => c == "INÍCIO EXECUÇÃO" ? "DATA INÍCIO OBRA" : c)], [.. obras.Linhas]);
+            XlsxSintetico.Gravar(mestra, p.Mestra);
+            await App.Base.AtualizarAsync(forcar: true);
+        }
         else if (cenario == "semrede")
         {
             p.SemConexao = true;

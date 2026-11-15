@@ -3,6 +3,7 @@
 
 <Barra Titulo="Base de dados" Sub="@Subtitulo">
     <button class="acao" aria-label="Reler agora" @onclick="Reler">↻</button>
+    <a class="acao engrenagem" href="base/configuracoes" aria-label="Configurações da base" style="text-decoration:none"><Icone Nome="config" /></a>
 </Barra>
 <div class="conteudo">
     @if (App.Base.Estado is EstadoBase.SemConexao or EstadoBase.Inacessivel or EstadoBase.Invalida or EstadoBase.SemPlanilha or EstadoBase.Lendo)
