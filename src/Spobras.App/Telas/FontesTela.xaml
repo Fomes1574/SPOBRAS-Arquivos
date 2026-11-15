@@ -115,7 +115,6 @@
                     <DockPanel>
                         <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Exportar para o Excel" MinHeight="44" Margin="8,0,0,0" Command="{Binding ExportarVinculosCommand}"
                                 ToolTip="Planilha nova com esta tabela, pronta para PROCX e SOMASES" />
-                        <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Incluir" Margin="8,0,0,0" Command="{Binding NovoVinculoCommand}" />
                         <TextBlock Text="Portarias, contratos de receita e dotações" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" TextWrapping="Wrap" />
                     </DockPanel>
                     <TextBlock Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,10" TextWrapping="Wrap"
@@ -173,12 +172,6 @@
                                             <TextBlock Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap">
                                                 <Run Text="{Binding DotacaoResumida, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Descricao, Mode=OneWay}" />
                                             </TextBlock>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0">
-                                            <Button Style="{StaticResource BotaoLink}" Content="Editar" Margin="0,0,10,0"
-                                                    Command="{Binding DataContext.EditarVinculoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                            <Button Style="{StaticResource BotaoLink}" Content="Tirar"
-                                                    Command="{Binding DataContext.RemoverVinculoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                                         </StackPanel>
                                     </Grid>
                                 </Border>

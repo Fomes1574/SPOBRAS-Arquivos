@@ -20,6 +20,7 @@
         <DataTemplate DataType="{x:Type vm:FerramentasVm}"><t:FerramentasTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:BaseVm}"><t:BaseTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:FontesVm}"><t:FontesTela /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ConfigBaseVm}"><t:ConfigBaseTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:HistoricoVm}"><t:HistoricoTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:ConfiguracoesVm}"><t:ConfiguracoesTela /></DataTemplate>
 

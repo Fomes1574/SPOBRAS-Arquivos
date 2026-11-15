@@ -78,6 +78,8 @@ public sealed class Composicao : IDisposable
             [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, indice,
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
+            [ConfigBaseVm.Modulo] = new ConfigBaseVm(Base, Fontes, Preferencias, dialogos,
+                abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), id => Principal!.Navegar(id)),
             ["historico"] = new HistoricoVm(Operacoes, dialogos, @interface),
             ["configuracoes"] = new ConfiguracoesVm(Preferencias, Novidades, dialogos, arquivos, relogio, versao, pastaDados, Modelos, banco),
         };

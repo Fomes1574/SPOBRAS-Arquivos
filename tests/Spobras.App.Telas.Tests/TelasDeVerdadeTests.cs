@@ -346,12 +346,7 @@ public class TelasDeVerdadeTests
             Fotografar(janela, saida, "39-base-avisos");
             baseDados.LimparFiltrosCommand.Execute(null);
             baseDados.Selecionada = baseDados.Obras.First();
-            baseDados.EditarObraCommand.Execute(null);
-            baseDados.Edicao!.Campos.Single(c => c.Campo.Chave == "lote").Valor = "LOTE 42";
-            baseDados.SalvarEdicaoCommand.Execute(null);
-            baseDados.EditarObraCommand.Execute(null);
-            Fotografar(janela, saida, "55-base-editar-obra");
-            baseDados.CancelarEdicaoCommand.Execute(null);
+            Assert.False(baseDados.EditarObraCommand.CanExecute(null)); // a Base e so consulta
 
             // Lote escolhido (faixa de totais), filtros recolhidos e ficha ampliada
             baseDados.Lote = [baseDados.Lotes.First()];
@@ -372,11 +367,19 @@ public class TelasDeVerdadeTests
             baseDados.Selecionada = baseDados.Obras.First(o => o.Escola == "CEU Delta");
             Assert.Equal(2, baseDados.MedicoesEmTramiteDaObra.Count);
             Fotografar(janela, saida, "60-base-medicoes-em-tramite");
+            // Configuracoes da base (engrenagem): colunas, regras de status e diagnostico
+            baseDados.AbrirConfiguracoesCommand.Execute(null);
+            var config = Assert.IsType<ConfigBaseVm>(principal.PaginaAtual);
+            Assert.False(config.FaltaAlgo);
+            Fotografar(janela, saida, "61-config-base");
+            config.Aba = 1;
+            Fotografar(janela, saida, "62-config-status");
+            config.Aba = 2;
+            Fotografar(janela, saida, "63-config-diagnostico");
+            config.VoltarCommand.Execute(null);
             principal.Navegar(FontesVm.Modulo);
             var telaFontes = (FontesVm)principal.PaginaAtual!;
-            telaFontes.EditarVinculoCommand.Execute(telaFontes.Vinculos.First());
-            Fotografar(janela, saida, "56-fontes-editar-dotacao");
-            telaFontes.CancelarVinculoCommand.Execute(null);
+            Assert.False(telaFontes.EditarVinculoCommand.CanExecute(telaFontes.Vinculos.First()));
             principal.Navegar(BaseVm.Modulo);
             baseDados.Selecionada = baseDados.Obras.First();
             baseDados.UsarNoRelatorioCommand.Execute(null);

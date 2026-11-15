@@ -8,7 +8,30 @@ namespace Spobras.App.Telas;
 
 public partial class FiltroMultiplo : UserControl
 {
-    private sealed record Opcao(string Texto, bool Marcada);
+    /// <summary>Uma opcao da lista. Marcar so muda esta caixinha: a lista nao e recriada e a rolagem fica onde estava.</summary>
+    private sealed class Opcao(string texto, bool marcada) : System.ComponentModel.INotifyPropertyChanged
+    {
+        private bool _marcada = marcada;
+
+        public string Texto { get; } = texto;
+
+        public bool Marcada
+        {
+            get => _marcada;
+            set
+            {
+                if (_marcada != value)
+                {
+                    _marcada = value;
+                    PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Marcada)));
+                }
+            }
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    }
+
+    private List<Opcao> _lista = [];
 
     public static readonly DependencyProperty RotuloProperty = DependencyProperty.Register(
         nameof(Rotulo), typeof(string), typeof(FiltroMultiplo), new PropertyMetadata("", AoMudar));
@@ -46,12 +69,34 @@ public partial class FiltroMultiplo : UserControl
         filtro.Atualizar();
     }
 
-    private void ItensMudaram(object? sender, NotifyCollectionChangedEventArgs e) => Atualizar();
+    private bool _atualizacaoPendente;
+
+    // A lista de opcoes e trocada item a item (Clear + Add): junta tudo numa atualizacao so.
+    private void ItensMudaram(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (_atualizacaoPendente)
+            return;
+        _atualizacaoPendente = true;
+        Dispatcher.BeginInvoke(() =>
+        {
+            _atualizacaoPendente = false;
+            Atualizar();
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private readonly Dictionary<string, string> _chaves = [];
+
+    private string Chave(string texto)
+    {
+        if (!_chaves.TryGetValue(texto, out var chave))
+            _chaves[texto] = chave = Normalizacao.Busca(texto);
+        return chave;
+    }
 
     private IEnumerable<string> Visiveis()
     {
         string busca = Normalizacao.Busca(Pesquisa.Text);
-        return (Itens?.Cast<string>() ?? []).Where(s => Normalizacao.Busca(s).Contains(busca, StringComparison.Ordinal));
+        return (Itens?.Cast<string>() ?? []).Where(s => busca.Length == 0 || Chave(s).Contains(busca, StringComparison.Ordinal));
     }
 
     private void Atualizar()
@@ -63,8 +108,20 @@ public partial class FiltroMultiplo : UserControl
             _ => $"{Selecionados.Count} {Plural}",
         });
         SetValue(LimparNomeProperty, $"Limpar {Rotulo}");
-        if (Opcoes is not null && Abrir?.IsChecked == true)
-            Opcoes.ItemsSource = Visiveis().Select(o => new Opcao(o, Selecionados.Contains(o, StringComparer.OrdinalIgnoreCase))).ToList();
+        if (Opcoes is null || Abrir?.IsChecked != true)
+            return;
+
+        var visiveis = Visiveis().ToList();
+        if (visiveis.SequenceEqual(_lista.Select(o => o.Texto)))
+        {
+            // Mesmas opcoes: so as marcas mudam (a rolagem fica onde o usuario deixou).
+            foreach (var o in _lista)
+                o.Marcada = Selecionados.Contains(o.Texto, StringComparer.OrdinalIgnoreCase);
+            return;
+        }
+
+        _lista = [.. visiveis.Select(o => new Opcao(o, Selecionados.Contains(o, StringComparer.OrdinalIgnoreCase)))];
+        Opcoes.ItemsSource = _lista;
     }
 
     private void AoAbrir(object? sender, EventArgs e)

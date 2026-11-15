@@ -12,6 +12,11 @@
         </Grid.RowDefinitions>
 
         <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Width="44" Height="44" Padding="0" VerticalAlignment="Center" Margin="8,0,0,0"
+                    Command="{Binding AbrirConfiguracoesCommand}" ToolTip="Configurações da base" AutomationProperties.Name="Configurações da base" Opacity="0.6">
+                <Path Width="18" Height="18" Stretch="Uniform" Stroke="{StaticResource Preto}" StrokeThickness="1.8"
+                      Data="M12,9 A3,3 0 1 1 11.99,9 Z M12,2 L12,5 M12,19 L12,22 M2,12 L5,12 M19,12 L22,12 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M4.9,19.1 L7,17 M17,7 L19.1,4.9" />
+            </Button>
             <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Fontes de dados" VerticalAlignment="Center" Margin="16,0,0,0"
                     Command="{Binding AbrirFontesCommand}" ToolTip="De onde vêm os dados, quando foram lidos e Reler agora" />
             <StackPanel>
@@ -248,8 +253,6 @@
                                     </TextBlock.Style>
                                 </TextBlock>
                             </Button>
-                            <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Editar dados" MinHeight="40" Margin="8,0,0,0" Command="{Binding EditarObraCommand}"
-                                    ToolTip="Mude qualquer dado desta obra no app. A planilha mestra não é alterada." />
                             <TextBlock Text="{Binding Selecionada.Marca}" Foreground="{StaticResource Azul}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap" />
                         </DockPanel>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
@@ -422,8 +425,6 @@
 
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <DockPanel>
-                <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Incluir obra" Margin="12,0,0,0" MinHeight="44" Command="{Binding NovaObraCommand}"
-                        ToolTip="Uma obra que ainda não está na planilha mestra" />
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Conferir uma planilha" Margin="12,0,0,0" MinHeight="44" Command="{Binding ConferirPlanilhaCommand}"
                         ToolTip="Aponta portarias e dotações escritas fora do padrão numa planilha sua e propõe corrigir numa cópia" />
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Exportar para Excel" Margin="12,0,0,0" Command="{Binding ExportarCommand}"

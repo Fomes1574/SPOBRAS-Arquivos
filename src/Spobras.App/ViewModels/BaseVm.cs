@@ -202,6 +202,9 @@ public sealed record ConsultaSalva
 
 public sealed partial class BaseVm : TelaVm
 {
+    /// <summary>A Base e so consulta (decisao do usuario, 15/11/2026): nada de editar ou incluir obras no app.</summary>
+    public static bool PodeEditar => false;
+
     public const string Modulo = "base";
     private const int Pagina = 300;
 
@@ -254,17 +257,30 @@ public sealed partial class BaseVm : TelaVm
 
     private DateTimeOffset Agora => _apoio?.Relogio.Agora ?? DateTimeOffset.Now;
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
     private void EditarObra()
     {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
         if (Selecionada is { } obra)
         {
             Edicao = new EdicaoObraVm(obra.Obra, obra.Obra.IncluidaNoApp ? [] : _base.Ajustes(obra.Contrato, obra.Escola));
         }
     }
 
-    [RelayCommand]
-    private void NovaObra() => Edicao = new EdicaoObraVm(null, []);
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
+    private void NovaObra()
+    {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
+        Edicao = new EdicaoObraVm(null, []);
+    }
 
     [RelayCommand]
     private void CancelarEdicao() => Edicao = null;
@@ -323,9 +339,14 @@ public sealed partial class BaseVm : TelaVm
     }
 
     /// <summary>Desfaz a mudanca de um campo: volta ao valor da planilha.</summary>
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
     private void VoltarAoDaPlanilha(CampoEdicaoObraVm campo)
     {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
         if (Edicao?.Obra is not { } obra)
         {
             return;
@@ -340,9 +361,14 @@ public sealed partial class BaseVm : TelaVm
         ResultadoComFalha = false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
     private void RemoverObraIncluida()
     {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
         if (Selecionada is not { Obra.IncluidaNoApp: true } obra
             || _apoio?.Dialogos.Confirmar("Tirar a obra do app", $"Tirar {obra.Escola} (contrato {obra.Contrato}), que foi incluída no app? As obras da planilha mestra não são afetadas.", "Tirar") != true)
         {
@@ -580,6 +606,10 @@ public sealed partial class BaseVm : TelaVm
 
     [RelayCommand]
     private void AbrirFontes() => _navegar(FontesVm.Modulo);
+
+    /// <summary>A engrenagem discreta: Configuracoes da base (colunas, status, diagnostico).</summary>
+    [RelayCommand]
+    private void AbrirConfiguracoes() => _navegar(ConfigBaseVm.Modulo);
 
     [RelayCommand]
     private void UsarNoRelatorio()
@@ -1088,6 +1118,9 @@ public sealed partial class ApelidoVm(string texto, string? escolhida, Action<Ap
 /// <summary>Fontes de dados: uma linha por planilha, com estado, datas, Reler agora e os apelidos de portaria.</summary>
 public sealed partial class FontesVm : TelaVm
 {
+    /// <summary>Vinculos de dotacao tambem sao so consulta.</summary>
+    public static bool PodeEditar => false;
+
     public const string Modulo = "fontes";
     public const string SemVinculo = "(sem vínculo)";
 
@@ -1161,11 +1194,27 @@ public sealed partial class FontesVm : TelaVm
     [ObservableProperty]
     private string _problemaVinculo = "";
 
-    [RelayCommand]
-    private void NovoVinculo() => AbrirVinculo(null);
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
+    private void NovoVinculo()
+    {
+        if (!PodeEditar)
+        {
+            return;
+        }
 
-    [RelayCommand]
-    private void EditarVinculo(VinculoBase vinculo) => AbrirVinculo(vinculo);
+        AbrirVinculo(null);
+    }
+
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
+    private void EditarVinculo(VinculoBase vinculo)
+    {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
+        AbrirVinculo(vinculo);
+    }
 
     private void AbrirVinculo(VinculoBase? v)
     {
@@ -1212,9 +1261,14 @@ public sealed partial class FontesVm : TelaVm
         ResultadoComFalha = false;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(PodeEditar))]
     private void RemoverVinculo(VinculoBase vinculo)
     {
+        if (!PodeEditar)
+        {
+            return;
+        }
+
         if (!_dialogos.Confirmar("Tirar da base", $"Tirar {vinculo.Portaria} · {vinculo.DotacaoCompleta} da base do app? A planilha de dotações não é alterada.", "Tirar"))
         {
             return;

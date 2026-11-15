@@ -18,9 +18,12 @@ public partial class RelatorioTela : UserControl
     private (Popup Popup, ListBox Lista) Sugestoes(TextBox campo) => campo == SugestaoUnidade
         ? (PopupUnidade, ListaUnidade) : (PopupContrato, ListaContrato);
 
+    // Enquanto a escolha preenche o campo, a mudanca de texto nao e digitacao: a lista nao reabre.
+    private bool _aplicandoSugestao;
+
     private void AoDigitarSugestao(object sender, TextChangedEventArgs e)
     {
-        if (sender is not TextBox { IsKeyboardFocused: true } campo || DataContext is not RelatorioVm vm) return;
+        if (_aplicandoSugestao || sender is not TextBox { IsKeyboardFocused: true } campo || DataContext is not RelatorioVm vm) return;
         var (popup, lista) = Sugestoes(campo);
         var buscar = campo == SugestaoUnidade ? vm.BuscarSugestoesEscola : vm.BuscarSugestoesContrato;
         var opcoes = buscar?.Invoke(campo.Text) ?? [];
@@ -63,8 +66,19 @@ public partial class RelatorioTela : UserControl
         bool escola = lista == ListaUnidade;
         var campo = escola ? SugestaoUnidade : SugestaoContrato;
         Sugestoes(campo).Popup.IsOpen = false;
-        vm.EscolherSugestao(sugestao.Valor, escola);
-        campo.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+        _aplicandoSugestao = true;
+        try
+        {
+            vm.EscolherSugestao(sugestao.Valor, escola);
+            campo.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+            (escola ? SugestaoContrato : SugestaoUnidade).GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+        }
+        finally
+        {
+            _aplicandoSugestao = false;
+        }
+
+        campo.CaretIndex = campo.Text.Length;
     }
 
     private void ApagarCampo(object sender, RoutedEventArgs e)
