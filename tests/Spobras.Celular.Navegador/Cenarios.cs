@@ -25,6 +25,18 @@ public static class Cenarios
             Spobras.Documentos.Pdf.FerramentasPdf.FotosEmPdf([AmostraCelular.Foto(fotos, "c.jpg", 600, 800, 3)], Path.Combine(p.Entrada, "Planilha orcamentaria.pdf"));
         }
 
+        if (cenario == "grande" && !File.Exists(Path.Combine(p.Raiz, "grande.ok")))
+        {
+            // Uso intenso: 2.000 obras e 60 fotos (dados inventados).
+            XlsxSintetico.Gravar(AmostraCelular.MestraGrande(2000), p.Mestra);
+            for (int i = 9; i <= 60; i++)
+            {
+                AmostraCelular.Foto(p.Entrada, $"foto-{i:00}.jpg", i % 3 == 0 ? 1200 : 1600, i % 3 == 0 ? 1600 : 1200, i);
+            }
+
+            File.WriteAllText(Path.Combine(p.Raiz, "grande.ok"), "");
+        }
+
         App = new AppCelular(p, agora);
         if (cenario == "novo")
         {
@@ -41,7 +53,7 @@ public static class Cenarios
 
         if (App.Rascunho.Vazio)
         {
-            var obra = App.Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0];
+            var obra = App.Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = cenario == "grande" ? [] : ["044/EX/2026"] }, 1).Obras[0];
             App.Rascunho.AplicarObra(obra);
             p.ProximaEscolha = [.. Directory.GetFiles(p.Entrada, "foto-*.jpg").Order(StringComparer.Ordinal)];
             var escolhidas = await p.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);

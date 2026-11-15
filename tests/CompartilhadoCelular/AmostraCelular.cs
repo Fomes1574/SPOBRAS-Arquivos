@@ -54,6 +54,43 @@ public static class AmostraCelular
 
     public static void GravarMestra(string caminho) => XlsxSintetico.Gravar(Mestra(), caminho);
 
+    /// <summary>
+    /// Mestra grande e inventada para testes de desempenho: <paramref name="obras"/> obras em 40 lotes, 30 empresas,
+    /// varios status e 4 medicoes por obra (parte paga, parte em tramite). Sempre igual (semente fixa).
+    /// </summary>
+    public static PlanilhaFalsa MestraGrande(int obras = 2000)
+    {
+        var sorte = new Random(1574);
+        string[] status = ["VIGENTE", "VIGENTE", "VIGENTE", "VENCIDO", "SUSPENSO", "EM TRÂMITE - ADITIVO", "CONCLUÍDO", "ENCERRADO / TRD", "SOB GESTÃO DA SIURB"];
+        string[] tipos = ["EMEF", "EMEI", "CEI", "CEU", "EMEBS"];
+        string[] situacoes = ["PAGAMENTO EFETUADO", "PAGAMENTO EFETUADO", "LIBERADO PARA PAGAMENTO", "ANÁLISE GEC", "DEVOLUÇÃO FISCAL"];
+        var linhasObras = new List<object?[]>();
+        var linhasMedicoes = new List<object?[]>();
+        for (int i = 1; i <= obras; i++)
+        {
+            string contrato = $"{i % 900 + 1:000}/EX/{2021 + i % 6}";
+            string escola = $"{tipos[i % tipos.Length]} Exemplo {i:0000}";
+            string st = status[sorte.Next(status.Length)];
+            decimal original = 200_000m + sorte.Next(0, 4_000_000);
+            decimal aditado = Math.Round(original * (decimal)(sorte.NextDouble() * 0.2), 2);
+            decimal pago = Math.Round((original + aditado) * (decimal)sorte.NextDouble(), 2);
+            DateTime? os = sorte.Next(20) == 0 ? null : new DateTime(2021, 1, 1).AddDays(sorte.Next(0, 1800));
+            var o = Obra(contrato, escola, $"LOTE {i % 40 + 1}", i % 3 == 0 ? P6 : P3, st, os, os?.AddMonths(10), original, aditado, pago,
+                $"Construtora Exemplo {i % 30 + 1:00} Ltda");
+            linhasObras.Add(o);
+            for (int m = 1; m <= 4; m++)
+            {
+                linhasMedicoes.Add(Medicao(contrato, m.ToString(System.Globalization.CultureInfo.InvariantCulture), escola,
+                    situacoes[sorte.Next(situacoes.Length)], 10_000m + sorte.Next(0, 200_000), sorte.Next(3) == 0 ? 1_234.56m : null, st));
+            }
+        }
+
+        return new PlanilhaFalsa()
+            .Tabela("contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS", BaseSintetica.ColunasObras, [.. linhasObras])
+            .Tabela("preCadastro_VW_RELATORIO_MEDICOES", BaseSintetica.ColunasMedicoes, [.. linhasMedicoes])
+            .Tabela("contratos_VW_EMPENHOS_SOF", BaseSintetica.ColunasEmpenhos, BaseSintetica.Empenho("015/EX/2025", "100001", 5000m));
+    }
+
     /// <summary>Foto de exemplo: ceu, parede e piso, com um numero grande (da para ver a ordem e a orientacao).</summary>
     public static string Foto(string pasta, string nome, int largura, int altura, int numero)
     {

@@ -6,7 +6,8 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const [, , pasta, urlPronto, urlNovo, urlMovido, urlSemRede, urlColuna] = process.argv;
+const [, , pasta, urlPronto, urlNovo, urlMovido, urlSemRede, urlColuna, urlGrande] = process.argv;
+const tempos = [];
 fs.mkdirSync(pasta, { recursive: true });
 const problemas = [];
 
@@ -322,7 +323,42 @@ async function texto(page, seletor, contem) {
       await p.context().close();
     }
   }
+  // Uso intenso: 2.000 obras e 60 fotos, com tempo medido de cada acao
+  if (urlGrande) {
+    const p = await abrir(browser, urlGrande, 412, 915);
+    const medir = async (nome, limite, acao) => {
+      const t = Date.now(); await acao(); const ms = Date.now() - t;
+      tempos.push(`${nome}: ${ms} ms`);
+      if (ms > limite) problemas.push(`uso intenso: ${nome} levou ${ms} ms (máximo ${limite})`);
+    };
+    await medir('abrir a Base com 2.000 obras', 3000, async () => { await ir(p, urlGrande, 'base'); await p.waitForSelector('a.obra'); });
+    await medir('abrir o filtro Escola (2.000 opções)', 2000, async () => { await p.locator('.chip', { hasText: 'Escola' }).click(); await p.waitForSelector('.opcao-filtro'); });
+    if (await p.locator('.opcao-filtro').count() > 100) problemas.push('uso intenso: o filtro desenhou mais de 100 opções');
+    for (let k = 0; k < 3; k++) {
+      const antes = await p.locator('.mini').first().textContent();
+      await medir(`marcar a escola ${k + 1}`, 1500, async () => {
+        await p.locator('.opcao-filtro input').nth(k).click();
+        await p.waitForFunction(k => document.querySelectorAll('.opcao-filtro input:checked').length === k + 1, k);
+      });
+    }
+    await medir('pesquisar no filtro', 1500, async () => { await p.getByLabel('Pesquisar opções').fill('exemplo 19'); await p.waitForFunction(() => document.querySelectorAll('.opcao-filtro').length < 100); });
+    await p.getByRole('button', { name: 'Pronto' }).click();
+    await medir('abrir as fotos (60) até todas as miniaturas', 30000, async () => {
+      await ir(p, urlGrande, 'relatorio/fotos');
+      await p.waitForFunction(() => { const b = [...document.querySelectorAll('button[data-foto]')]; return b.length >= 60 && b.every(x => x.querySelector('img')); }, null, { timeout: 30000 });
+    });
+    await medir('abrir as fotos de novo (miniaturas guardadas)', 2500, async () => {
+      await ir(p, urlGrande, 'relatorio');
+      await ir(p, urlGrande, 'relatorio/fotos');
+      await p.waitForFunction(() => { const b = [...document.querySelectorAll('button[data-foto]')]; return b.length >= 60 && b.every(x => x.querySelector('img')); });
+    });
+    await medir('conferir as páginas com 60 fotos', 5000, async () => { await ir(p, urlGrande, 'relatorio/conferir'); await p.waitForSelector('.pagina-previa, .chips'); });
+    await p.screenshot({ path: path.join(pasta, '40-uso-intenso-conferir.png') });
+    await p.context().close();
+  }
+
   await browser.close();
+  if (tempos.length) console.log('Tempos (uso intenso):\n  ' + tempos.join('\n  '));
   console.log(problemas.length ? problemas.join('\n') : 'nenhum problema');
   process.exit(problemas.length ? 1 : 0);
 })();

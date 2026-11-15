@@ -283,8 +283,10 @@ public sealed partial class ConfigBaseVm : TelaVm
         _preferencias.Alterar(p => p with { Mapeamento = _mapa });
         Mudou = false;
         await _fontes.RelerAsync(Fontes.Mestra);
-        Resultado = "Colunas salvas. A Base é lida de novo com elas.";
-        ResultadoComFalha = false;
+        var fonte = _base.Fonte(Fontes.Mestra);
+        bool ok = fonte?.Estado == EstadoFonte.Atualizada;
+        Resultado = ok ? "Colunas salvas. A Base foi lida de novo com elas." : $"Colunas salvas, mas a leitura não deu certo: {fonte?.Mensagem}";
+        ResultadoComFalha = !ok;
         CarregarDiagnostico();
     }
 

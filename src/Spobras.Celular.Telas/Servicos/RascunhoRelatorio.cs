@@ -71,6 +71,8 @@ public sealed class RascunhoRelatorio
         {
             FinalizarRemocoes(); // o app fechou durante o Desfazer: a remocao vale
         }
+
+        LimparSobras();
     }
 
     public string PastaDasFotos { get; }
@@ -300,17 +302,48 @@ public sealed class RascunhoRelatorio
         }
     }
 
+    /// <summary>
+    /// Apaga uma copia do proprio app. No Windows o arquivo pode estar aberto por um instante (miniatura sendo feita):
+    /// tenta de novo; se ainda assim nao der, a limpeza da proxima abertura apaga.
+    /// </summary>
     private static void Apagar(string caminho)
     {
-        try
+        for (int tentativa = 0; tentativa < 10; tentativa++)
         {
-            if (File.Exists(caminho))
+            try
             {
-                File.Delete(caminho); // copia do proprio app
+                if (File.Exists(caminho))
+                {
+                    File.Delete(caminho);
+                }
+
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(30);
             }
         }
-        catch (IOException)
+    }
+
+    /// <summary>Ao abrir: copias de fotos e miniaturas que nenhuma foto do rascunho usa mais (sobras de remocoes).</summary>
+    private void LimparSobras()
+    {
+        var usadas = Dados.Fotos.Select(f => f.Arquivo).Concat(Dados.Removidas.Select(r => r.Foto.Arquivo)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var nomes = usadas.Select(Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in Directory.GetFiles(PastaDasFotos).Where(f => !usadas.Contains(Path.GetFileName(f)) && !f.EndsWith(".tmp", StringComparison.Ordinal)))
         {
+            Apagar(f);
+        }
+
+        foreach (var m in Directory.GetFiles(PastaDasMiniaturas))
+        {
+            string nome = Path.GetFileNameWithoutExtension(m);
+            int traco = nome.LastIndexOf('-');
+            if (traco <= 0 || !nomes.Contains(nome[..traco]))
+            {
+                Apagar(m);
+            }
         }
     }
 

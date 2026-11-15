@@ -149,4 +149,17 @@ public sealed class FotosRascunhoTests : IDisposable
         Assert.Equal(20, r.Dados.Fotos.Select(f => f.Arquivo).Distinct().Count());
         Assert.Equal(20, new RascunhoRelatorio(Path.Combine(_raiz, "app")).Dados.Fotos.Count);
     }
+
+    [Fact]
+    public void Sobras_de_copias_sao_limpas_ao_abrir_e_as_fotos_do_rascunho_ficam()
+    {
+        var r = NovoComFotos(2);
+        string sobra = Path.Combine(r.PastaDasFotos, "sobra-de-remocao.jpg");
+        File.WriteAllBytes(sobra, [1, 2, 3]);
+        File.WriteAllBytes(Path.Combine(r.PastaDasMiniaturas, "sobra-de-remocao-0.jpg"), [1]);
+        var reaberto = new RascunhoRelatorio(Path.Combine(_raiz, "app"));
+        Assert.False(File.Exists(sobra));
+        Assert.Empty(Directory.GetFiles(reaberto.PastaDasMiniaturas, "sobra*"));
+        Assert.All(reaberto.Dados.Fotos, f => Assert.True(File.Exists(reaberto.Caminho(f))));
+    }
 }

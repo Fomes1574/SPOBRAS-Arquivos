@@ -1,5 +1,24 @@
 # Progresso
 
+## Melhorias fechadas no planejamento de 14 e 15/11/2026
+
+**Celular, fotos e câmera**
+- A foto é pega no instante do toque, direto no navegador do app, sem esperar o .NET: com flash Desligado ou Lanterna é o quadro que estava no visor (medido no teste: menos de 150 ms do toque à imagem). Com flash Automático ou Ligado aparece "Segure firme…" até o Android registrar. O flash branco só pisca depois que a foto foi pega; o contador e a miniatura da última foto mudam quando ela foi salva. Dá para tirar fotos seguidas (o rascunho grava uma mudança por vez; 20 fotos simultâneas no teste, nenhuma perdida).
+- Miniaturas feitas em segundo plano e guardadas em arquivo: a tela de fotos abre na hora; ao reabrir o app, 60 miniaturas carregam em menos de 0,5 s. Tamanho de cada foto guardado ao entrar: conferir as páginas não relê as fotos.
+- Tirar uma foto: sem confirmação, com aviso "Foto removida · Desfazer" e barra vermelha de 5 s. Remoções seguidas se juntam ("3 fotos removidas"); Desfazer devolve cada foto para a posição de onde saiu. Depois do tempo, a cópia do app é apagada e não volta. Se o app fechar no meio, a remoção vale na próxima abertura; sobras de cópias são limpas ao abrir.
+- Modo seleção: contagem de marcadas, "Marcar todas" e "Desmarcar todas", legenda em lotes sem sair do modo (marcações e campo limpos para o próximo grupo), "Tirar do relatório" para as marcadas com uma confirmação (e Desfazer). O botão "Tirar foto" some no modo seleção e sobe quando o aviso de desfazer aparece. O aviso nunca cobre a folha da foto.
+
+**Base de dados (celular e computador)**
+- Só consulta: editar obra, incluir obra e editar vínculos de dotação saíram (os comandos ficam travados).
+- Configurações da base (engrenagem discreta na Base): aviso "Antes de mexer aqui"; aba Planilha com arquivo, tabelas e as 53 colunas usadas pelo app, cada uma com ✓ ou ⚠ e a lista de colunas que existem de verdade na planilha (com exemplo); Testar leitura (total e 3 primeiras linhas), Salvar só depois do teste, Voltar ao padrão com confirmação. Aba Status: andamento, concluído ou não mostrar para cada status da planilha (status novo com selo NOVO). Aba Diagnóstico: totais, ajustes feitos e últimas leituras. Vale só no aparelho; a planilha nunca muda.
+- Empresa sem opções repetidas por grafia (espaço sobrando, maiúscula); obras ocultas (sob gestão da SIURB) filtradas no próprio banco; listas de opções guardadas por leitura (sugestões e ficha não refazem 9 consultas a cada letra); totais do lote numa consulta só.
+- Celular: filtros grandes mostram as 100 primeiras opções (e o resto pela pesquisa), sem nada pular de lugar ao marcar. Computador: o filtro não volta ao topo ao marcar; a sugestão do relatório não reabre depois do Enter.
+
+**Testes**
+- 392 testes (1 pulado, precisa do Excel), incluindo desempenho com base inventada de 2.000 obras e 8.000 medições (cada consulta com tempo máximo) e uso intenso: 300 combinações de filtros conferidas contra a conta direta, 50 rodadas de remover e desfazer com 60 fotos.
+- Teste visual do celular em 6 cenários (pronto, primeira vez, planilha movida, sem internet, coluna renomeada e uso intenso), dois tamanhos de tela: remover, desfazer, seleção, câmera, configurações da base (escolher a coluna nova, testar, salvar, voltar ao padrão) e tempos reais no navegador (Base com 2.000 obras, filtro de 2.000 escolas, 60 fotos). Botões de folhas e janelas cobertos por outro elemento agora são acusados automaticamente.
+- Telas reais do Windows (CI): 3 telas novas das Configurações da base.
+
 ## Melhorias de consulta e relatório em 13/11/2026
 
 - Windows e Android: Processo SEI preenchido e restaurado pela Base, rótulos curtos, sugestões de escola e contrato ao digitar e borracha nos campos do relatório. A data do relatório começa vazia no Windows.
@@ -232,6 +251,7 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Não testado (e por quê)
 
+- **Celular, no aparelho:** foto no toque e "Segure firme…" com flash (o tempo do Android varia por aparelho), arrastar fotos, vibração e copiar diagnóstico só dá para conferir no Android real.
 - **App do celular num aparelho de verdade:** a lógica e as telas foram testadas em Linux (navegador simulando o celular). Seletor de arquivos do Android, permissão guardada da planilha no OneDrive/SharePoint, câmera real (flash e lanterna variam por aparelho), salvar na pasta escolhida, galeria e compartilhar só existem no Android: entram no roteiro de conferência do celular.
 
 - O app nunca rodou num Windows com gente usando: o CI abre as telas e confere medidas, mas ninguém viu o visual ainda. As imagens estão no artefato `telas` de cada build.
