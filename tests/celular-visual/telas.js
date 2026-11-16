@@ -55,7 +55,8 @@ async function conferir(page, nome, tamanho) {
       if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth || el.closest('.base-contratos') && document.querySelector('.folha')) return;
       const topo = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       const area = el.closest('.conteudo');
-      if (topo && !el.contains(topo) && !topo.contains(el) && (!area || r.bottom <= area.getBoundingClientRect().bottom))
+      const janela = area?.getBoundingClientRect();
+      if (topo && !el.contains(topo) && !topo.contains(el) && (!janela || r.top >= janela.top && r.bottom <= janela.bottom))
         out.push('alvo do resumo coberto: ' + el.textContent.trim());
     });
     const luminancia = cor => {
@@ -69,14 +70,22 @@ async function conferir(page, nome, tamanho) {
       }
       return 'rgb(255, 255, 255)';
     };
-    document.querySelectorAll('.contrato-resumo *, .escolas-resumo *, .folha-resumo *, .resumo-salvo *').forEach(el => {
+    const contraste = (cor, fundo) => {
+      const l = luminancia(cor), f = luminancia(fundo);
+      return (Math.max(l, f) + .05) / (Math.min(l, f) + .05);
+    };
+    document.querySelectorAll('.base-contratos input[placeholder], .folha-resumo input[placeholder]').forEach(el => {
+      const estilo = getComputedStyle(el, '::placeholder');
+      if (parseFloat(estilo.fontSize) < 12 || contraste(estilo.color, fundo(el)) < 4.5)
+        out.push('placeholder do resumo sem tamanho ou contraste: ' + el.placeholder);
+    });
+    document.querySelectorAll('.contrato-resumo *, .escolas-resumo *, .folha-resumo *, .resumo-salvo *, .resumo-acao, .selos-contrato *, .valores-resumo *, .pizza-resumo *').forEach(el => {
       if (!el.getClientRects().length) return;
       const nos = [...el.childNodes].filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
       if (!nos.length) return;
       const estilo = getComputedStyle(el);
       if (parseFloat(estilo.fontSize) < 12) out.push('letra do resumo menor que 12 px: ' + el.textContent.trim());
-      const l = luminancia(estilo.color), f = luminancia(fundo(el));
-      if ((Math.max(l, f) + .05) / (Math.min(l, f) + .05) < 4.5)
+      if (contraste(estilo.color, fundo(el)) < 4.5)
         out.push('contraste do resumo abaixo de 4,5: ' + el.textContent.trim());
       if (el.matches('.resumo-acao, .selo-contrato, .valores-resumo > div > b, .datas-resumo > div > b')) {
         const tops = new Set(nos.flatMap(no => {
@@ -155,8 +164,11 @@ async function texto(page, seletor, contem) {
     await pesquisaContrato.fill('239');
     await marcarContrato('060/EX/2026');
     await fecharFiltro();
-    await page.getByRole('button', { name: 'Exportar PDF dos 2 contratos' }).waitFor();
+    const exportarDois = page.getByRole('button', { name: 'Exportar PDF dos 2 contratos' });
+    await exportarDois.waitFor();
     await foto(page, `resumo-4-dois-${w}`, w, h, true);
+    await exportarDois.scrollIntoViewIfNeeded();
+    await foto(page, `resumo-4b-exportar-dois-${w}`, w, h, true);
     await page.locator('.sem-pizza').scrollIntoViewIfNeeded();
     await foto(page, `resumo-6-nao-iniciado-${w}`, w, h, true);
     await limparContrato();
@@ -169,7 +181,7 @@ async function texto(page, seletor, contem) {
     await page.locator('.selo-contrato', { hasText: 'Venceu há' }).waitFor();
     await page.getByText('R$ 99.999.999,99', { exact: true }).first().scrollIntoViewIfNeeded();
     await foto(page, `resumo-5b-beta-valor-e-nomes-${w}`, w, h, true);
-    await page.locator('.selo-contrato', { hasText: 'Encerrado em' }).waitFor();
+    await page.locator('.selo-contrato', { hasText: 'Encerrado em' }).scrollIntoViewIfNeeded();
     await foto(page, `resumo-5-encerrado-${w}`, w, h, true);
     await limparContrato();
     await texto(page, 'a.obra', 'EMEI Exemplo Alfa');

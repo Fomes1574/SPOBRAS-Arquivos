@@ -136,13 +136,34 @@
             </StackPanel>
         </Border>
 
-        <DockPanel Grid.Row="2" Margin="0,16,0,0">
-        <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Padding="12" Margin="0,0,0,12"
-                Visibility="{Binding TemResumoContrato, Converter={StaticResource Visivel}}">
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition MaxHeight="320">
+                <RowDefinition.Style>
+                    <Style TargetType="RowDefinition">
+                        <Setter Property="Height" Value="*" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding TemResumoContrato}" Value="False"><Setter Property="Height" Value="0" /></DataTrigger>
+                            <DataTrigger Binding="{Binding FichaAmpliada}" Value="True"><Setter Property="Height" Value="0" /></DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </RowDefinition.Style>
+            </RowDefinition>
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Border Padding="12" Margin="0,0,0,12">
+            <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource Painel}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding TemResumoContrato}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                        <DataTrigger Binding="{Binding FichaAmpliada}" Value="True"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
             <DockPanel>
                 <Button DockPanel.Dock="Top" HorizontalAlignment="Right" Style="{StaticResource BotaoLinha}"
                         Content="Exportar PDF" Command="{Binding ExportarContratosPdfCommand}" />
-                <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding ResumosContratos}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -188,7 +209,7 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
-        <Grid x:Name="Divisao">
+        <Grid x:Name="Divisao" Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ColunaLista" Width="2*" MinWidth="440" />
                 <ColumnDefinition x:Name="ColunaDivisoria" Width="16" />
@@ -443,7 +464,7 @@
                 </Grid>
             </Border>
         </Grid>
-        </DockPanel>
+        </Grid>
 
         <StackPanel Grid.Row="3" Margin="0,12,0,0">
             <DockPanel>
