@@ -2,7 +2,7 @@
 
 ## Planejado para o Codex em 16/11/2026: resumo por contrato
 
-Especificação completa em `docs/codex/RESUMO-POR-CONTRATO.md`, com os modelos visuais em `docs/codex/modelos/` (dados inventados). Resumo:
+Especificação completa em `docs/codex/RESUMO-POR-CONTRATO.md`, com os modelos visuais em `docs/codex/visual/` (dados inventados). Resumo:
 - Estudo da planilha: o nome do lote não identifica um contrato (lotes com vários contratos são sempre de modalidades diferentes); a unidade é o contrato.
 - Exportar PDF "Resumo da obra" (ficha) e "Resumo do contrato" (uma página por contrato), com logo, selos de prazo (verde > 90 dias, laranja ≤ 90, vermelho vencido, cinza encerrado só com a data), pizza e percentuais; sem assinatura, escopo nem avanço físico.
 - Base no computador e no celular: sai o filtro Lote; o filtro Contrato mostra lote, modalidade, escolas e portaria; ✕ dentro do filtro; resumo do contrato com todas as escolas e Exportar PDF.

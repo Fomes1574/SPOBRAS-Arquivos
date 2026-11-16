@@ -1,13 +1,13 @@
 # Resumo por contrato, exportar PDF e filtros: o que implementar
 
-Planejado com o usuário em 16/11/2026. Tudo aqui já foi decidido; o que não estiver escrito é pergunta ao usuário (registre em `docs/PROGRESSO.md`, seção "Pendências com o usuário"). Os modelos visuais estão em `docs/codex/modelos/` e usam **dados inventados**.
+Planejado com o usuário em 16/11/2026. Tudo aqui já foi decidido; o que não estiver escrito é pergunta ao usuário (registre em `docs/PROGRESSO.md`, seção "Pendências com o usuário"). Os modelos visuais estão em `docs/codex/visual/` e usam **dados inventados**.
 
 ## Como usar este documento
 
 1. Leia `CLAUDE.md` e as regras fixas (repositório público, nada de dados reais, interface em pt-BR, código sem acentos).
 2. Leia este documento inteiro e abra os dois cadernos de modelo:
-   - `modelos/caderno-resumo-por-contrato.pdf`: o PDF exportado (todos os casos) e a tela da Base no computador.
-   - `modelos/caderno-base-celular.pdf`: as telas do celular em 360 e 412 px, com o resultado dos testes visuais.
+   - `visual/caderno-resumo-por-contrato.pdf`: o PDF exportado (todos os casos) e a tela da Base no computador.
+   - `visual/caderno-base-celular.pdf`: as telas do celular em 360 e 412 px, com o resultado dos testes visuais.
 3. Implemente na ordem da seção 10. **Tudo vale para o computador e para o celular**, exceto o cronograma (só existe no computador).
 4. Teste como pede a seção 9, atualize `docs/PROGRESSO.md` e faça commit.
 
@@ -116,7 +116,7 @@ Modelos: páginas 4 a 8 do caderno do PDF.
 
 ## 5. Computador (WPF)
 
-Modelos: página 9 e 10 do caderno do PDF (`modelos/computador/tela-filtros.png`, `tela-resumo.png`).
+Modelos: página 9 e 10 do caderno do PDF (`visual/computador/tela-filtros.png`, `tela-resumo.png`).
 
 ### 5.1 Filtros da Base
 
@@ -148,7 +148,7 @@ Botão **Exportar PDF** na ficha (gera o PDF da seção 3).
 
 ## 6. Celular (Blazor, `Spobras.Celular.Telas`)
 
-Modelos: `modelos/caderno-base-celular.pdf` e `modelos/celular/*.png`. Fontes HTML/CSS dos modelos em `modelos/fontes-dos-modelos/celular/` (use como referência de medidas e cores, não copie o HTML).
+Modelos: `visual/caderno-base-celular.pdf` e `visual/celular/*.png`. Fontes HTML/CSS dos modelos em `visual/fontes-dos-modelos/celular/` (use como referência de medidas e cores, não copie o HTML).
 
 1. **Filtros** (etiquetas roláveis de hoje): sai "Lote"; ficam Contrato, Portaria, Empresa, Status. A etiqueta ativa já tem o ✕ dentro: aumentar o ✕ para **44 × 44 px** (hoje 36). A folha do filtro Contrato mostra as opções em duas linhas, como no computador, com pesquisa ("207" → "3 contratos do lote 207"). Tela 1.
 2. **Cartão do contrato** no alto da lista (substitui o cartão "Lotes 216 e 239" de hoje): "Contrato" + número, selos, "Lote · Modalidade · n escolas", "Contratada · Portaria", datas da OS e término, 4 valores (saldo em destaque), pizza com legenda (Pago, Em trâmite, A pagar) e botão vermelho **Exportar PDF do contrato**. Tela 2.
@@ -186,7 +186,7 @@ Fazer:
 
 - **Unidade (Core/Dados/Documentos)**: selos para cada status e para término a 91, 90, 1, 0 e −1 dias; percentuais (incluindo em trâmite maior que o saldo); opções de contrato com lote/modalidade/escolas; contrato sem lote; consulta salva antiga com Lote; "Adicionar escolas de um contrato" e sugestões só do mesmo contrato (com a base sintética tendo dois "Lote 14" de modalidades diferentes e um "AGRUPAMENTO 14"); nome do arquivo.
 - **PDF**: abrir com PdfPig e conferir textos e páginas: uma escola; contrato com 1, 6 e 13 escolas (13 em duas páginas, cabeçalho repetido, total só no fim); dois contratos = páginas separadas; encerrado sem contagem; não iniciado sem pizza; logo presente e ausente. **Gerar o mesmo contrato pelo caminho do computador e pelo do celular e comparar** (mesmo texto e mesmas páginas).
-- **Visual do celular** (`tests/celular-visual/telas.js`, 360 e 412 px): telas 1 a 8 do caderno, com as verificações que o caderno lista na página 9 (nada vaza, nada cortado, toque ≥ 44 px, nada coberto, letra ≥ 12 px, contraste ≥ 4,5 : 1, botão/etiqueta/selo sem texto em duas linhas). O script `modelos/fontes-dos-modelos/celular/testar.js` mostra como cada verificação foi feita; leve as que ainda não existem para o `telas.js`.
+- **Visual do celular** (`tests/celular-visual/telas.js`, 360 e 412 px): telas 1 a 8 do caderno, com as verificações que o caderno lista na página 9 (nada vaza, nada cortado, toque ≥ 44 px, nada coberto, letra ≥ 12 px, contraste ≥ 4,5 : 1, botão/etiqueta/selo sem texto em duas linhas). O script `visual/fontes-dos-modelos/celular/testar.js` mostra como cada verificação foi feita; leve as que ainda não existem para o `telas.js`.
 - **Telas do computador** (`Spobras.App.Telas.Tests`, CI Windows): filtros com o ✕ dentro, lista de contratos com lote, resumo do contrato com escolas, exportar.
 - **Beta tester**: dois toques em Exportar, exportar e sair da tela na hora, contrato sem escolas visíveis por outro filtro, nomes muito longos de escola e de contratada, valores grandes (R$ 99.999.999,99) sem quebrar linha em 360 px.
 
