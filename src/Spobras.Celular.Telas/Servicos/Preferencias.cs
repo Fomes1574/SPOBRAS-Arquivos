@@ -33,7 +33,13 @@ public sealed record Preferencias
     public bool PastaPorEscola { get; init; } = true;
     public FormatoGerado Formato { get; init; } = FormatoGerado.ExcelEPdf;
     public FormatoFoto FormatoFoto { get; init; } = FormatoFoto.Padrao43;
-    public Flash Flash { get; init; } = Flash.Auto;
+    public Flash Flash { get; init; } = Flash.Desligado;
+
+    /// <summary>
+    /// O usuario ja escolheu o flash. Antes disso vale Desligado (a foto sai na hora); quem tinha o antigo padrao
+    /// Auto sem nunca ter escolhido passa para Desligado.
+    /// </summary>
+    public bool FlashEscolhido { get; init; }
     public bool FotosNaGaleria { get; init; }
 
     /// <summary>Copia do logo dentro do app (o usuario escolhe a imagem uma vez).</summary>
@@ -58,20 +64,38 @@ public sealed class ArquivoPreferencias(string pasta)
     private readonly string _caminho = Path.Combine(pasta, "preferencias.json");
     private readonly object _trava = new();
 
+    private Preferencias? _atual;
+
+    private string Copia => _caminho + ".bak";
+
+    /// <summary>Lida uma vez e guardada na memoria (as telas consultam varias vezes por desenho).</summary>
     public Preferencias Ler()
     {
         lock (_trava)
         {
-            try
-            {
-                return File.Exists(_caminho) ? JsonSerializer.Deserialize<Preferencias>(File.ReadAllText(_caminho), Opcoes) ?? new() : new();
-            }
-            catch (JsonException)
-            {
-                return new();
-            }
+            return _atual ??= Normalizar(LerArquivo(_caminho) ?? LerArquivo(Copia) ?? new());
         }
     }
+
+    private static Preferencias? LerArquivo(string caminho)
+    {
+        try
+        {
+            return File.Exists(caminho) ? JsonSerializer.Deserialize<Preferencias>(File.ReadAllText(caminho), Opcoes) : null;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static Preferencias Normalizar(Preferencias p) => p with
+    {
+        Flash = p.FlashEscolhido ? p.Flash : Flash.Desligado,
+        UltimosGerados = p.UltimosGerados ?? [],
+        Mapeamento = p.Mapeamento ?? new(),
+        RegrasStatus = p.RegrasStatus ?? new Dictionary<string, Spobras.Core.Base.SituacaoContrato>(),
+    };
 
     public void Gravar(Preferencias p)
     {
@@ -80,7 +104,13 @@ public sealed class ArquivoPreferencias(string pasta)
             Directory.CreateDirectory(Path.GetDirectoryName(_caminho)!);
             string temp = _caminho + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(p, Opcoes));
+            if (File.Exists(_caminho))
+            {
+                File.Copy(_caminho, Copia, overwrite: true);
+            }
+
             File.Move(temp, _caminho, overwrite: true);
+            _atual = p;
         }
     }
 }

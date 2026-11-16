@@ -95,11 +95,14 @@ public sealed class PlataformaAndroid : IPlataforma
                 string nome = Nome(uri) ?? "arquivo";
                 string livre = NomeArquivo.Livre(NomeArquivo.Corrigir(nome), n => File.Exists(Path.Combine(pastaDestino, n)));
                 string copia = Path.Combine(pastaDestino, livre);
-                using (var entrada = Resolver.OpenInputStream(uri)!)
-                using (var saida = File.Create(copia))
+                // Copia para um temporario e troca de uma vez: se o app fechar no meio, nao fica foto pela metade.
+                using (var entrada = Resolver.OpenInputStream(uri) ?? throw new IOException($"Não foi possível abrir “{nome}”."))
+                using (var saida = File.Create(copia + ".tmp"))
                 {
                     entrada.CopyTo(saida);
                 }
+
+                File.Move(copia + ".tmp", copia);
 
                 lista.Add(new Escolhido(uri.ToString()!, nome, copia));
             }

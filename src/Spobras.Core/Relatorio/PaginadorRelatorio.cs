@@ -33,6 +33,14 @@ public static class PaginadorRelatorio
             return new PlanoRelatorio([], avisos, opcoes, dados, cabecalho);
         }
 
+        // Cabecalho enorme (descricao ou objeto muito longos) nao deixa espaco nem para uma foto: avisa em vez de quebrar.
+        int minimoDoCorpo = MinimoDeLinhasDaFoto + 4 + (opcoes.Assinaturas ? GradeRelatorio.LinhasDasAssinaturas + 1 : 0);
+        if (corpo < minimoDoCorpo)
+        {
+            avisos.Add(Aviso.Impede("O cabeçalho ficou grande demais e não sobra espaço para as fotos. Encurte a descrição ou o objeto do relatório."));
+            return new PlanoRelatorio([], avisos, opcoes, dados, cabecalho);
+        }
+
         int colunas = opcoes.FotosPorPagina <= 2 ? 1 : 2;
         int faixasPorPagina = opcoes.FotosPorPagina / colunas;
         int linhasDaFaixa = corpo / faixasPorPagina;
@@ -84,9 +92,26 @@ public static class PaginadorRelatorio
                 {
                     if (textos[c].Linhas > cabe)
                     {
-                        var (fica, resto) = Dividir(textos[c].Descricao, (cabe - textos[c].LinhasDoTitulo - 1) * CaracteresPorLinha(GradeRelatorio.LarguraDoEspaco(c, colunas)));
-                        restos.Add((textos[c].Titulo.Length > 0 ? textos[c].Titulo : Rotulo(i + c + 1, fotos.Count), resto, c));
-                        textos[c] = textos[c] with { Descricao = fica + " (continua na próxima página)", Linhas = cabe };
+                        double largura = GradeRelatorio.LarguraDoEspaco(c, colunas);
+                        int livres = cabe - 2; // uma linha de respiro e uma de folga para o "(continua...)"
+                        var t = textos[c];
+                        string rotulo = t.Titulo.Length > 0 ? Encurtar(t.Titulo, 60) : Rotulo(i + c + 1, fotos.Count);
+                        if (t.LinhasDoTitulo < livres)
+                        {
+                            // a legenda cabe: a descricao continua na pagina seguinte
+                            var (fica, resto) = DividirEmLinhas(t.Descricao, livres - t.LinhasDoTitulo, largura);
+                            restos.Add((rotulo, resto, c));
+                            textos[c] = t with { Descricao = fica + " (continua na próxima página)", Linhas = cabe };
+                        }
+                        else
+                        {
+                            // a propria legenda e maior que o espaco: ela continua, e a descricao vai junto
+                            var (fica, resto) = DividirEmLinhas(t.Titulo, livres, largura);
+                            string titulo = fica + " (continua na próxima página)";
+                            restos.Add((rotulo, t.Descricao.Length > 0 ? resto + "\n" + t.Descricao : resto, c));
+                            textos[c] = new TextoDaFoto(titulo, "", LinhasDe(titulo, largura), cabe);
+                        }
+
                         textosContinuados++;
                     }
                 }
@@ -118,13 +143,43 @@ public static class PaginadorRelatorio
             if (restos.Count > 0)
             {
                 FecharPagina();
-                foreach (var (titulo, resto, _) in restos)
+                foreach (var (titulo, restoInicial, _) in restos)
                 {
-                    int linhas = Math.Min(corpo - linhaLivre, LinhasDe(resto, GradeRelatorio.Largura) + 1);
-                    var area = new Area(0, topo + linhaLivre * GradeRelatorio.AlturaDaLinha,
-                        GradeRelatorio.Largura, linhas * GradeRelatorio.AlturaDaLinha);
-                    continuacoes.Add(new Continuacao(titulo + " (continuação)", resto, linhaLivre, linhas, area));
-                    linhaLivre += linhas + 1;
+                    // Texto maior que uma pagina inteira segue pagina a pagina (nada e cortado).
+                    string resto = restoInicial;
+                    while (resto.Length > 0)
+                    {
+                        int livres = corpo - linhaLivre - 1; // a primeira linha e o titulo da continuacao
+                        if (livres < 2)
+                        {
+                            FecharPagina();
+                            continue;
+                        }
+
+                        string parte = resto;
+                        if (LinhasDe(resto, GradeRelatorio.Largura) > livres)
+                        {
+                            (parte, resto) = DividirEmLinhas(resto, livres - 1, GradeRelatorio.Largura);
+                            if (parte.Length == 0)
+                            {
+                                (parte, resto) = (resto, "");
+                            }
+                        }
+                        else
+                        {
+                            resto = "";
+                        }
+
+                        int linhas = Math.Min(corpo - linhaLivre, LinhasDe(parte, GradeRelatorio.Largura) + 1);
+                        var area = new Area(0, topo + linhaLivre * GradeRelatorio.AlturaDaLinha,
+                            GradeRelatorio.Largura, linhas * GradeRelatorio.AlturaDaLinha);
+                        continuacoes.Add(new Continuacao(titulo + " (continuação)", parte, linhaLivre, linhas, area));
+                        linhaLivre += linhas + 1;
+                        if (resto.Length > 0)
+                        {
+                            FecharPagina();
+                        }
+                    }
                 }
             }
         }
@@ -155,7 +210,7 @@ public static class PaginadorRelatorio
 
         if (textosContinuados > 0)
         {
-            avisos.Add(Aviso.Conferir($"{textosContinuados} descrição(ões) são maiores que uma página e continuam na página seguinte."));
+            avisos.Add(Aviso.Conferir($"{textosContinuados} texto(s) de foto são maiores que o espaço da página e continuam na página seguinte."));
         }
 
         return new PlanoRelatorio(paginas, avisos, opcoes, dados, cabecalho);
@@ -253,8 +308,33 @@ public static class PaginadorRelatorio
         return Math.Max(1, linhas);
     }
 
+    /// <summary>Maior comeco do texto (cortado em espaco) que ocupa ate <paramref name="linhas"/> linhas.</summary>
+    private static (string Fica, string Resto) DividirEmLinhas(string texto, int linhas, double largura)
+    {
+        linhas = Math.Max(1, linhas);
+        if (LinhasDe(texto, largura) <= linhas)
+        {
+            return (texto, "");
+        }
+
+        int caracteres = linhas * CaracteresPorLinha(largura);
+        while (true)
+        {
+            var (fica, resto) = Dividir(texto, caracteres);
+            if (caracteres <= 1 || LinhasDe(fica, largura) <= linhas)
+            {
+                return (fica, resto);
+            }
+
+            caracteres = Math.Max(1, caracteres * 9 / 10);
+        }
+    }
+
+    private static string Encurtar(string texto, int maximo) => texto.Length <= maximo ? texto : texto[..maximo].TrimEnd() + "…";
+
     private static (string Fica, string Resto) Dividir(string texto, int caracteres)
     {
+        caracteres = Math.Max(1, caracteres);
         if (texto.Length <= caracteres)
         {
             return (texto, "");

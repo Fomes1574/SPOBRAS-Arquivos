@@ -100,13 +100,18 @@ public static class CabecalhoRelatorio
         return new CabecalhoMontado(campos, alturas, linhasContratada);
     }
 
+    /// <summary>Parte da escola no nome sugerido: com o resto, o nome fica com no maximo 120 caracteres.</summary>
+    public const int MaximoDaUnidadeNoNome = 80;
+
     /// <summary>"Relatório Fotográfico - Escola - 2026-11-10", omitindo o que estiver vazio.</summary>
     public static string NomeSugerido(DadosRelatorio d)
     {
         var partes = new List<string> { "Relatório Fotográfico" };
         if (!string.IsNullOrWhiteSpace(d.Unidade))
         {
-            partes.Add(Nomes.NomeArquivo.Corrigir(d.Unidade.Trim()));
+            // Nome de escola muito longo nao pode estourar o limite de caminho do Windows/Android.
+            string unidade = Nomes.NomeArquivo.Corrigir(d.Unidade.Trim());
+            partes.Add(unidade.Length <= MaximoDaUnidadeNoNome ? unidade : unidade[..MaximoDaUnidadeNoNome].TrimEnd(' ', '.', '-'));
         }
 
         if (d.Data is { } data)

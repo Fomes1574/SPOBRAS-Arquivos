@@ -116,7 +116,7 @@ public sealed class DesempenhoTests : IDisposable
         var caminhos = Enumerable.Range(1, 60).Select(i => AmostraCelular.Foto(origem, $"f{i:00}.jpg", i % 3 == 0 ? 1200 : 1600, i % 3 == 0 ? 1600 : 1200, i)).ToList();
         var copiar = Stopwatch.StartNew();
         var copias = caminhos.Select(c => { string d = Path.Combine(r.PastaDasFotos, Path.GetFileName(c)); File.Copy(c, d); return d; }).ToList();
-        Assert.Empty(r.AdicionarCopiadas(copias));
+        Assert.Empty(r.AdicionarCopiadas(copias).Recusadas);
         NoMaximo(copiar.ElapsedMilliseconds, 15_000, "colocar 60 fotos no rascunho (sem esperar miniaturas)");
         for (int i = 0; i < 60; i++)
         {

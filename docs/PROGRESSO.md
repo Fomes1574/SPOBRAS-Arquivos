@@ -1,5 +1,24 @@
 # Progresso
 
+## Revisão das fotos do relatório em 16/11/2026
+
+Causa da foto que não aparecia: sair da câmera (Pronto, fechar ou voltar) logo depois de tirar desligava tudo antes de a foto terminar de gravar. Com flash Auto (o padrão de antes), o "Segure firme…" de 1 a 3 s quase sempre perdia a foto. O teste visual não pegava porque usava só o flash Desligado e sempre esperava a foto gravar.
+
+**Corrigido (cada item com teste que falhava antes):**
+- Câmera: sair espera as fotos já pegas gravarem; trocar de câmera também. Em cada toque fica guardado o quadro do visor: vale se o sensor do flash falhar ou passar de 4 s. Durante o "Segure firme" o botão mostra que está esperando. Flash padrão **Desligado** (foto na hora); quem nunca escolheu passa para Desligado, quem escolheu mantém. Celular deitado com a rotação automática desligada: a foto é girada pelo sensor (conferir no aparelho).
+- Fotos perdidas ao ordenar ou usar "Atualizar dados" enquanto uma foto gravava (150 tiradas, ficavam 52): agora toda mudança parte do rascunho atual.
+- Rascunho estragado apagava todas as fotos: agora há cópia da versão anterior; se nenhuma der para ler, as fotos da pasta voltam (sem as legendas) e a tela avisa. Foto que está na pasta mas fora da lista (app fechou no meio) volta para o fim do relatório; gravações pela metade e arquivos que não são foto saem. Campos vazios ou estranhos no arquivo não quebram mais.
+- Legenda ou descrição longa travava a geração (celular e computador, o paginador é o mesmo): legenda longa continua na página seguinte como a descrição; texto maior que uma página inteira segue página a página (antes era cortado sem aviso); cabeçalho grande demais vira pendência explicada em vez de erro. Legenda limitada a 300 caracteres, com contador (celular) e limite no campo (computador).
+- Nome de escola enorme estourava o nome do arquivo e a pasta da escola: os dois limitados.
+- Progresso de gerar Excel + PDF voltava para trás: agora conta de 1 até o total.
+- Dois toques rápidos em "Gerar relatório" faziam duas gerações e as duas falhavam: a segunda é ignorada (em todas as telas, não só nesta).
+- Digitar e sair sem fechar o campo (voltar, menu) perdia o texto: agora grava ao sair, e a legenda grava também enquanto digita.
+- Qualquer erro inesperado (inclusive do Android) vira aviso na tela em vez de fechar o app.
+- Miniatura que falhou por um instante é feita de novo; arquivo que não é foto mostra "Sem prévia". Girar não acumula miniaturas; descartar o rascunho com miniaturas em andamento não deixa sobras; nomes parecidos (IMG e IMG-0001) não apagam a miniatura um do outro.
+- Mesma foto escolhida de novo na galeria entra assim mesmo, com um aviso só (com os nomes). Preferências do celular lidas uma vez (antes, do disco a cada botão) e com cópia de segurança. Cópia da galeria no Android vai para um temporário e troca de uma vez.
+
+**Testes novos:** 20 testes de robustez do rascunho (incluindo tudo ao mesmo tempo: câmera, galeria, girar, mover, tirar, desfazer e ordenar), estresse do paginador com 1.500 relatórios aleatórios (legendas até 5.000 caracteres, cabeçalhos enormes, todas as capacidades), teste visual da câmera (sair no meio, flash lento, sensor travado, botão esperando), contador da legenda, fotos repetidas, digitar e sair, dois toques em Gerar. Rodados 8 vezes seguidas sem falha intermitente.
+
 ## Melhorias fechadas no planejamento de 14 e 15/11/2026
 
 **Celular, fotos e câmera**
@@ -251,7 +270,7 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Não testado (e por quê)
 
-- **Celular, no aparelho:** foto no toque e "Segure firme…" com flash (o tempo do Android varia por aparelho), arrastar fotos, vibração e copiar diagnóstico só dá para conferir no Android real.
+- **Celular, no aparelho:** foto girada pelo sensor com a rotação automática desligada (direção do giro); foto no toque e "Segure firme…" com flash (o tempo do Android varia por aparelho), arrastar fotos, vibração e copiar diagnóstico só dá para conferir no Android real.
 - **App do celular num aparelho de verdade:** a lógica e as telas foram testadas em Linux (navegador simulando o celular). Seletor de arquivos do Android, permissão guardada da planilha no OneDrive/SharePoint, câmera real (flash e lanterna variam por aparelho), salvar na pasta escolhida, galeria e compartilhar só existem no Android: entram no roteiro de conferência do celular.
 
 - O app nunca rodou num Windows com gente usando: o CI abre as telas e confere medidas, mas ninguém viu o visual ainda. As imagens estão no artefato `telas` de cada build.

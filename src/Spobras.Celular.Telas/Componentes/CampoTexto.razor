@@ -1,15 +1,17 @@
-@* Campo do formulario que grava no rascunho a cada mudanca. *@
+@* Campo do formulario que grava no rascunho a cada mudanca. Sair da tela no meio da digitacao (voltar, menu)
+   tambem grava: nada do que foi digitado se perde. *@
+@implements IDisposable
 <div class="campo" style="@Estilo">
     <label for="@_id">@Rotulo</label>
     <div class="entrada-campo @(PermiteApagar ? "com-borracha" : "")">
         @if (Linhas > 1)
         {
-            <textarea id="@_id" rows="@Linhas" placeholder="@Dica" value="@Valor" @onchange="Mudou"></textarea>
+            <textarea id="@_id" rows="@Linhas" placeholder="@Dica" value="@Valor" maxlength="@(Maximo > 0 ? Maximo : null)" @onchange="Mudou" @oninput="Digitando"></textarea>
         }
         else
         {
             <input id="@_id" type="text" inputmode="@(Data ? "numeric" : "text")" placeholder="@Dica" value="@Valor" class="@(Invalido ? "erro" : "")"
-                   autocomplete="off" @onchange="Mudou" @oninput="Digitando" @onblur="AoPerderFoco" />
+                   autocomplete="off" maxlength="@(Maximo > 0 ? Maximo : null)" @onchange="Mudou" @oninput="Digitando" @onblur="AoPerderFoco" />
         }
         @if (PermiteApagar && Valor.Length > 0)
         {
@@ -23,6 +25,10 @@
     @if (Invalido)
     {
         <div class="ajuda erro">Data inválida. Use dd/mm/aaaa.</div>
+    }
+    @if (Maximo > 0 && _tamanho > 0)
+    {
+        <div class="ajuda contador @(_tamanho >= Maximo ? "cheio" : "")" aria-live="polite">@_tamanho de @Maximo caracteres</div>
     }
 </div>
 
@@ -41,6 +47,23 @@
     [Parameter] public EventCallback AoPerderFoco { get; set; }
 
     [Parameter] public bool PermiteApagar { get; set; }
+
+    /// <summary>Limite de caracteres (0 = sem limite). Mostra o contador enquanto digita.</summary>
+    [Parameter] public int Maximo { get; set; }
+
+    private int _tamanho;
+
+    private string? _ultimoValor;
+
+    // So muda o contador quando o valor guardado muda (outro redesenho da tela nao apaga o que esta sendo digitado).
+    protected override void OnParametersSet()
+    {
+        if (Valor != _ultimoValor)
+        {
+            _ultimoValor = Valor;
+            _tamanho = Valor.Length;
+        }
+    }
     [Parameter] public EventCallback AoApagar { get; set; }
 
     private async Task Apagar()
@@ -60,9 +83,51 @@
             v = Spobras.Core.MascaraData.Formatar(v);
         }
 
+        if (Maximo > 0 && v.Length > Maximo)
+        {
+            v = v[..Maximo]; // colado maior que o limite
+        }
+
+        _pendente = null;
+        _relogio?.Cancel();
         Valor = v;
+        _tamanho = v.Length;
         await AoMudar.InvokeAsync(v);
     }
 
-    private Task Digitando(ChangeEventArgs e) => AoDigitar.InvokeAsync(e.Value?.ToString() ?? "");
+    /// <summary>Grava tambem enquanto digita (meio segundo depois da ultima tecla). So para campos sem efeito colateral.</summary>
+    [Parameter] public bool GravarAoDigitar { get; set; }
+
+    private string? _pendente;
+    private CancellationTokenSource? _relogio;
+
+    private void Esperar(string v)
+    {
+        _pendente = v == Valor ? null : v;
+        _relogio?.Cancel();
+        if (_pendente is null || !GravarAoDigitar) return;
+        var este = _relogio = new CancellationTokenSource();
+        _ = Task.Delay(500, este.Token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled && _pendente is { } texto) _ = InvokeAsync(() => Mudou(new ChangeEventArgs { Value = texto }));
+        }, TaskScheduler.Default);
+    }
+
+    public void Dispose()
+    {
+        _relogio?.Cancel();
+        if (_pendente is { } texto)
+        {
+            _pendente = null;
+            _ = Mudou(new ChangeEventArgs { Value = texto }); // saiu sem confirmar o campo: grava o que foi digitado
+        }
+    }
+
+    private Task Digitando(ChangeEventArgs e)
+    {
+        string v = e.Value?.ToString() ?? "";
+        _tamanho = v.Length;
+        Esperar(v);
+        return AoDigitar.InvokeAsync(v);
+    }
 }

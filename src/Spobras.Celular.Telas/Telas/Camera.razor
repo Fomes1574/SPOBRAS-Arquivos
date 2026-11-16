@@ -182,7 +182,7 @@
 
     private async Task DefinirFlash(Flash f)
     {
-        App.Configurar(p => p with { Flash = f });
+        App.Configurar(p => p with { Flash = f, FlashEscolhido = true });
         await Configurar();
     }
 
@@ -221,7 +221,7 @@
         {
             try
             {
-                await _modulo.InvokeVoidAsync("desligar");
+                await _modulo.InvokeVoidAsync("encerrar"); // espera as fotos ja pegas gravarem antes de desligar
                 await _modulo.DisposeAsync();
             }
             catch (JSDisconnectedException)

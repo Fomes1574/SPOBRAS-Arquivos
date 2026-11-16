@@ -152,9 +152,13 @@ public class RelatorioTests
 
         Assert.Contains(plano.Avisos, a => a.Gravidade == Gravidade.PrecisaConferir && a.Mensagem.Contains("continuam na página seguinte"));
         Assert.EndsWith("(continua na próxima página)", plano.Paginas[0].Fotos[0].Descricao);
-        var continuacao = Assert.Single(plano.Paginas.SelectMany(p => p.Continuacoes));
-        Assert.Equal("Geral (continuação)", continuacao.Titulo);
-        string juntos = plano.Paginas[0].Fotos[0].Descricao.Replace(" (continua na próxima página)", "") + " " + continuacao.Texto;
+        // Maior que uma pagina inteira: segue em varias paginas, cada pedaco cabendo na sua area.
+        var continuacoes = plano.Paginas.SelectMany(p => p.Continuacoes).ToList();
+        Assert.True(continuacoes.Count > 1);
+        Assert.All(continuacoes, c => Assert.Equal("Geral (continuação)", c.Titulo));
+        Assert.All(continuacoes, c => Assert.True(PaginadorRelatorio.LinhasDe(c.Texto, GradeRelatorio.Largura) + 1 <= c.Linhas, "texto passou da área"));
+        Assert.All(plano.Paginas, p => Assert.True(p.Continuacoes.Sum(c => c.Linhas) <= plano.Cabecalho.LinhasDoCorpo));
+        string juntos = plano.Paginas[0].Fotos[0].Descricao.Replace(" (continua na próxima página)", "") + " " + string.Join(" ", continuacoes.Select(c => c.Texto));
         Assert.Equal(enorme, juntos); // nenhuma palavra se perde
         Assert.Equal(2, plano.TotalDeFotos);
     }

@@ -257,7 +257,9 @@ async function texto(page, seletor, contem) {
     await page.getByRole('dialog', { name: 'Ordenar fotos', exact: true }).waitFor({ state: 'detached' });
     await ir(page, urlPronto, 'relatorio/conferir'); await page.waitForTimeout(600);
     await foto(page, '16-rel-conferir', w, h, salvar);
-    await texto(page, '.btn.primario', 'Gerar relatório'); await page.waitForSelector('text=Pronto!', { timeout: 60000 });
+    // dois toques rapidos em Gerar: um relatorio so, sem erro
+    await page.evaluate(() => { const b = [...document.querySelectorAll('.btn.primario')].find(x => x.textContent.includes('Gerar relatório')); b.click(); b.click(); });
+    await page.waitForSelector('text=Pronto!', { timeout: 60000 }).catch(() => problemas.push(`${w}x${h} dois toques em Gerar: nao chegou ao Pronto`));
     await foto(page, '17-rel-pronto', w, h, salvar);
 
     await ir(page, urlPronto, 'pdf'); await foto(page, '18-pdf', w, h, salvar);
@@ -354,6 +356,74 @@ async function texto(page, seletor, contem) {
     });
     await medir('conferir as páginas com 60 fotos', 5000, async () => { await ir(p, urlGrande, 'relatorio/conferir'); await p.waitForSelector('.pagina-previa, .chips'); });
     await p.screenshot({ path: path.join(pasta, '40-uso-intenso-conferir.png') });
+    await p.context().close();
+  }
+
+  // Camera e fotos, tentando quebrar: sair no meio da foto, flash lento ou travado, legenda gigante, foto repetida
+  if (urlGrande) {
+    const p = await abrir(browser, urlGrande, 412, 915);
+    const contar = async () => { await p.waitForTimeout(3000); return p.locator('button.foto').count(); };
+    const abrirCamera = async () => { await p.locator('a.fab').click(); await p.waitForSelector('.camera'); await p.waitForTimeout(1500); };
+    const flash = async nome => {
+      await p.locator('.topo-cam .bt-cam', { hasText: '⚡' }).click();
+      await p.locator('.folha .btn', { hasText: nome }).click();
+      await p.locator('.folha .btn.primario').click(); await p.waitForTimeout(300);
+    };
+    await ir(p, urlGrande, 'relatorio/fotos');
+    let n = await contar();
+    await abrirCamera();
+    if (!(await p.locator('.topo-cam .bt-cam', { hasText: '⚡' }).textContent()).includes('Desligado')) problemas.push('camera: o flash padrao nao e Desligado');
+    // tirar e voltar na hora (botao voltar do Android)
+    await p.locator('.disparo').click(); await p.goBack();
+    if (await contar() !== n + 1) problemas.push('camera: tirar e voltar na hora perdeu a foto');
+    n++;
+    // flash Auto lento (1,5 s): tocar em Pronto durante o "Segure firme"
+    await abrirCamera(); await flash('Auto');
+    await p.evaluate(() => { const o = ImageCapture.prototype.takePhoto; ImageCapture.prototype.takePhoto = function (x) { return new Promise(r => setTimeout(r, 1500)).then(() => o.call(this, x)); }; });
+    await p.locator('.disparo').click(); await p.waitForTimeout(300);
+    if (!(await p.locator('.segure').isVisible())) problemas.push('camera: "Segure firme" nao apareceu com flash');
+    if (await p.locator('.disparo.esperando').count() !== 1) problemas.push('camera: o botao nao mostrou que esta esperando');
+    await p.screenshot({ path: path.join(pasta, '41-camera-segure-firme.png') });
+    await p.locator('.pronto-cam').click();
+    if (await contar() !== n + 1) problemas.push('camera: tocar em Pronto durante o "Segure firme" perdeu a foto');
+    n++;
+    // sensor travado: depois de 4 s vale o quadro do toque
+    await abrirCamera();
+    await p.evaluate(() => { ImageCapture.prototype.takePhoto = () => new Promise(() => {}); });
+    await p.locator('.disparo').click(); await p.waitForTimeout(4800);
+    if (await p.locator('.segure').isVisible()) problemas.push('camera: ficou presa no "Segure firme" com o sensor travado');
+    await p.locator('.pronto-cam').click();
+    if (await contar() !== n + 1) problemas.push('camera: com o sensor travado a foto do toque nao entrou');
+    n++;
+    await abrirCamera(); await flash('Desligado'); await p.locator('.pronto-cam').click(); await p.waitForTimeout(600);
+    // legenda: no maximo 300 caracteres, com contador
+    await p.locator('button.foto').first().click();
+    const campo = p.locator('.folha input[type=text]').first();
+    await campo.fill('x'.repeat(310));
+    if ((await campo.inputValue()).length !== 300) problemas.push('legenda: passou de 300 caracteres');
+    const contador = await p.locator('.folha .contador').textContent().catch(() => '');
+    if (!contador.includes('300 de 300')) problemas.push(`legenda: contador errado (${contador})`);
+    await foto(p, '42-legenda-limite', 412, 915, true);
+    await campo.fill('Legenda curta'); await campo.blur(); await p.waitForTimeout(300);
+    await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await p.waitForTimeout(300);
+    // mesma foto da galeria de novo: entra assim mesmo e um aviso so
+    const antesGaleria = await p.locator('button.foto').count();
+    await p.getByRole('button', { name: 'Da galeria', exact: true }).click();
+    await p.waitForFunction(n => document.querySelectorAll('button.foto').length > n, antesGaleria, { timeout: 30000 }).catch(() => {});
+    const avisos = await p.locator('.aviso', { hasText: 'já estavam no relatório' }).count();
+    if (avisos !== 1) problemas.push(`galeria: esperava 1 aviso de fotos repetidas, apareceram ${avisos}`);
+    if (await p.locator('button.foto').count() <= antesGaleria) problemas.push('galeria: fotos repetidas nao entraram');
+    await foto(p, '43-galeria-repetidas', 412, 915, true);
+    // digitar e sair sem confirmar o campo (voltar do Android, menu): nada se perde
+    await p.locator('button.foto').nth(1).click();
+    await p.locator('.folha input[type=text]').first().fill('Digitei e voltei');
+    await p.goBack(); await p.waitForTimeout(800);
+    await ir(p, urlGrande, 'relatorio/fotos');
+    if (!((await p.locator('button.foto').nth(1).getAttribute('aria-label')) || '').includes('Digitei e voltei')) problemas.push('legenda: digitar e voltar perdeu o texto');
+    await ir(p, urlGrande, 'relatorio');
+    await p.getByRole('textbox', { name: 'Fiscal' }).fill('Fiscal digitado');
+    await ir(p, urlGrande, 'base'); await ir(p, urlGrande, 'relatorio');
+    if (await p.getByRole('textbox', { name: 'Fiscal' }).inputValue() !== 'Fiscal digitado') problemas.push('dados: digitar e ir para outra tela perdeu o texto');
     await p.context().close();
   }
 

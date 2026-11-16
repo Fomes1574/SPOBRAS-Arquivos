@@ -286,7 +286,7 @@
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Marcar / desmarcar todas" MinHeight="44" Margin="8,0,0,0" Command="{Binding SelecionarTodasCommand}" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Aplicar às marcadas (ou às sem legenda)" MinHeight="44" Margin="8,0,0,0" Command="{Binding AplicarLegendaEmLoteCommand}" />
                     <TextBlock DockPanel.Dock="Left" Text="Mesma legenda para várias:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" />
-                    <TextBox Text="{Binding LegendaEmLote, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Legenda para várias fotos" />
+                    <TextBox Text="{Binding LegendaEmLote, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Legenda para várias fotos" />
                 </DockPanel>
 
                 <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Problemas}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
@@ -329,7 +329,7 @@
                                                 Visibility="{Binding Faltando, Converter={StaticResource Visivel}}" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBox Text="{Binding Legenda, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Legenda da foto" ToolTip="Legenda (aparece depois do número da foto)" />
+                                        <TextBox Text="{Binding Legenda, UpdateSourceTrigger=LostFocus}" MaxLength="300" AutomationProperties.Name="Legenda da foto" ToolTip="Legenda (aparece depois do número da foto)" />
                                         <TextBox Text="{Binding Descricao, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Descrição do serviço" Margin="0,6,0,0"
                                                  ToolTip="Descrição do serviço (aparece quando o relatório é do tipo com descrição)"
                                                  Visibility="{Binding DataContext.ModoDescricao, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visivel}}" />

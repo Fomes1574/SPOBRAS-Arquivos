@@ -161,7 +161,7 @@ public sealed class CelularTests : IDisposable
         }
 
         var escolhidas = p.EscolherArquivosAsync("image/*", true, app.Rascunho.PastaDasFotos).Result;
-        Assert.Empty(app.Rascunho.AdicionarCopiadas(escolhidas.Select(e => e.Local!)));
+        Assert.Empty(app.Rascunho.AdicionarCopiadas(escolhidas.Select(e => e.Local!)).Avisos);
     }
 
     [Fact]
@@ -269,7 +269,7 @@ public sealed class CelularTests : IDisposable
         app.Rascunho.AdicionarFoto(File.ReadAllBytes(foto));
         File.WriteAllText(Path.Combine(app.Rascunho.PastaDasFotos, "falsa.jpg"), "nao e foto");
         var recusadas = app.Rascunho.AdicionarCopiadas([Path.Combine(app.Rascunho.PastaDasFotos, "falsa.jpg")]);
-        Assert.Single(recusadas);
+        Assert.Single(recusadas.Recusadas);
         Assert.Single(app.Rascunho.Dados.Fotos);
         Assert.False(File.Exists(Path.Combine(app.Rascunho.PastaDasFotos, "falsa.jpg")));
     }

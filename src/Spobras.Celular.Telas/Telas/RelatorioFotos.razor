@@ -12,6 +12,10 @@
     {
         <Aviso Tipo="erro">@Erro</Aviso>
     }
+    @if (App.Rascunho.AvisoDeRecuperacao is { } recuperado)
+    {
+        <Aviso Tipo="atencao"><span>@recuperado</span> <button class="link" @onclick="() => App.Rascunho.AvisoDeRecuperacao = null">Entendi</button></Aviso>
+    }
     @foreach (var r in _recusadas)
     {
         <Aviso Tipo="atencao">@r</Aviso>
@@ -41,7 +45,7 @@
             </div>
             <div class="campo">
                 <label for="legenda-varias">Legenda para as marcadas</label>
-                <input id="legenda-varias" type="text" value="@_legenda" @oninput="e => _legenda = e.Value?.ToString() ?? string.Empty" />
+                <input id="legenda-varias" type="text" value="@_legenda" maxlength="@RascunhoRelatorio.MaximoDaLegenda" @oninput="e => _legenda = e.Value?.ToString() ?? string.Empty" />
             </div>
             <div class="linha-btns">
                 <button class="btn primario" @onclick="AplicarLegenda">Aplicar legenda</button>
@@ -59,6 +63,10 @@
                 @if (mini.Length > 0)
                 {
                     <img src="@mini" alt="" />
+                }
+                else if (App.Rascunho.SemPrevia(f))
+                {
+                    <span class="sem-previa">Sem prévia</span>
                 }
                 <span class="n">@(n + 1)</span>
                 @if (_selecionando && _marcadas.Contains(n))
@@ -115,7 +123,7 @@
     var f = Fotos[a];
     <Folha Aberta="true" Titulo="@($"Foto {a + 1} de {Fotos.Count}")" AoFechar="() => _aberta = null">
         <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" hidden="@(App.Rascunho.Miniatura(f).Length == 0)" />
-        <CampoTexto @key="f.Arquivo" Rotulo="Legenda (opcional)" Valor="@f.Legenda" Dica="Ex.: execução do piso da sala 3" AoMudar="v => App.Rascunho.Legendar(a, v)" />
+        <CampoTexto @key="f.Arquivo" Rotulo="Legenda (opcional)" Valor="@f.Legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda" GravarAoDigitar="true" Dica="Ex.: execução do piso da sala 3" AoMudar="v => App.Rascunho.Legendar(a, v)" />
         <div class="linha-btns" style="margin-bottom:8px">
             <button class="btn linha pequeno" @onclick="() => App.Rascunho.Girar(a)">Girar ↻</button>
             <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => Mover(a, a - 1)">‹ Mover</button>
@@ -154,6 +162,7 @@
     {
         Dispose();
         App.Rascunho.MiniaturaPronta -= AoFicarPronta;
+        App.Rascunho.Mudou -= AoFicarPronta;
         // Saiu da tela com o Desfazer aberto: a remocao vale.
         if (_removidas > 0)
         {
@@ -299,7 +308,7 @@
     private Task DaGaleria() => Executar("Copiando as fotos…", async () =>
     {
         var escolhidas = await App.Plataforma.EscolherArquivosAsync("image/*", true, App.Rascunho.PastaDasFotos);
-        _recusadas = await Task.Run(() => App.Rascunho.AdicionarCopiadas(escolhidas));
+        _recusadas = (await Task.Run(() => App.Rascunho.AdicionarCopiadas(escolhidas))).Avisos;
     });
 
     private static string Rotulo(int n, FotoRascunho f) => f.Legenda.Length > 0 ? $"Foto {n + 1}: {f.Legenda}" : $"Foto {n + 1}";
@@ -310,7 +319,23 @@
         _aberta = para;
     }
 
-    protected override void Iniciar() => App.Rascunho.MiniaturaPronta += AoFicarPronta;
+    protected override void Iniciar()
+    {
+        App.Rascunho.MiniaturaPronta += AoFicarPronta;
+        App.Rascunho.Mudou += AoFicarPronta; // foto da camera que terminou de gravar depois de sair dela
+    }
 
-    private void AoFicarPronta() => InvokeAsync(StateHasChanged);
+    // Miniaturas ficam prontas uma atras da outra: junta e redesenha no maximo umas 8 vezes por segundo.
+    private int _redesenho;
+
+    private void AoFicarPronta()
+    {
+        if (Interlocked.Exchange(ref _redesenho, 1) == 1) return;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(120);
+            Volatile.Write(ref _redesenho, 0);
+            StateHasChanged();
+        });
+    }
 }

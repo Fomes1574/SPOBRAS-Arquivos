@@ -44,6 +44,11 @@ public abstract class Tela : ComponentBase, IDisposable
 
     protected async Task Executar(string texto, Func<Task> tarefa)
     {
+        if (Trabalhando is not null)
+        {
+            return; // dois toques rapidos no mesmo botao: a segunda vez nao comeca outro trabalho por cima
+        }
+
         Erro = null;
         Trabalhando = texto;
         StateHasChanged();
@@ -56,6 +61,15 @@ public abstract class Tela : ComponentBase, IDisposable
                                        or Spobras.Documentos.Pdf.PdfInvalidoException or Spobras.Documentos.Imagens.FotoInvalidaException)
         {
             Erro = ex.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            // cancelado pelo proprio usuario (ex.: fechou a escolha de arquivos)
+        }
+        catch (Exception ex)
+        {
+            // Erro que ninguem previu (inclusive do proprio Android): vira aviso na tela em vez de derrubar o app.
+            Erro = "Não deu certo: " + ex.Message;
         }
         finally
         {

@@ -81,6 +81,11 @@
         try
         {
             _plano = App.Rascunho.Dados.Fotos.Count > 0 ? App.Rascunho.Plano() : null;
+            if (_plano is not null)
+            {
+                // Pendencia do proprio plano (ex.: cabecalho grande demais) tambem impede gerar, com o motivo na tela.
+                _problemas = [.. _problemas, .. _plano.Avisos.Where(a => a.Gravidade == Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem)];
+            }
         }
         catch (Spobras.Documentos.Imagens.FotoInvalidaException ex)
         {
@@ -122,6 +127,7 @@
             }
         }
 
+        _progresso = null;
         int total = App.Rascunho.Dados.Fotos.Count * (App.Config.Formato == FormatoGerado.ExcelEPdf ? 2 : 1);
         var progresso = new Progress<int>(n => InvokeAsync(() =>
         {

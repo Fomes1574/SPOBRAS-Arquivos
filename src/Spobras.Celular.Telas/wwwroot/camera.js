@@ -3,8 +3,13 @@
 let stream = null, track = null, captura = null, video = null, frente = false;
 let alvo = 4 / 3, flash = "auto", dotnet = null, botao = null, miniatura = null, visor = null, aviso = null;
 let fotografando = false, salvando = 0;
+const pendentes = new Set();   // fotos pegas que ainda estao indo para o rascunho
+const PRAZO_DO_SENSOR = 4000;  // com flash, se o Android nao registrar nesse tempo, vale o quadro do toque
+let gx = 0, gy = 0;            // gravidade (celular deitado com a rotacao automatica desligada)
+function aoMover(e) { const g = e.accelerationIncludingGravity; if (g && g.x != null) { gx = g.x; gy = g.y; } }
 
 export async function iniciar(elemento, usarFrente) {
+  await esperarPendentes(); // trocar de camera nao corta uma foto no meio
   parar();
   video = elemento;
   frente = !!usarFrente;
@@ -42,7 +47,27 @@ export async function iniciar(elemento, usarFrente) {
 // Liga o botao de disparo direto aqui (o toque nao passa pelo .NET antes de pegar a foto).
 export function ligarDisparo(elBotao, elMiniatura, elVisor, elAviso, ref) {
   botao = elBotao; miniatura = elMiniatura; visor = elVisor; aviso = elAviso; dotnet = ref;
-  botao.addEventListener("click", disparar);
+  botao.addEventListener("click", tocar);
+  window.addEventListener("devicemotion", aoMover);
+}
+
+function tocar() {
+  const p = disparar();
+  pendentes.add(p);
+  p.finally(() => pendentes.delete(p));
+}
+
+async function esperarPendentes() {
+  while (pendentes.size) await Promise.allSettled([...pendentes]);
+}
+
+// Saiu da camera (Pronto, fechar ou voltar): as fotos ja pegas terminam de gravar antes de a camera desligar.
+export async function encerrar() {
+  if (botao) botao.removeEventListener("click", tocar);
+  window.removeEventListener("devicemotion", aoMover);
+  botao = null;
+  await esperarPendentes();
+  parar();
 }
 
 // proporcao: largura/altura com o celular deitado (4/3, 16/9, 1). 0 = tela cheia (formato do visor).
@@ -74,30 +99,45 @@ function piscar() {
   setTimeout(() => f.classList.remove("on"), 140);
 }
 
-function segurar(sim) { if (aviso) aviso.hidden = !sim; }
+function segurar(sim) {
+  if (aviso) aviso.hidden = !sim;
+  if (botao) { botao.classList.toggle("esperando", sim); botao.setAttribute("aria-busy", sim ? "true" : "false"); }
+}
+
+// Tela em pe, mas o celular deitado (rotacao automatica desligada): a foto e girada para sair na horizontal.
+// 1 = topo do celular para a esquerda, -1 = para a direita, 0 = em pe.
+function deitado() {
+  if (!retrato() || frente) return 0;
+  if (Math.abs(gx) > 6 && Math.abs(gx) > Math.abs(gy) * 1.5) return gx > 0 ? 1 : -1;
+  return 0;
+}
+
+function prazo(promessa, ms) {
+  return Promise.race([promessa, new Promise((_, nao) => setTimeout(() => nao(new Error("demorou")), ms))]);
+}
 
 async function disparar() {
-  if (!video || !video.videoWidth || fotografando) return;
+  if (!video || !video.videoWidth || fotografando) return; // durante o "Segure firme" o botao fica esperando
   const inicio = performance.now();
   const usarSensor = captura && (flash === "auto" || flash === "ligado");
-  let quadro;
+  const lado = deitado();
+  // O instante do toque fica guardado sempre: e a foto (sem flash) ou a reserva (se o sensor falhar ou demorar).
+  let quadro = recortar(video, video.videoWidth, video.videoHeight, false, lado);
   if (usarSensor) {
     // Com flash a foto precisa do sensor: o Android ajusta foco, luz e flash antes de registrar.
     fotografando = true;
     segurar(true);
     try {
-      const blob = await captura.takePhoto({ fillLightMode: flash === "ligado" ? "flash" : "auto" });
+      const blob = await prazo(captura.takePhoto({ fillLightMode: flash === "ligado" ? "flash" : "auto" }), PRAZO_DO_SENSOR);
       const img = await createImageBitmap(blob);
       const girar = (video.videoHeight > video.videoWidth) !== (img.height > img.width);
-      quadro = recortar(img, img.width, img.height, girar);
+      quadro = recortar(img, img.width, img.height, girar, lado);
     } catch (e) {
-      quadro = recortar(video, video.videoWidth, video.videoHeight, false);
+      // fica o quadro do toque
     } finally {
       fotografando = false;
       segurar(false);
     }
-  } else {
-    quadro = recortar(video, video.videoWidth, video.videoHeight, false); // o instante do toque
   }
   window.__spobrasTempoDoQuadro = performance.now() - inicio; // do toque ate a imagem pega (conferido nos testes)
   piscar();
@@ -121,11 +161,11 @@ async function disparar() {
 }
 
 // Recorte central no formato do visor, com o maior lado limitado (o relatorio usa ate 1600 px).
-function recortar(fonte, largura, altura, girar) {
+function recortar(fonte, largura, altura, girar, lado) {
   let w = girar ? altura : largura, h = girar ? largura : altura;
   let cw = w, ch = h;
   if (w / h > alvo) cw = Math.round(h * alvo); else ch = Math.round(w / alvo);
-  const lado = 2400, escala = Math.min(1, lado / Math.max(cw, ch));
+  const maximo = 2400, escala = Math.min(1, maximo / Math.max(cw, ch));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(cw * escala);
   canvas.height = Math.round(ch * escala);
@@ -137,13 +177,23 @@ function recortar(fonte, largura, altura, girar) {
   if (frente) { ctx.translate(girar ? altura : w, 0); ctx.scale(-1, 1); }
   ctx.drawImage(fonte, 0, 0);
   ctx.restore();
-  return canvas;
+  if (!lado) return canvas;
+  // celular deitado com a tela em pe: gira a foto para a horizontal
+  const deitada = document.createElement("canvas");
+  deitada.width = canvas.height;
+  deitada.height = canvas.width;
+  const d = deitada.getContext("2d");
+  if (lado > 0) { d.translate(0, deitada.height); d.rotate(-Math.PI / 2); }
+  else { d.translate(deitada.width, 0); d.rotate(Math.PI / 2); }
+  d.drawImage(canvas, 0, 0);
+  return deitada;
 }
 
 export function emAndamento() { return salvando + (fotografando ? 1 : 0); }
 
 export function desligar() {
-  if (botao) botao.removeEventListener("click", disparar);
+  if (botao) botao.removeEventListener("click", tocar);
+  window.removeEventListener("devicemotion", aoMover);
   botao = null;
   parar();
 }

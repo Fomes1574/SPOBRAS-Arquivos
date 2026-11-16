@@ -117,7 +117,7 @@ public sealed class EstresseTests : IDisposable
         }).ToList();
 
         tempo.Restart();
-        Assert.Empty(r.AdicionarCopiadas(copias));
+        Assert.Empty(r.AdicionarCopiadas(copias).Recusadas);
         Anotar($"entrar no rascunho (300 da galeria, sem esperar miniaturas): {tempo.ElapsedMilliseconds} ms");
 
         tempo.Restart();
