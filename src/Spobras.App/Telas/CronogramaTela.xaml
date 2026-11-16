@@ -30,6 +30,24 @@
                     <TextBlock Text="Obras do cronograma" Style="{StaticResource TituloPainel}" VerticalAlignment="Center" />
                 </DockPanel>
 
+                <StackPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <TextBlock Text="Adicionar escolas de um contrato" Style="{StaticResource Rotulo}" />
+                    <TextBox Text="{Binding PesquisaContrato, UpdateSourceTrigger=PropertyChanged, Delay=200}"
+                             AutomationProperties.Name="Pesquisar contrato ou lote" />
+                    <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto"
+                                  Visibility="{Binding ContratosEncontrados.Count, Converter={StaticResource VisivelSe}}">
+                        <ItemsControl ItemsSource="{Binding ContratosEncontrados}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <Button Style="{StaticResource BotaoLink}" HorizontalContentAlignment="Left"
+                                        Command="{Binding DataContext.AdicionarEscolasDoContratoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel><TextBlock Text="{Binding Titulo}" FontWeight="Bold" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detalhe}" TextWrapping="Wrap" /></StackPanel>
+                                </Button>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
                 <Grid DockPanel.Dock="Top" Margin="0,0,0,4" Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSe}}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="28" />
@@ -54,17 +72,17 @@
                 </Grid>
 
                 <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
-                <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" Visibility="{Binding TemSugestoesDoLote, Converter={StaticResource Visivel}}">
-                    <TextBlock Text="Escolas do mesmo lote que ainda não estão no cronograma" Style="{StaticResource Texto2}" FontSize="13" />
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0" Visibility="{Binding TemSugestoesDoContrato, Converter={StaticResource Visivel}}">
+                    <TextBlock Text="Escolas do mesmo contrato que ainda não estão no cronograma" Style="{StaticResource Texto2}" FontSize="13" />
                     <ScrollViewer MaxHeight="76" VerticalScrollBarVisibility="Auto" Focusable="False">
-                        <ItemsControl ItemsSource="{Binding SugestoesDoLote}" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding SugestoesDoContrato}" Focusable="False">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Style="{StaticResource BotaoLink}" Margin="0,2,18,0" ToolTip="{Binding Texto}" AutomationProperties.Name="Incluir esta escola no cronograma"
-                                            Command="{Binding DataContext.AdicionarDoLoteCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                            Command="{Binding DataContext.AdicionarDoContratoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
                                         <TextBlock><Run Text="+ " /><Run Text="{Binding Obra.Empreendimento, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding Obra.Contrato, Mode=OneWay}" /></TextBlock>
                                     </Button>
                                 </DataTemplate>

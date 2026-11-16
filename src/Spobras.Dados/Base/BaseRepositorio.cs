@@ -275,10 +275,11 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             .Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToList();
 
         return new OpcoesFiltro(
-            Distintos("portaria", "portaria"), Distintos("contrato", "contrato"), Distintos("empreendimento", "escola"),
+            Distintos("portaria", "portaria"), Distintos("trim(contrato)", "contrato"), Distintos("empreendimento", "escola"),
             receitas, Distintos("atividade", "dotacao"), Distintos("status", "status"))
         {
             Empresas = Empresas(),
+            ContratosDetalhados = LerOpcoesContrato(conexao, filtro),
             Lotes = [.. Distintos("lote", "lote").OrderBy(l => System.Text.RegularExpressions.Regex.Match(l, @"\d+") is { Success: true } m ? int.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture) : int.MaxValue)
                 .ThenBy(l => l, StringComparer.OrdinalIgnoreCase)],
         };
@@ -333,16 +334,16 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             cmd.CommandText = $"""
                 select contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago, status, contrato_receita, pagamento,
                     valor_reajuste, status_contrato
-                from Medicao where contrato collate nocase in ({string.Join(", ", nomes)}) order by numero, inicio
+                from Medicao where trim(contrato) collate nocase in ({string.Join(", ", nomes)}) order by numero, inicio
                 """;
             using var r = cmd.ExecuteReader();
             while (r.Read())
             {
                 var m = new MedicaoLida(r.GetString(0), Txt(r, 1), Txt(r, 2), Dia(r, 3), Dia(r, 4), Reais(r, 5), Reais(r, 6), Reais(r, 7), Reais(r, 8),
                     Txt(r, 9), Txt(r, 10), Dia(r, 11), Reais(r, 12), Txt(r, 13));
-                if (!resultado.TryGetValue(m.Contrato, out var lista))
+                if (!resultado.TryGetValue(m.Contrato.Trim(), out var lista))
                 {
-                    resultado[m.Contrato] = lista = [];
+                    resultado[m.Contrato.Trim()] = lista = [];
                 }
 
                 lista.Add(m);
@@ -378,7 +379,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         cmd.CommandText = """
             select contrato, numero, empreendimento, inicio, fim, valor_protocolado, valor_liberado, valor_considerado, valor_pago, status, contrato_receita, pagamento,
                 valor_reajuste, status_contrato
-            from Medicao where contrato = $c collate nocase order by numero, inicio
+            from Medicao where trim(contrato) = $c collate nocase order by numero, inicio
             """;
         cmd.Parameters.AddWithValue("$c", contrato);
         using var r = cmd.ExecuteReader();
@@ -517,13 +518,13 @@ public sealed partial class BaseRepositorio(BancoApp banco)
     }
 
     /// <summary>Monta o WHERE com todos os filtros, menos o do campo indicado (usado para montar as opcoes dele).</summary>
-    private static string Onde(FiltroObras f, SqliteCommand cmd, string? menos)
+    private static string Onde(FiltroObras f, SqliteCommand cmd, string? menos, string prefixo = "f")
     {
         var partes = new List<string> { "1 = 1" };
         int n = 0;
         string P(object valor)
         {
-            string nome = "$f" + n++;
+            string nome = "$" + prefixo + n++;
             cmd.Parameters.AddWithValue(nome, valor);
             return nome;
         }
@@ -537,7 +538,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         }
 
         Incluir("portaria", f.Portaria, "portaria");
-        Incluir("contrato", f.Contrato, "contrato");
+        Incluir("trim(contrato)", f.Contrato.Select(c => c.Trim()).ToArray(), "contrato");
         Incluir("empreendimento", f.Escola, "escola");
         Incluir("lote", f.Lote, "lote");
         if (f.Empresa.Count > 0 && menos != "empresa")

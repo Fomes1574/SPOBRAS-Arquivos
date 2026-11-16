@@ -10,6 +10,14 @@ public static class ProcuraObras
 {
     public sealed record Sugestao(string Valor, string Detalhe);
 
+    public static IReadOnlyList<OpcaoContratoResumo> ContratosComDetalhes(BaseRepositorio base_, string texto, int maximo = 12)
+    {
+        string alvo = Normalizacao.Busca(texto.Trim());
+        return [.. base_.OpcoesGerais().ContratosDetalhados.Where(o =>
+            Normalizacao.Busca($"{o.Contrato} {o.Lote} {o.Modalidade} {o.Portaria}").Contains(alvo, StringComparison.Ordinal))
+            .Take(maximo)];
+    }
+
     public static IReadOnlyList<Sugestao> SugestoesDeEscola(BaseRepositorio base_, string texto, int max = 8)
     {
         string alvo = Normalizacao.Busca(texto.Trim());

@@ -349,9 +349,27 @@ public class TelasDeVerdadeTests
             Assert.False(baseDados.EditarObraCommand.CanExecute(null)); // a Base e so consulta
 
             // Lote escolhido (faixa de totais), filtros recolhidos e ficha ampliada
-            baseDados.Lote = [baseDados.Lotes.First()];
+            baseDados.Contrato = ["001/EX/2024"];
+            Bombear();
+            var filtroContrato = Assert.IsType<Spobras.App.Telas.FiltroMultiplo>(EncontrarNaTela(janela, "FiltroContratos"));
+            var limpar = Assert.IsType<System.Windows.Controls.Button>(filtroContrato.FindName("LimparSelecao"));
+            Assert.True(limpar.IsVisible);
+            var caixa = Assert.IsType<System.Windows.Controls.Primitives.ToggleButton>(filtroContrato.FindName("Abrir"));
+            caixa.IsChecked = true;
+            Bombear();
+            var popup = Assert.IsType<System.Windows.Controls.Primitives.Popup>(filtroContrato.FindName("FolhaOpcoes"));
+            Assert.True(popup.IsOpen);
+            caixa.IsChecked = false;
+            Bombear();
+            Assert.Single(baseDados.ResumosContratos);
+            Assert.Equal(3, baseDados.ResumosContratos[0].Escolas.Count);
+            Assert.Contains(baseDados.ContratosDetalhados, c => c.Titulo.Contains("Lote 01"));
+            var exportacao = baseDados.ExportarContratosPdfCommand.ExecuteAsync(null);
+            Esperar(() => exportacao.IsCompleted);
+            exportacao.GetAwaiter().GetResult();
+            Assert.False(baseDados.ResultadoComFalha, baseDados.Resultado);
             baseDados.Selecionada = baseDados.Obras.First();
-            Fotografar(janela, saida, "58-base-lote-e-totais");
+            Fotografar(janela, saida, "58-base-resumo-contrato");
             baseDados.AlternarFiltrosCommand.Execute(null);
             baseDados.AlternarAmpliarCommand.Execute(null);
             Fotografar(janela, saida, "59-base-ficha-ampliada");

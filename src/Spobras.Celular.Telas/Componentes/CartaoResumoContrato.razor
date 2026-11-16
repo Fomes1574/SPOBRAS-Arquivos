@@ -1,0 +1,50 @@
+@using Spobras.Documentos.Relatorio
+@{
+    var o = Resumo.Identificacao;
+    var total = Resumo.Valores;
+}
+<section class="painel contrato-resumo">
+    <div class="mini">Contrato</div>
+    <h2>@o.Contrato</h2>
+    <SelosContrato Obra="o" Hoje="Hoje" />
+    <p>@OpcaoContratoResumo.NomeLote(o.Lote) · @o.Modalidade · @Formato.Plural(Resumo.Escolas.Count, "escola", "escolas")</p>
+    <p>@o.Contratada · @o.Portaria</p>
+    <div class="datas-resumo">
+        <div><span>Data da OS</span><b>@GeradorResumoContratoPdf.Data(o.DataOs)</b></div>
+        <div><span>Término</span><b>@GeradorResumoContratoPdf.Data(o.Termino)</b></div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(o.Situacao))
+    {
+        <p>Prazo (planilha) · @o.Situacao</p>
+    }
+    <FinanceiroResumo Valores="total" Pizza="true" />
+    @if (Exportar.HasDelegate)
+    {
+        <button class="btn primario resumo-acao" @onclick="Exportar" disabled="Ocupado">Exportar PDF do contrato</button>
+    }
+</section>
+<section class="escolas-resumo">
+    <h2>Escolas do contrato @o.Contrato</h2>
+    @foreach (var escola in Resumo.Escolas)
+    {
+        var v = escola.Valores;
+        var pago = Math.Clamp(v.Percentual(v.Pago), 0, 100);
+        var tramite = Math.Clamp(v.Percentual(v.Tramite), 0, 100 - pago);
+        <article class="painel escola-resumo">
+            <a href="obra/@escola.Obra.Id">@escola.Obra.Empreendimento</a>
+            <p>@(escola.Obra.TipoDeObra ?? escola.Obra.Tipo) · @GeradorResumoContratoPdf.Percentual(v.Percentual(v.Pago), 0) pago</p>
+            <div class="barra-prog"><i style="width:@FinanceiroResumo.PctCss(pago);background:#1E7B34"></i><i style="width:@FinanceiroResumo.PctCss(tramite);background:#E3A23B"></i></div>
+            <FinanceiroResumo Valores="v" />
+        </article>
+    }
+    <div class="painel"><strong>Total do contrato (@Formato.Plural(Resumo.Escolas.Count, "escola", "escolas"))</strong>
+        <FinanceiroResumo Valores="total" />
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ResumoContrato Resumo { get; set; } = default!;
+    [Parameter, EditorRequired] public DateOnly Hoje { get; set; }
+    [Parameter] public EventCallback Exportar { get; set; }
+    [Parameter] public bool Ocupado { get; set; }
+}

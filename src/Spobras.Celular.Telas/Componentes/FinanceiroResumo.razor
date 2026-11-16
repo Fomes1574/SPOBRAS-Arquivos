@@ -1,0 +1,43 @@
+@using Spobras.Documentos.Relatorio
+<div class="valores-resumo">
+    <div><span>Contratado c/ aditamento</span><b>@Formato.Reais(Valores.Contratado)</b></div>
+    <div><span>Pago</span><b>@Formato.Reais(Valores.Pago)</b></div>
+    <div><span>Em trâmite (@Valores.Medicoes)</span><b>@Formato.Reais(Valores.Tramite)</b></div>
+    <div class="saldo-resumo"><span>Saldo a pagar</span><b>@Formato.Reais(Valores.SaldoAPagar)</b></div>
+</div>
+@if (Pizza && Valores.TemPizza)
+{
+    var fatias = Fatias();
+    decimal total = fatias.Sum(f => Math.Max(0, f.Valor));
+    var pctPago = total == 0 ? 0 : 100 * Math.Max(0, Valores.Pago) / total;
+    var pctTramite = total == 0 ? 0 : 100 * Math.Max(0, Valores.Tramite) / total;
+    <div class="pizza-resumo">
+        <div class="pizza" aria-hidden="true" style="background:conic-gradient(#1E7B34 0 @PctCss(pctPago), #E3A23B @PctCss(pctPago) @PctCss(pctPago + pctTramite), #D9D9D5 @PctCss(pctPago + pctTramite) 100%)"></div>
+        <div>
+            <div class="titulo-legenda">Do valor contratado com aditamento (@Formato.Reais(Valores.Contratado))</div>
+            @foreach (var fatia in fatias)
+            {
+                <div class="legenda-resumo">
+                    <span><i style="background:@fatia.Cor"></i>@fatia.Nome</span>
+                    <strong>@GeradorResumoContratoPdf.Percentual(Valores.Percentual(fatia.Valor))</strong>
+                    <span class="cifra-resumo">@Formato.Reais(fatia.Valor)</span>
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (Pizza)
+{
+    <p class="sem-pizza">@GeradorResumoContratoPdf.SemPizza</p>
+}
+
+@code {
+    [Parameter, EditorRequired] public ValoresResumo Valores { get; set; } = default!;
+    [Parameter] public bool Pizza { get; set; }
+
+    private (string Nome, decimal Valor, string Cor)[] Fatias() =>
+        [("Pago", Valores.Pago, "#1E7B34"), ("Em trâmite", Valores.Tramite, "#E3A23B"),
+          ("A pagar, sem medição em trâmite", Valores.SemMedicao, "#D9D9D5")];
+
+    public static string PctCss(decimal n) => n.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) + "%";
+}

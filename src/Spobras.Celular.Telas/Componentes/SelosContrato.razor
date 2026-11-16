@@ -1,0 +1,11 @@
+<div class="selos-contrato">
+    @foreach (var selo in new[] { PrazoContrato.Status(Obra.StatusContrato), PrazoContrato.Prazo(Obra, Hoje) })
+    {
+        <span class="selo-contrato" style="background:@selo.Fundo;color:@selo.Cor">@selo.Texto</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ObraLida Obra { get; set; } = default!;
+    [Parameter, EditorRequired] public DateOnly Hoje { get; set; }
+}

@@ -290,3 +290,29 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .linha-diag span { color: var(--sec); }
 .linha-diag b { text-align: right; font-weight: 600; }
 .padrao { margin-top: 14px; }
+
+.base-contratos .chip, .resumo-acao { min-width:44px; min-height:44px; white-space:nowrap; }
+.base-contratos .busca input::placeholder, .folha-resumo .busca input::placeholder { color:#646461; opacity:1; }
+.base-contratos .grupo-chip .chip:first-child { max-width:250px; text-overflow:ellipsis; overflow:hidden; display:block; }
+.folha-resumo small { font-size:12px; color:#535350; }
+.folha-resumo .opcao > span { overflow-wrap:anywhere; }
+.contrato-resumo, .escola-resumo, .escolas-resumo, .resumo-salvo { overflow-wrap:anywhere; font-size:13px; }
+.contrato-resumo h2, .escolas-resumo h2 { margin:0 0 6px; }
+.contrato-resumo p, .escola-resumo p { margin:4px 0 8px; color:#52524e; font-size:12px; }
+.selos-contrato { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0; }
+.selo-contrato { padding:4px 6px; border-radius:4px; font-size:12px; line-height:1.15; font-weight:700; white-space:nowrap; }
+.valores-resumo, .datas-resumo { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin:8px 0; }
+.valores-resumo > div, .datas-resumo > div { padding:7px; background:#f0f0ed; border-radius:6px; }
+.valores-resumo > div > span, .datas-resumo > div > span { display:block; color:#4d4d49; font-size:12px; }
+.valores-resumo > div > b, .datas-resumo > div > b { display:block; font-size:14px; white-space:nowrap; }
+.valores-resumo > .saldo-resumo { background:#211d1e; }
+.valores-resumo > .saldo-resumo > span, .valores-resumo > .saldo-resumo > b { color:#fff; }
+.pizza-resumo { display:grid; grid-template-columns:58px minmax(0,1fr); align-items:center; gap:9px; margin:9px 0; }
+.pizza { width:58px; height:58px; border-radius:50%; }
+.titulo-legenda { color:#4d4d49; font-size:12px; font-weight:600; }
+.legenda-resumo { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:0 6px; align-items:baseline; margin:3px 0; font-size:12px; }
+.legenda-resumo i { display:inline-block; width:9px; height:9px; margin-right:4px; border-radius:2px; }
+.cifra-resumo { text-align:right; color:#4d4d49; white-space:nowrap; }
+.escola-resumo > a { color:#214e8a; font-weight:700; min-height:44px; display:flex; align-items:center; }
+.escola-resumo .barra-prog { display:flex; overflow:hidden; height:5px; }
+.resumo-salvo .resumo-acao { margin:0 0 8px; }

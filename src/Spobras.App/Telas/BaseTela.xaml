@@ -69,23 +69,15 @@
 
                 <UniformGrid Rows="1" Margin="-6,12,-6,0">
                     <StackPanel Margin="6,0">
-                        <TextBlock Text="Portaria" Style="{StaticResource Rotulo}" />
                         <t:FiltroMultiplo Rotulo="Portaria" Plural="portarias" Itens="{Binding Portarias}" Selecionados="{Binding Portaria}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
-                        <TextBlock Text="Contrato" Style="{StaticResource Rotulo}" />
-                        <t:FiltroMultiplo Rotulo="Contrato" Plural="contratos" Itens="{Binding Contratos}" Selecionados="{Binding Contrato}" />
+                        <t:FiltroMultiplo x:Name="FiltroContratos" Rotulo="Contrato" Plural="contratos" Itens="{Binding ContratosDetalhados}" Selecionados="{Binding Contrato}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
-                        <TextBlock Text="Escola" Style="{StaticResource Rotulo}" />
                         <t:FiltroMultiplo Rotulo="Escola" Plural="escolas" Itens="{Binding Escolas}" Selecionados="{Binding Escola}" />
                     </StackPanel>
                     <StackPanel Margin="6,0">
-                        <TextBlock Text="Lote" Style="{StaticResource Rotulo}" />
-                        <t:FiltroMultiplo Rotulo="Lote" Plural="lotes" Itens="{Binding Lotes}" Selecionados="{Binding Lote}" />
-                    </StackPanel>
-                    <StackPanel Margin="6,0">
-                        <TextBlock Text="Empresa" Style="{StaticResource Rotulo}" />
                         <t:FiltroMultiplo Rotulo="Empresa" Plural="empresas" Itens="{Binding Empresas}" Selecionados="{Binding Empresa}" />
                     </StackPanel>
                 </UniformGrid>
@@ -94,15 +86,12 @@
                     <StackPanel Margin="0,10,0,0">
                         <UniformGrid Rows="1" Margin="-6,0">
                             <StackPanel Margin="6,0">
-                                <TextBlock Text="Contrato de receita" Style="{StaticResource Rotulo}" />
                                 <t:FiltroMultiplo Rotulo="Contrato de receita" Plural="contratos de receita" Itens="{Binding ContratosReceita}" Selecionados="{Binding ContratoReceita}" />
                             </StackPanel>
                             <StackPanel Margin="6,0">
-                                <TextBlock Text="Dotação (atividade)" Style="{StaticResource Rotulo}" />
                                 <t:FiltroMultiplo Rotulo="Dotação" Plural="dotações" Itens="{Binding Dotacoes}" Selecionados="{Binding Dotacao}" />
                             </StackPanel>
                             <StackPanel Margin="6,0">
-                                <TextBlock Text="Status da obra" Style="{StaticResource Rotulo}" />
                                 <t:FiltroMultiplo Rotulo="Status da obra" Plural="status" Itens="{Binding Situacoes}" Selecionados="{Binding Status}" />
                             </StackPanel>
                         </UniformGrid>
@@ -148,25 +137,56 @@
         </Border>
 
         <DockPanel Grid.Row="2" Margin="0,16,0,0">
-        <!-- Totais do lote escolhido -->
-        <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Padding="20,10" Margin="0,0,0,12"
-                Visibility="{Binding TemLote, Converter={StaticResource Visivel}}">
-            <StackPanel>
-                <TextBlock Text="{Binding TituloDoLote}" FontWeight="SemiBold" />
-                <ItemsControl ItemsSource="{Binding TotaisDoLote}" Focusable="False" Margin="0,6,0,0">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Margin="0,0,16,0">
-                                <TextBlock Text="{Binding Rotulo}" Style="{StaticResource Texto2}" FontSize="13" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Valor}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Valor}" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Padding="12" Margin="0,0,0,12"
+                Visibility="{Binding TemResumoContrato, Converter={StaticResource Visivel}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Top" HorizontalAlignment="Right" Style="{StaticResource BotaoLinha}"
+                        Content="Exportar PDF" Command="{Binding ExportarContratosPdfCommand}" />
+                <ScrollViewer MaxHeight="230" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding ResumosContratos}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,5,0,12">
+                                    <WrapPanel>
+                                        <TextBlock Text="{Binding Titulo}" FontWeight="Bold" Margin="0,0,10,0" />
+                                        <Border Background="{Binding Status.Fundo}" Padding="5,2" Margin="0,0,5,0"><TextBlock Text="{Binding Status.Texto}" Foreground="{Binding Status.Cor}" /></Border>
+                                        <Border Background="{Binding Prazo.Fundo}" Padding="5,2"><TextBlock Text="{Binding Prazo.Texto}" Foreground="{Binding Prazo.Cor}" /></Border>
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding Dados}" TextWrapping="Wrap" Margin="0,5" />
+                                    <ItemsControl ItemsSource="{Binding Cartoes}" Margin="0,3">
+                                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,0,20,5">
+                                            <TextBlock Text="{Binding Rotulo}" /><TextBlock Text="{Binding Valor}" FontWeight="Bold" />
+                                        </StackPanel></DataTemplate></ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <DataGrid ItemsSource="{Binding Escolas}" AutoGenerateColumns="False" IsReadOnly="True"
+                                              CanUserAddRows="False" HeadersVisibility="Column" AutomationProperties.Name="Escolas do contrato">
+                                        <DataGrid.Columns>
+                                            <DataGridTemplateColumn Header="Escola" Width="*">
+                                                <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                                    <Grid>
+                                                        <Button Content="{Binding Nome}" Style="{StaticResource BotaoLink}" HorizontalAlignment="Left"
+                                                                Visibility="{Binding EhObra, Converter={StaticResource Visivel}}"
+                                                                Command="{Binding DataContext.AbrirEscolaResumoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                CommandParameter="{Binding Obra}" />
+                                                        <TextBlock Text="{Binding Nome}" TextWrapping="Wrap" FontWeight="Bold"
+                                                                   Visibility="{Binding EhObra, Converter={StaticResource VisivelSeNao}}" />
+                                                    </Grid>
+                                                </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                            <DataGridTextColumn Header="Contratado" Binding="{Binding Contratado}" />
+                                            <DataGridTextColumn Header="Pago" Binding="{Binding Pago}" />
+                                            <DataGridTextColumn Header="Em trâmite" Binding="{Binding Tramite}" />
+                                            <DataGridTextColumn Header="Saldo a pagar" Binding="{Binding Saldo}" />
+                                            <DataGridTextColumn Header="% pago" Binding="{Binding Percentual}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </DockPanel>
         </Border>
         <Grid x:Name="Divisao">
             <Grid.ColumnDefinitions>
@@ -261,6 +281,8 @@
                             <TextBlock Text="{Binding Selecionada.Escola}" FontSize="18" FontWeight="Bold" TextWrapping="Wrap" />
                             <TextBlock Text="{Binding Selecionada.Situacao}" Foreground="{StaticResource Azul}" FontWeight="SemiBold" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,6" />
                             <TextBlock Text="{Binding ResumoDasMedicoes}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,8" TextWrapping="Wrap" />
+                            <Button Style="{StaticResource BotaoLinha}" Content="Exportar PDF" Margin="0,0,0,8"
+                                    Command="{Binding ExportarEscolaPdfCommand}" AutomationProperties.Name="Exportar PDF desta escola" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no relatório fotográfico" Command="{Binding UsarNoRelatorioCommand}"
                                     ToolTip="Leva escola, contratada, contrato, lote, portaria, SEI e Data da OS para o relatório" />
                             <Button Style="{StaticResource BotaoSecundario}" Content="Usar no cronograma" Margin="0,8,0,0" Command="{Binding UsarNoCronogramaCommand}"

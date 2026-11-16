@@ -1,13 +1,10 @@
 # Progresso
 
-## Planejado para o Codex em 16/11/2026: resumo por contrato
+## Resumo por contrato em 16/11/2026
 
-Especificação completa em `docs/codex/RESUMO-POR-CONTRATO.md`, com os modelos visuais em `docs/codex/visual/` (dados inventados). Resumo:
-- Estudo da planilha: o nome do lote não identifica um contrato (lotes com vários contratos são sempre de modalidades diferentes); a unidade é o contrato.
-- Exportar PDF "Resumo da obra" (ficha) e "Resumo do contrato" (uma página por contrato), com logo, selos de prazo (verde > 90 dias, laranja ≤ 90, vermelho vencido, cinza encerrado só com a data), pizza e percentuais; sem assinatura, escopo nem avanço físico.
-- Base no computador e no celular: sai o filtro Lote; o filtro Contrato mostra lote, modalidade, escolas e portaria; ✕ dentro do filtro; resumo do contrato com todas as escolas e Exportar PDF.
-- Cronograma: adicionar todas as escolas de um contrato; sugestões só do mesmo contrato (hoje "mesmo lote" compara só o número e mistura programas).
-- Ideia para depois: resumo por empresa.
+Implementação de `docs/codex/RESUMO-POR-CONTRATO.md` com dados sintéticos. O filtro Contrato pesquisa por número, lote ou modalidade. Cada contrato selecionado tem resumo e tabela próprios. As consultas antigas com Lote são convertidas para os contratos daquele lote e, quando não há correspondência, o lote vai para a pesquisa. O cronograma do Windows inclui as escolas de um contrato e guarda a origem no rascunho para sugerir as demais escolas daquele contrato.
+
+Windows e Android usam o mesmo gerador PDF para contrato e escola, com prazo calculado em horário de Brasília, logo opcional, percentuais e medições em trâmite. Foi conferida a equivalência de texto e paginação dos dois caminhos com PdfPig. Os testes também cobrem uma, seis e treze escolas, dois contratos, encerrado, não iniciado, logo, nome de arquivo, preservação das consultas e tentativa de exportação simultânea ou saída durante a gravação.
 
 ## Desempenho, histórico e exclusão em 16/11/2026
 
@@ -259,6 +256,11 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
 
 ## Pendências com o usuário
+
+- **Resumo por contrato:** confirmar o nome sugerido para vários contratos, `Resumo dos contratos - AAAA-MM-DD.pdf`.
+- **Resumo por contrato:** confirmar o texto do selo quando há data da OS, mas falta o término. Neste caso aparece “Sem término informado”.
+- **Resumo por contrato:** confirmar como exibir a pizza caso os percentuais calculados ultrapassem 100% por inconsistência nos dados. A legenda usa o valor contratado como denominador, e as fatias exibem a proporção entre os valores disponíveis.
+
 
 - ~~Celular, chave do APK~~: resolvido em 13/11/2026. A chave foi criada pelo workflow "criar chave do APK" e está nos segredos; o CI 57 já assinou o APK com ela. As próximas versões instalam por cima.
 - **Celular, ícone:** o ícone do app é genérico (o logo oficial não pode ir para o repositório público). O logo dos relatórios é escolhido nas Configurações do app, uma vez.

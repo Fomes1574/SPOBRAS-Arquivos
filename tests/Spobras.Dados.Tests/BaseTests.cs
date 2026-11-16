@@ -31,6 +31,18 @@ public class BaseTests : IDisposable
     // ---- Importacao ----
 
     [Fact]
+    public void Opcoes_detalham_contrato_e_contam_todas_as_escolas_mesmo_com_filtro()
+    {
+        var opcoes = _base.Opcoes(new FiltroObras { Escola = ["CEI Beta"] }).ContratosDetalhados;
+        var opcao = Assert.Single(opcoes);
+        Assert.Equal("001/EX/2024", opcao.Contrato);
+        Assert.Equal(2, opcao.Escolas);
+        Assert.Contains("Lote 01", opcao.Titulo);
+        Assert.Contains("Manutenção", opcao.Detalhe);
+        Assert.Equal("sem lote", OpcaoContratoResumo.NomeLote(null));
+    }
+
+    [Fact]
     public void Sugestoes_por_escola_mostram_os_contratos_e_ordenam_contratos_por_ano()
     {
         var escolas = ProcuraObras.SugestoesDeEscola(_base, "alfa");

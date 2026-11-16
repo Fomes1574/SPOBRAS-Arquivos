@@ -9,11 +9,13 @@ namespace Spobras.App.Telas;
 public partial class FiltroMultiplo : UserControl
 {
     /// <summary>Uma opcao da lista. Marcar so muda esta caixinha: a lista nao e recriada e a rolagem fica onde estava.</summary>
-    private sealed class Opcao(string texto, bool marcada) : System.ComponentModel.INotifyPropertyChanged
+    private sealed class Opcao(string texto, string titulo, string? detalhe, bool marcada) : System.ComponentModel.INotifyPropertyChanged
     {
         private bool _marcada = marcada;
 
         public string Texto { get; } = texto;
+        public string Titulo { get; } = titulo;
+        public string? Detalhe { get; } = detalhe;
 
         public bool Marcada
         {
@@ -93,26 +95,38 @@ public partial class FiltroMultiplo : UserControl
         return chave;
     }
 
-    private IEnumerable<string> Visiveis()
+    private IEnumerable<Opcao> Visiveis()
     {
         string busca = Normalizacao.Busca(Pesquisa.Text);
-        return (Itens?.Cast<string>() ?? []).Where(s => busca.Length == 0 || Chave(s).Contains(busca, StringComparison.Ordinal));
+        foreach (var item in Itens ?? Array.Empty<string>())
+        {
+            string valor = item is OpcaoContratoResumo contrato ? contrato.Contrato : (string)item;
+            string titulo = item is OpcaoContratoResumo c ? c.Titulo : valor;
+            string? detalhe = (item as OpcaoContratoResumo)?.Detalhe;
+            if (busca.Length == 0 || Chave(titulo + " " + detalhe).Contains(busca, StringComparison.Ordinal))
+                yield return new Opcao(valor, titulo, detalhe, Selecionados.Contains(valor, StringComparer.OrdinalIgnoreCase));
+        }
     }
 
     private void Atualizar()
     {
         SetValue(ResumoProperty, Selecionados.Count switch
         {
-            0 => Rotulo,
+            0 => Rotulo is "Portaria" or "Escola" or "Empresa" or "Dotação" ? "Todas ▾" : "Todos ▾",
             1 => Selecionados[0],
-            _ => $"{Selecionados.Count} {Plural}",
+            _ => $"{Selecionados[0]} + {Selecionados.Count - 1}",
         });
+        if (LimparSelecao is not null)
+        {
+            LimparSelecao.Visibility = Selecionados.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+            ResumoTexto.FontWeight = Selecionados.Count == 0 ? FontWeights.Normal : FontWeights.Bold;
+        }
         SetValue(LimparNomeProperty, $"Limpar {Rotulo}");
         if (Opcoes is null || Abrir?.IsChecked != true)
             return;
 
         var visiveis = Visiveis().ToList();
-        if (visiveis.SequenceEqual(_lista.Select(o => o.Texto)))
+        if (visiveis.Select(o => (o.Texto, o.Titulo, o.Detalhe)).SequenceEqual(_lista.Select(o => (o.Texto, o.Titulo, o.Detalhe))))
         {
             // Mesmas opcoes: so as marcas mudam (a rolagem fica onde o usuario deixou).
             foreach (var o in _lista)
@@ -120,7 +134,7 @@ public partial class FiltroMultiplo : UserControl
             return;
         }
 
-        _lista = [.. visiveis.Select(o => new Opcao(o, Selecionados.Contains(o, StringComparer.OrdinalIgnoreCase)))];
+        _lista = visiveis;
         Opcoes.ItemsSource = _lista;
     }
 
@@ -139,7 +153,7 @@ public partial class FiltroMultiplo : UserControl
     }
 
     private void MarcarVisiveis(object sender, RoutedEventArgs e) =>
-        SetCurrentValue(SelecionadosProperty, Selecionados.Union(Visiveis(), StringComparer.OrdinalIgnoreCase).ToArray());
+        SetCurrentValue(SelecionadosProperty, Selecionados.Union(Visiveis().Select(o => o.Texto), StringComparer.OrdinalIgnoreCase).ToArray());
 
     private void Alternar(object sender, RoutedEventArgs e)
     {

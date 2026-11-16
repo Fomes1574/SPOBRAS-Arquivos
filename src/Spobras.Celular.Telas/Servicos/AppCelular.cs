@@ -15,6 +15,7 @@ public sealed class AppCelular
         Base = new BaseCelular(plataforma, Preferencias, Agora);
         Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora);
         Pdf = new PdfCelular(plataforma, Preferencias);
+        ResumoPdf = new ResumoPdfCelular(this);
     }
 
     public IPlataforma Plataforma { get; }
@@ -29,6 +30,8 @@ public sealed class AppCelular
 
     public RelatorioPronto? UltimoRelatorio { get; set; }
     public PdfPronto? UltimoPdf { get; set; }
+    public ResumoPdfCelular ResumoPdf { get; }
+    public ResumoPdfSalvo? UltimoResumoPdf { get; set; }
 
     public Preferencias Config => Preferencias.Ler();
 
