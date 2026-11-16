@@ -5,8 +5,8 @@
     <Grid Margin="40,32,40,24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" MinHeight="150" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="2*" MinHeight="150" />
+            <RowDefinition Height="*" MinHeight="146" MaxHeight="270" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 

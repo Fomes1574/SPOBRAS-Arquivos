@@ -141,7 +141,7 @@
             <RowDefinition MaxHeight="320">
                 <RowDefinition.Style>
                     <Style TargetType="RowDefinition">
-                        <Setter Property="Height" Value="*" />
+                        <Setter Property="Height" Value="3*" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding TemResumoContrato}" Value="False"><Setter Property="Height" Value="0" /></DataTrigger>
                             <DataTrigger Binding="{Binding FichaAmpliada}" Value="True"><Setter Property="Height" Value="0" /></DataTrigger>
@@ -149,7 +149,7 @@
                     </Style>
                 </RowDefinition.Style>
             </RowDefinition>
-            <RowDefinition Height="*" />
+            <RowDefinition Height="2*" />
         </Grid.RowDefinitions>
         <Border Padding="12" Margin="0,0,0,12">
             <Border.Style>
@@ -161,9 +161,9 @@
                 </Style>
             </Border.Style>
             <DockPanel>
-                <Button DockPanel.Dock="Top" HorizontalAlignment="Right" Style="{StaticResource BotaoLinha}"
-                        Content="Exportar PDF" Command="{Binding ExportarContratosPdfCommand}" />
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Button DockPanel.Dock="Right" VerticalAlignment="Top" Margin="8,0,0,0"
+                        Style="{StaticResource BotaoLinha}" Content="Exportar PDF" Command="{Binding ExportarContratosPdfCommand}" />
+                <ScrollViewer x:Name="RolagemResumoContratos" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding ResumosContratos}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>

@@ -371,6 +371,10 @@ public class TelasDeVerdadeTests
             baseDados.Selecionada = baseDados.Obras.First();
             Fotografar(janela, saida, "58-base-resumo-contrato");
             baseDados.AlternarFiltrosCommand.Execute(null);
+            Bombear();
+            var rolagemResumo = Assert.IsType<System.Windows.Controls.ScrollViewer>(EncontrarNaTela(janela, "RolagemResumoContratos"));
+            rolagemResumo.ScrollToEnd();
+            Fotografar(janela, saida, "58b-base-escolas-do-contrato");
             baseDados.AlternarAmpliarCommand.Execute(null);
             Fotografar(janela, saida, "59-base-ficha-ampliada");
             baseDados.LimparFiltrosCommand.Execute(null);
