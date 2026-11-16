@@ -63,6 +63,7 @@
 
     private void Excluir(Salvo s)
     {
+        if (_excluidos.Any(e => e.Id == s.Id)) return; // dois toques na mesma lixeira
         Erro = null;
         _excluidos.Add(s);
         _rodada++;

@@ -1,5 +1,14 @@
 # Progresso
 
+## Desempenho, histórico e exclusão em 16/11/2026
+
+**Gerar o relatório (celular e computador):** cada foto agora é aberta já reduzida (perto do tamanho do relatório) e girada e reduzida num desenho só; é preparada uma vez para o Excel e o PDF e as fotos são preparadas em paralelo (até 4). No celular, depois das miniaturas, o app vai preparando as fotos no tamanho do relatório em segundo plano (um núcleo, enquanto o usuário escreve as legendas). Medido com 300 fotos de 12 MP neste computador: Excel + PDF de ~137 s para **16 s** sem nada preparado e **1,9 s** com as fotos já preparadas. As 8 orientações de câmera × 4 giros conferidas canto a canto; o PDF sai com as mesmas imagens com ou sem preparo.
+**Outros ganhos:** PC monta a prévia das páginas só na Conferência (onde ela aparece) e faz até 3 miniaturas ao mesmo tempo; celular só copia a mestra se o tamanho ou a data mudaram (Reler força); Duplicados compara o começo dos arquivos antes de ler inteiros. Banco: abrir a conexão custa 0,4 ms, então ficou como está (reaproveitar traria risco de arquivo preso nas cópias de segurança).
+**Histórico:** 20 últimas ações no PC (ação interrompida fica para poder ser retomada); 5 últimas leituras da planilha, mostradas no horário de Brasília ("16/11/2026 às 14:32"); registro de erros do PC no máximo 1 MB; miniaturas do PC sem uso há 30 dias saem; a cópia do relatório no celular sai ao deixar a tela de pronto.
+**Excluir arquivo gerado:** celular, lixeira em "Últimos gerados" com Desfazer de 5 s (se o local não deixa apagar, avisa e o arquivo fica na lista); PC, "Excluir arquivo" nas ações de arquivo gerado do Histórico, com confirmação, para a Lixeira do Windows. Vale mesmo se o arquivo foi alterado; fotos da galeria nunca.
+**Câmera:** engrenagem no topo abre "Configurações da câmera" (proporção, flash, galeria); o flash atual continua visível ao lado.
+**Beta tester:** dois toques na lixeira, excluir e sair na hora, vários seguidos com Desfazer, flash guardado, entrar e sair rápido da câmera; girar e legendar durante a geração (achou versões preparadas de giros antigos sobrando até a próxima abertura: agora saem ao fim de cada geração).
+
 ## Revisão das fotos do relatório em 16/11/2026
 
 Causa da foto que não aparecia: sair da câmera (Pronto, fechar ou voltar) logo depois de tirar desligava tudo antes de a foto terminar de gravar. Com flash Auto (o padrão de antes), o "Segure firme…" de 1 a 3 s quase sempre perdia a foto. O teste visual não pegava porque usava só o flash Desligado e sempre esperava a foto gravar.

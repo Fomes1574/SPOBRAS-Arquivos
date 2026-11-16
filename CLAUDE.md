@@ -21,7 +21,7 @@ App Windows (C# / .NET 10 / WPF) de uso individual para organizar, renomear e co
 
 - Lógica em `Spobras.Core`, `Spobras.Dados` e `Spobras.Documentos` (net10.0, testáveis em Linux). `Spobras.Excel` e `Spobras.App` ficam finos.
 - Comandos: `dotnet build` e `dotnet test` (os projetos `-windows` compilam em Linux, mas só rodam em Windows; o CI roda tudo em `windows-latest`).
-- O app nunca apaga arquivos do usuário, nunca escreve na planilha mestra, nunca move sem confirmação na prévia.
+- O app nunca apaga arquivos do usuário, nunca escreve na planilha mestra, nunca move sem confirmação na prévia. Única exceção (decidida pelo usuário em 16/11/2026): excluir, quando pedido, um arquivo que o próprio app gerou (relatório, PDF, ZIP), mesmo alterado depois: no PC vai para a Lixeira; no celular, com Desfazer de 5 s. Fotos da galeria nunca.
 - **Repositório público.** Não versione planilhas reais, modelos oficiais, logo, caminhos ou nomes de usuário do PC do trabalho, nem contratos e valores reais. Use `amostras/` com dados sintéticos. `modelos/` fica no `.gitignore`.
 - Não invente colunas, valores ou regras financeiras. O que faltar vira pergunta ao usuário, registrada em `docs/PROGRESSO.md`.
 - Nada de tela fictícia ou função simulada marcada como pronta.

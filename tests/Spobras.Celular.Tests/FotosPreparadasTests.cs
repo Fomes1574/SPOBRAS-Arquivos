@@ -131,6 +131,39 @@ public sealed class FotosPreparadasTests : IDisposable
     }
 
     [Fact]
+    public async Task Mexer_nas_fotos_durante_a_geracao_nao_quebra_nem_perde_foto()
+    {
+        var p = new PlataformaDeTeste(_raiz);
+        AmostraCelular.GravarMestra(p.Mestra);
+        var app = new AppCelular(p, () => Hoje);
+        Assert.True(await app.Base.EscolherPlanilhaAsync());
+        for (int i = 1; i <= 24; i++) app.Rascunho.AdicionarFoto(File.ReadAllBytes(AmostraCelular.Foto(Path.Combine(_raiz, "m"), $"h{i}.jpg", 2400, 1800, i)));
+        app.Configurar(c => c with { Pasta = new Escolhido("pasta:" + p.Saida, "R"), PastaPorEscola = false });
+
+        for (int rodada = 0; rodada < 3; rodada++)
+        {
+            var gerar = app.Rascunho.GerarAsync(p, app.Config);
+            var sorte = new Random(rodada);
+            while (!gerar.IsCompleted)
+            {
+                int n = app.Rascunho.Dados.Fotos.Count;
+                app.Rascunho.Girar(sorte.Next(n));
+                app.Rascunho.Legendar(sorte.Next(n), "durante " + rodada);
+                await Task.Delay(5);
+            }
+
+            var r = await gerar;
+            Assert.Equal(24, r.Fotos);
+        }
+
+        app.Rascunho.Remover([0, 1]);
+        app.Rascunho.FinalizarRemocoes();
+        await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromSeconds(120));
+        Assert.Equal(22, Preparadas(app.Rascunho).Length); // uma preparada por foto, no giro atual
+        Assert.All(app.Rascunho.Dados.Fotos, f => Assert.Contains(PreparoDeFotos.NomeNoCache(f.Arquivo, f.Rotacao, 1600, 82), Preparadas(app.Rascunho)));
+    }
+
+    [Fact]
     public void Preparo_em_paralelo_avisa_em_ordem_e_a_foto_estragada_da_o_mesmo_erro()
     {
         string pasta = Path.Combine(_raiz, "fotos");

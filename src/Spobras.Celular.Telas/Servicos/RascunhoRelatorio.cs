@@ -595,13 +595,21 @@ public sealed class RascunhoRelatorio
             }
         }
 
-        // Preparadas de foto que saiu, de outro giro ou gravacao interrompida.
-        if (Directory.Exists(PastaDasPreparadas))
+        LimparPreparadasVelhas();
+    }
+
+    /// <summary>Preparadas de foto que saiu, de outro giro ou gravacao interrompida (ao abrir e depois de gerar).</summary>
+    private void LimparPreparadasVelhas()
+    {
+        if (!Directory.Exists(PastaDasPreparadas)) return;
+        lock (_miniaturaTrava)
         {
-            var giros = Dados.Fotos.ToDictionary(f => Path.GetFileNameWithoutExtension(f.Arquivo), f => f.Rotacao, StringComparer.OrdinalIgnoreCase);
+            var giros = Dados.Fotos.Concat(Dados.Removidas.Select(r => r.Foto))
+                .GroupBy(f => Path.GetFileNameWithoutExtension(f.Arquivo), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(f => f.Rotacao).ToHashSet(), StringComparer.OrdinalIgnoreCase);
             foreach (var m in Directory.GetFiles(PastaDasPreparadas))
             {
-                if (BaseDaPreparada(m) is not { } b || !giros.TryGetValue(b.Base, out int giro) || giro != b.Giro)
+                if (BaseDaPreparada(m) is not { } b || !giros.TryGetValue(b.Base, out var validos) || !validos.Contains(b.Giro))
                 {
                     Apagar(m);
                 }
@@ -993,6 +1001,7 @@ public sealed class RascunhoRelatorio
         finally
         {
             _gerando.Release();
+            LimparPreparadasVelhas(); // giros feitos durante a geracao deixam versoes que nao servem mais
         }
     }
 
