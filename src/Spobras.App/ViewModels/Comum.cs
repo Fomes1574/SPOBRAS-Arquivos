@@ -76,6 +76,12 @@ public sealed class LoteVm(Lote lote)
         Lote.Tipo != TipoLote.Criar && Lote.DesfeitoPorLoteId is null && Lote.Contar(EstadoItem.Concluido) > 0;
 
     public bool TemPendentes => Lote.Tipo != TipoLote.Criar && Lote.TemPendentes;
+
+    /// <summary>Arquivos que o proprio app gerou e ainda estao la (mesmo que alterados depois).</summary>
+    public IReadOnlyList<string> ArquivosGerados =>
+        Lote.Tipo == TipoLote.Criar ? [.. Lote.Itens.Where(i => i.Estado == EstadoItem.Concluido && File.Exists(i.Destino)).Select(i => i.Destino)] : [];
+
+    public bool PodeExcluirArquivo => ArquivosGerados.Count > 0;
     public bool PodeAbrirPasta => Lote.Itens.Any(i => i.Estado == EstadoItem.Concluido);
     public string? PrimeiroResultado => Lote.Itens.FirstOrDefault(i => i.Estado == EstadoItem.Concluido)?.Destino;
 

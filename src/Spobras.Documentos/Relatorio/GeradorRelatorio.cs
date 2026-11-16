@@ -31,7 +31,8 @@ public static class GeradorRelatorio
         string caminhoSaida,
         string? caminhoLogo = null,
         IProgress<int>? fotosFeitas = null,
-        CancellationToken cancelamento = default)
+        CancellationToken cancelamento = default,
+        PreparoDeFotos? preparo = null)
     {
         if (!plano.PodeGerar)
         {
@@ -52,7 +53,7 @@ public static class GeradorRelatorio
         string parcial = caminhoSaida + SufixoParcial;
         try
         {
-            Escrever(plano, parcial, caminhoLogo, fotosFeitas, cancelamento);
+            Escrever(plano, parcial, caminhoLogo, fotosFeitas, cancelamento, preparo ?? new PreparoDeFotos());
             File.Move(parcial, caminhoSaida, overwrite: false); // o nome final so aparece com o arquivo completo
         }
         catch
@@ -64,8 +65,10 @@ public static class GeradorRelatorio
         return new RelatorioGerado(caminhoSaida, plano.Paginas.Count, plano.TotalDeFotos, new FileInfo(caminhoSaida).Length);
     }
 
-    private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento)
+    private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento, PreparoDeFotos preparo)
     {
+        // As fotos primeiro, todas de uma vez em paralelo (a parte demorada); depois so montar o arquivo.
+        preparo.PrepararTodas(plano, fotosFeitas, cancelamento);
         var cabecalho = plano.Cabecalho;
         int corpo = cabecalho.LinhasDoCorpo;
         var alturas = new List<int>(cabecalho.Alturas);
@@ -149,7 +152,6 @@ public static class GeradorRelatorio
         }
 
         var dados = plano.Dados;
-        int feitas = 0;
         const int c = PrimeiraColuna; // C=3 ... L=12
 
         foreach (var pagina in plano.Paginas)
@@ -211,7 +213,7 @@ public static class GeradorRelatorio
             {
                 cancelamento.ThrowIfCancellationRequested();
                 var parte = desenhos.AddImagePart(ImagePartType.Jpeg);
-                using (var jpeg = new MemoryStream(Fotos.Preparar(foto.Foto.Caminho, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto, foto.Foto.Rotacao)))
+                using (var jpeg = new MemoryStream(preparo.Obter(foto.Foto, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto)))
                 {
                     parte.FeedData(jpeg);
                 }
@@ -238,7 +240,6 @@ public static class GeradorRelatorio
                     TextoMesclado(inicio, c + primeira, linhaTexto + linhasUteis - 1, c + ultima, EDescricao, foto.Descricao);
                 }
 
-                fotosFeitas?.Report(++feitas);
             }
 
             foreach (var continuacao in pagina.Continuacoes)

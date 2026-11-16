@@ -79,9 +79,20 @@ public static class Fotos
         using var codec = Abrir(caminho);
         var exif = Exif.Ler(caminho);
 
-        // JPEG grande ja e decodificado menor (economiza memoria com fotos de celular).
-        float fator = Math.Min(1f, ladoMaximo * 2f / Math.Max(codec.Info.Width, codec.Info.Height));
-        var reduzido = codec.GetScaledDimensions(fator);
+        // JPEG grande e aberto ja reduzido (1/8, 2/8... do tamanho), na menor escala que ainda cobre o lado pedido:
+        // bem mais rapido e com menos memoria que abrir os 12 MP inteiros.
+        int maior = Math.Max(codec.Info.Width, codec.Info.Height);
+        var reduzido = codec.Info.Size;
+        for (int n = 1; n < 8; n++)
+        {
+            var d = codec.GetScaledDimensions(n / 8f);
+            if (Math.Max(d.Width, d.Height) >= Math.Min(ladoMaximo, maior))
+            {
+                reduzido = d;
+                break;
+            }
+        }
+
         var info = new SKImageInfo(reduzido.Width, reduzido.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
         using var bruto = new SKBitmap(info);
         var resultado = codec.GetPixels(info, bruto.GetPixels());
@@ -90,66 +101,54 @@ public static class Fotos
             throw new FotoInvalidaException("O arquivo não é uma imagem válida ou está danificado.");
         }
 
-        using var orientado = Orientar(bruto, exif.Orientacao, Normalizar(rotacaoManual));
+        // Orientacao EXIF, giro manual e reducao num desenho so (sem copias intermediarias).
+        int orientacao = exif.Orientacao, giro = Normalizar(rotacaoManual);
+        int l = bruto.Width, a = bruto.Height;
+        bool troca = TrocaLados(orientacao);
+        int l1 = troca ? a : l, a1 = troca ? l : a;
+        bool deita = giro % 180 != 0;
+        int l2 = deita ? a1 : l1, a2 = deita ? l1 : a1;
 
-        double escala = Math.Min(1.0, (double)ladoMaximo / Math.Max(orientado.Width, orientado.Height));
-        int largura = Math.Max(1, (int)Math.Round(orientado.Width * escala));
-        int altura = Math.Max(1, (int)Math.Round(orientado.Height * escala));
+        double escala = Math.Min(1.0, (double)ladoMaximo / Math.Max(l2, a2));
+        int largura = Math.Max(1, (int)Math.Round(l2 * escala));
+        int altura = Math.Max(1, (int)Math.Round(a2 * escala));
+
+        var matriz = SKMatrix.Concat(
+            SKMatrix.CreateScale((float)largura / l2, (float)altura / a2),
+            SKMatrix.Concat(MatrizDoGiro(giro, l1, a1), MatrizDaOrientacao(orientacao, l, a)));
 
         // Fundo branco: PNG com transparencia nao vira preto no JPEG.
         var final = new SKBitmap(new SKImageInfo(largura, altura, SKColorType.Rgba8888, SKAlphaType.Opaque));
         using var tela = new SKCanvas(final);
         tela.Clear(SKColors.White);
-        using var origem = SKImage.FromBitmap(orientado);
+        tela.SetMatrix(matriz);
+        using var origem = SKImage.FromBitmap(bruto);
+        // Reducao grande (miniatura) usa mipmap para nao serrilhar; reducao pequena nao precisa.
+        var amostra = escala < 0.5 ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear) : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         using var tinta = new SKPaint { IsAntialias = true };
-        tela.DrawImage(origem, new SKRect(0, 0, largura, altura), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), tinta);
+        tela.DrawImage(origem, 0, 0, amostra, tinta);
         return final;
     }
 
-    /// <summary>Aplica a orientacao EXIF (1 a 8) e depois a rotacao manual (0, 90, 180, 270 no sentido horario).</summary>
-    private static SKBitmap Orientar(SKBitmap origem, int orientacao, int rotacaoManual)
+    private static SKMatrix MatrizDaOrientacao(int orientacao, int l, int a) => orientacao switch
     {
-        int l = origem.Width, a = origem.Height;
-        bool troca = TrocaLados(orientacao);
-        var passo1 = new SKBitmap(troca ? a : l, troca ? l : a, origem.ColorType, origem.AlphaType);
-        using (var tela = new SKCanvas(passo1))
-        {
-            var m = orientacao switch
-            {
-                2 => new SKMatrix(-1, 0, l, 0, 1, 0, 0, 0, 1),   // espelhada na horizontal
-                3 => new SKMatrix(-1, 0, l, 0, -1, a, 0, 0, 1),  // 180 graus
-                4 => new SKMatrix(1, 0, 0, 0, -1, a, 0, 0, 1),   // espelhada na vertical
-                5 => new SKMatrix(0, 1, 0, 1, 0, 0, 0, 0, 1),    // transposta
-                6 => new SKMatrix(0, -1, a, 1, 0, 0, 0, 0, 1),   // 90 graus horario
-                7 => new SKMatrix(0, -1, a, -1, 0, l, 0, 0, 1),  // transversa
-                8 => new SKMatrix(0, 1, 0, -1, 0, l, 0, 0, 1),   // 90 graus anti-horario
-                _ => SKMatrix.Identity,
-            };
-            tela.SetMatrix(m);
-            tela.DrawBitmap(origem, 0, 0);
-        }
+        2 => new SKMatrix(-1, 0, l, 0, 1, 0, 0, 0, 1),   // espelhada na horizontal
+        3 => new SKMatrix(-1, 0, l, 0, -1, a, 0, 0, 1),  // 180 graus
+        4 => new SKMatrix(1, 0, 0, 0, -1, a, 0, 0, 1),   // espelhada na vertical
+        5 => new SKMatrix(0, 1, 0, 1, 0, 0, 0, 0, 1),    // transposta
+        6 => new SKMatrix(0, -1, a, 1, 0, 0, 0, 0, 1),   // 90 graus horario
+        7 => new SKMatrix(0, -1, a, -1, 0, l, 0, 0, 1),  // transversa
+        8 => new SKMatrix(0, 1, 0, -1, 0, l, 0, 0, 1),   // 90 graus anti-horario
+        _ => SKMatrix.Identity,
+    };
 
-        if (rotacaoManual == 0)
-        {
-            return passo1;
-        }
-
-        using (passo1)
-        {
-            int l1 = passo1.Width, a1 = passo1.Height;
-            bool deita = rotacaoManual % 180 != 0;
-            var passo2 = new SKBitmap(deita ? a1 : l1, deita ? l1 : a1, passo1.ColorType, passo1.AlphaType);
-            using var tela = new SKCanvas(passo2);
-            tela.SetMatrix(rotacaoManual switch
-            {
-                90 => new SKMatrix(0, -1, a1, 1, 0, 0, 0, 0, 1),
-                180 => new SKMatrix(-1, 0, l1, 0, -1, a1, 0, 0, 1),
-                _ => new SKMatrix(0, 1, 0, -1, 0, l1, 0, 0, 1),
-            });
-            tela.DrawBitmap(passo1, 0, 0);
-            return passo2;
-        }
-    }
+    private static SKMatrix MatrizDoGiro(int giro, int l1, int a1) => giro switch
+    {
+        90 => new SKMatrix(0, -1, a1, 1, 0, 0, 0, 0, 1),
+        180 => new SKMatrix(-1, 0, l1, 0, -1, a1, 0, 0, 1),
+        270 => new SKMatrix(0, 1, 0, -1, 0, l1, 0, 0, 1),
+        _ => SKMatrix.Identity,
+    };
 
     private static bool TrocaLados(int orientacao) => orientacao is >= 5 and <= 8;
 

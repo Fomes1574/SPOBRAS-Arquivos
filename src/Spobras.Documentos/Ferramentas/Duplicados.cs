@@ -43,8 +43,14 @@ public static class Duplicados
         int feitos = 0;
         foreach (var (tamanho, candidatos) in porTamanho.Where(p => p.Value.Count > 1))
         {
+            // Primeiro so o comeco de cada arquivo (rapido, inclusive em pasta de rede): le o arquivo inteiro so de
+            // quem ainda pode ser igual.
+            var talvez = tamanho <= Trecho
+                ? candidatos
+                : candidatos.GroupBy(i => Hash(i.FullName, Trecho)).Where(g => g.Key is not null && g.Count() > 1).SelectMany(g => g).ToList();
+            feitos += candidatos.Count - talvez.Count;
             var porHash = new Dictionary<string, List<FileInfo>>();
-            foreach (var info in candidatos)
+            foreach (var info in talvez)
             {
                 cancelamento.ThrowIfCancellationRequested();
                 string? hash = Hash(info.FullName);
@@ -63,11 +69,20 @@ public static class Duplicados
         return [.. grupos.OrderByDescending(g => g.Sobra)];
     }
 
-    private static string? Hash(string caminho)
+    private const int Trecho = 64 * 1024;
+
+    private static string? Hash(string caminho, int? soOComeco = null)
     {
         try
         {
             using var fluxo = File.OpenRead(caminho);
+            if (soOComeco is int n)
+            {
+                var buffer = new byte[n];
+                int lidos = fluxo.ReadAtLeast(buffer, n, throwOnEndOfStream: false);
+                return Convert.ToHexString(SHA256.HashData(buffer.AsSpan(0, lidos)));
+            }
+
             return Convert.ToHexString(SHA256.HashData(fluxo));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

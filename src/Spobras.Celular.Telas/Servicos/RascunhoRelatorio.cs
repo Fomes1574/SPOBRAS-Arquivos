@@ -88,6 +88,7 @@ public sealed class RascunhoRelatorio
         _agora = agora ?? (() => DateTimeOffset.Now);
         PastaDasFotos = Path.Combine(_pasta, "fotos");
         PastaDasMiniaturas = Path.Combine(_pasta, "miniaturas");
+        PastaDasPreparadas = Path.Combine(_pasta, "preparadas");
         Directory.CreateDirectory(PastaDasFotos);
         Directory.CreateDirectory(PastaDasMiniaturas);
         Dados = Carregar();
@@ -97,6 +98,8 @@ public sealed class RascunhoRelatorio
         }
 
         Conciliar();
+        LimparGerado();
+        Acordar(); // termina de preparar o que ficou da ultima vez
     }
 
     /// <summary>
@@ -107,6 +110,17 @@ public sealed class RascunhoRelatorio
 
     public string PastaDasFotos { get; }
     public string PastaDasMiniaturas { get; }
+
+    /// <summary>Fotos ja no tamanho do relatorio, feitas em segundo plano: gerar fica so montar o arquivo.</summary>
+    public string PastaDasPreparadas { get; }
+
+    /// <summary>Preparar as fotos do relatorio em segundo plano (depois das miniaturas). Os testes de tempo desligam.</summary>
+    public bool PrepararEmSegundoPlano { get; set; } = true;
+
+    private static readonly OpcoesRelatorio Padrao = new();
+
+    private string ArquivoPreparado(FotoRascunho f) =>
+        Path.Combine(PastaDasPreparadas, PreparoDeFotos.NomeNoCache(f.Arquivo, f.Rotacao, Padrao.LadoMaximoFoto, Padrao.QualidadeFoto));
 
     /// <summary>Uma miniatura ficou pronta em segundo plano (a tela atualiza).</summary>
     public event Action? MiniaturaPronta;
@@ -352,6 +366,30 @@ public sealed class RascunhoRelatorio
         var antes = Dados.Fotos[i];
         Trocar(i, f => f with { Rotacao = (f.Rotacao + 90) % 360 });
         EsquecerMiniaturas(antes.Arquivo, manter: antes.Rotacao); // so a do giro anterior fica (desfazer o giro e na hora)
+        ApagarPreparadas(antes.Arquivo, manterGiro: (antes.Rotacao + 90) % 360);
+        Acordar();
+    }
+
+    /// <summary>Apaga as versoes preparadas de uma foto (todas, ou menos as do giro atual).</summary>
+    private void ApagarPreparadas(string arquivo, int? manterGiro = null)
+    {
+        if (!Directory.Exists(PastaDasPreparadas)) return;
+        string baseDoNome = Path.GetFileNameWithoutExtension(arquivo);
+        foreach (var m in Directory.GetFiles(PastaDasPreparadas, baseDoNome + "-*"))
+        {
+            if (BaseDaPreparada(m) is not { } b || b.Base != baseDoNome || b.Giro == manterGiro) continue;
+            Apagar(m);
+        }
+    }
+
+    /// <summary>"foto-90-1600-82.jpg" -> ("foto", 90). Nulo se o nome nao for de uma preparada.</summary>
+    private static (string Base, int Giro)? BaseDaPreparada(string caminho)
+    {
+        string nome = Path.GetFileName(caminho);
+        if (!nome.EndsWith(".jpg", StringComparison.Ordinal)) return null;
+        var partes = Path.GetFileNameWithoutExtension(nome).Split('-');
+        if (partes.Length < 4 || !int.TryParse(partes[^3], out int giro)) return null;
+        return (string.Join('-', partes[..^3]), giro);
     }
 
     /// <summary>Apaga as miniaturas de outros giros da foto (sobram ao girar varias vezes).</summary>
@@ -480,6 +518,8 @@ public sealed class RascunhoRelatorio
             {
                 _miniaturas.TryRemove(chave, out _);
             }
+
+            ApagarPreparadas(r.Foto.Arquivo);
         }
 
         var feitas = removidas.Select(r => r.Foto.Arquivo).ToHashSet();
@@ -554,6 +594,19 @@ public sealed class RascunhoRelatorio
                 Apagar(m);
             }
         }
+
+        // Preparadas de foto que saiu, de outro giro ou gravacao interrompida.
+        if (Directory.Exists(PastaDasPreparadas))
+        {
+            var giros = Dados.Fotos.ToDictionary(f => Path.GetFileNameWithoutExtension(f.Arquivo), f => f.Rotacao, StringComparer.OrdinalIgnoreCase);
+            foreach (var m in Directory.GetFiles(PastaDasPreparadas))
+            {
+                if (BaseDaPreparada(m) is not { } b || !giros.TryGetValue(b.Base, out int giro) || giro != b.Giro)
+                {
+                    Apagar(m);
+                }
+            }
+        }
     }
 
     /// <summary>Le so o cabecalho da foto (rapido) para guardar o tamanho.</summary>
@@ -590,12 +643,14 @@ public sealed class RascunhoRelatorio
                 _naFila.Clear();
             }
 
-            foreach (var f in Directory.GetFiles(PastaDasFotos).Concat(Directory.GetFiles(PastaDasMiniaturas)))
+            var preparadas = Directory.Exists(PastaDasPreparadas) ? Directory.GetFiles(PastaDasPreparadas) : [];
+            foreach (var f in Directory.GetFiles(PastaDasFotos).Concat(Directory.GetFiles(PastaDasMiniaturas)).Concat(preparadas))
             {
                 Apagar(f);
             }
 
             _miniaturas.Clear();
+            _preparoFalhou.Clear();
             _falhas.Clear();
             Dados = Novo();
             Apagar(_arquivo);
@@ -674,19 +729,37 @@ public sealed class RascunhoRelatorio
     }
 
     /// <summary>Uma miniatura por vez (memoria baixa no celular), em segundo plano.</summary>
+    /// <summary>Chama o trabalho de segundo plano, se ele estiver parado.</summary>
+    private void Acordar()
+    {
+        if (Interlocked.CompareExchange(ref _trabalhando, 1, 0) == 0)
+        {
+            _ = Task.Run(Processar);
+        }
+    }
+
     private void Processar()
     {
         try
         {
-            while (_fila.TryDequeue(out var foto))
+            while (true)
             {
-                Gerar(foto);
-                lock (_naFila)
+                // Miniaturas primeiro (a tela espera por elas); com a fila vazia, prepara uma foto do relatorio.
+                while (_fila.TryDequeue(out var foto))
                 {
-                    _naFila.Remove(foto.Arquivo + "|" + foto.Rotacao);
+                    Gerar(foto);
+                    lock (_naFila)
+                    {
+                        _naFila.Remove(foto.Arquivo + "|" + foto.Rotacao);
+                    }
+
+                    MiniaturaPronta?.Invoke();
                 }
 
-                MiniaturaPronta?.Invoke();
+                if (!PrepararUma())
+                {
+                    break;
+                }
             }
         }
         finally
@@ -697,6 +770,33 @@ public sealed class RascunhoRelatorio
                 _ = Task.Run(Processar);
             }
         }
+    }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _preparoFalhou = new();
+
+    /// <summary>Prepara uma foto que ainda nao tem a versao do relatorio. Devolve falso se nao ha nenhuma.</summary>
+    private bool PrepararUma()
+    {
+        if (!PrepararEmSegundoPlano) return false;
+        var pendente = Dados.Fotos.FirstOrDefault(f => !_preparoFalhou.ContainsKey(f.Arquivo + "|" + f.Rotacao) && !File.Exists(ArquivoPreparado(f)));
+        if (pendente is null) return false;
+        try
+        {
+            byte[] pronta = Fotos.Preparar(Caminho(pendente), Padrao.LadoMaximoFoto, Padrao.QualidadeFoto, pendente.Rotacao);
+            lock (_miniaturaTrava)
+            {
+                if (File.Exists(Caminho(pendente)) && Dados.Fotos.Any(f => f.Arquivo == pendente.Arquivo && f.Rotacao == pendente.Rotacao))
+                {
+                    PreparoDeFotos.Gravar(ArquivoPreparado(pendente), pronta);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is FotoInvalidaException or IOException or UnauthorizedAccessException)
+        {
+            _preparoFalhou.TryAdd(pendente.Arquivo + "|" + pendente.Rotacao, true); // a geracao avisa o problema
+        }
+
+        return true;
     }
 
     private void Gerar(FotoRascunho foto)
@@ -861,6 +961,24 @@ public sealed class RascunhoRelatorio
 
     private readonly SemaphoreSlim _gerando = new(1, 1);
 
+    /// <summary>
+    /// Apaga a copia do ultimo relatorio que fica no app (pode passar de 50 MB) depois que ele ja foi salvo na pasta
+    /// escolhida: ao sair da tela de pronto e ao abrir o app. O arquivo salvo na pasta nao e tocado.
+    /// </summary>
+    public void LimparGerado()
+    {
+        if (_gerando.CurrentCount == 0) return; // gerando agora: a pasta esta em uso
+        string temp = Path.Combine(_pasta, "gerado");
+        try
+        {
+            if (Directory.Exists(temp)) Directory.Delete(temp, recursive: true); // pasta temporaria do proprio app
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // um compartilhamento ainda lendo: fica para a proxima vez
+        }
+    }
+
     public async Task<RelatorioPronto> GerarAsync(IPlataforma plataforma, Preferencias p, IProgress<int>? progresso = null)
     {
         if (!await _gerando.WaitAsync(0))
@@ -909,13 +1027,14 @@ public sealed class RascunhoRelatorio
         var locais = new List<string>();
         // Progresso continuo: com Excel e PDF, o PDF continua a contagem de onde o Excel parou.
         int jaFeitas = 0;
+        var preparo = new PreparoDeFotos(PastaDasPreparadas); // as ja preparadas em segundo plano sao so lidas
         var passo = progresso is null ? null : new Progresso(n => progresso.Report(jaFeitas + n));
         await Task.Run(() =>
         {
             if (p.Formato != FormatoGerado.Pdf)
             {
                 string xlsx = Path.Combine(temp, nome + ".xlsx");
-                GeradorRelatorio.Gerar(plano, xlsx, logo, passo);
+                GeradorRelatorio.Gerar(plano, xlsx, logo, passo, default, preparo);
                 locais.Add(xlsx);
                 jaFeitas = plano.TotalDeFotos;
             }
@@ -923,7 +1042,7 @@ public sealed class RascunhoRelatorio
             if (p.Formato != FormatoGerado.Excel)
             {
                 string pdf = Path.Combine(temp, nome + ".pdf");
-                GeradorRelatorioPdf.Gerar(plano, pdf, logo, passo);
+                GeradorRelatorioPdf.Gerar(plano, pdf, logo, passo, default, preparo);
                 locais.Add(pdf);
             }
         });

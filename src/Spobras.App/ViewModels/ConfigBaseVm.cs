@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Spobras.App.Servicos;
+using Spobras.Core;
 using Spobras.Core.Base;
 using Spobras.Core.Planilhas;
 using Spobras.Dados.Base;
@@ -359,9 +360,9 @@ public sealed partial class ConfigBaseVm : TelaVm
 
         Diagnostico = string.Join(Environment.NewLine, linhas);
         Leituras.Clear();
-        foreach (var l in _base.HistoricoDeImportacoes(Fontes.Mestra, 10))
+        foreach (var l in _base.HistoricoDeImportacoes(Fontes.Mestra))
         {
-            Leituras.Add($"{l.Quando.ToLocalTime():dd/MM/yyyy HH:mm} · {(l.Ok ? "ok" : "erro")} · {l.Mensagem}{(l.Ok && l.Linhas > 0 ? $" · {l.Linhas:N0} obras" : "")}");
+            Leituras.Add($"{HoraDeBrasilia.Texto(l.Quando)} · {(l.Ok ? "ok" : "erro")} · {l.Mensagem}{(l.Ok && l.Linhas > 0 ? $" · {l.Linhas:N0} obras" : "")}");
         }
     }
 

@@ -191,9 +191,8 @@ public partial class App : Application
     {
         try
         {
-            string pasta = Path.Combine(pastaDados, "registro");
-            Directory.CreateDirectory(pasta);
-            File.AppendAllText(Path.Combine(pasta, "erros.txt"),
+            // No maximo 1 MB: passando disso fica a metade mais recente.
+            Spobras.Core.RegistroLimitado.Acrescentar(Path.Combine(pastaDados, "registro", "erros.txt"),
                 $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz}  versão {Versao()}\r\n{erro}\r\n\r\n");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

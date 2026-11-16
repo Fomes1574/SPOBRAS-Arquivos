@@ -25,6 +25,14 @@
 </div>
 
 @code {
+    // Saiu da tela: a copia temporaria do relatorio (ja salvo na pasta escolhida) sai do celular.
+    public override void Dispose()
+    {
+        App.UltimoRelatorio = null;
+        App.Rascunho.LimparGerado();
+        base.Dispose();
+    }
+
     private void Novo()
     {
         App.Rascunho.Recomecar();

@@ -33,13 +33,15 @@ public sealed partial class HistoricoVm : TelaVm
     private readonly ServicoOperacoes _operacoes;
     private readonly IDialogos _dialogos;
     private readonly IInterface _interface;
+    private readonly ILixeira _lixeira;
     private IReadOnlyList<Lote> _todos = [];
 
-    public HistoricoVm(ServicoOperacoes operacoes, IDialogos dialogos, IInterface @interface)
+    public HistoricoVm(ServicoOperacoes operacoes, IDialogos dialogos, IInterface @interface, ILixeira? lixeira = null)
     {
         _operacoes = operacoes;
         _dialogos = dialogos;
         _interface = @interface;
+        _lixeira = lixeira ?? new LixeiraDoWindows();
         operacoes.HistoricoMudou += () => _interface.Executar(Recarregar);
         operacoes.Fila.Mudou += _ => _interface.Executar(RecarregarTarefas);
     }
@@ -129,6 +131,45 @@ public sealed partial class HistoricoVm : TelaVm
         {
             _dialogos.MostrarNaPasta(caminho);
         }
+    }
+
+    /// <summary>
+    /// Exclui o que o proprio app gerou (relatorio, ZIP, PDF...), mesmo que alterado depois: vai para a Lixeira do
+    /// Windows, de onde da para recuperar. So arquivos de acoes "geradas", nunca os do usuario.
+    /// </summary>
+    [RelayCommand]
+    private void ExcluirArquivo(LoteVm lote)
+    {
+        var arquivos = lote.ArquivosGerados;
+        if (arquivos.Count == 0)
+        {
+            return;
+        }
+
+        string quais = arquivos.Count == 1 ? $"“{Path.GetFileName(arquivos[0])}”" : $"os {arquivos.Count} arquivos de “{lote.Descricao}”";
+        if (!_dialogos.Confirmar("Excluir arquivo", $"Excluir {quais}? Vai para a Lixeira do Windows; se precisar, dá para recuperar de lá.", "Excluir"))
+        {
+            return;
+        }
+
+        var falhas = new List<string>();
+        foreach (string arquivo in arquivos)
+        {
+            try
+            {
+                _lixeira.Enviar(arquivo);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or OperationCanceledException or InvalidOperationException)
+            {
+                falhas.Add($"{Path.GetFileName(arquivo)}: {ex.Message}");
+            }
+        }
+
+        Resultado = falhas.Count == 0
+            ? (arquivos.Count == 1 ? $"{Path.GetFileName(arquivos[0])} foi para a Lixeira." : $"{arquivos.Count} arquivos foram para a Lixeira.")
+            : "Não deu para excluir: " + string.Join(" ", falhas);
+        ResultadoComFalha = falhas.Count > 0;
+        Recarregar();
     }
 
     [RelayCommand]

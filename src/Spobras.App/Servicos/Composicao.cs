@@ -25,6 +25,7 @@ public sealed class Composicao : IDisposable
         Operacoes = new ServicoOperacoes(arquivos, new HistoricoSqlite(banco), relogio, new FilaTarefas());
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);
+        _ = Task.Run(() => Modelos.LimparMiniaturasAntigas()); // miniaturas sem uso ha 30 dias
         ModelosExcel = new ServicoModelosExcel(pastaDados, new ConfigRepositorio(banco));
         Base = new Spobras.Dados.Base.BaseRepositorio(banco);
         Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias)

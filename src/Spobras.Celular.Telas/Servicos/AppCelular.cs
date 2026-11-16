@@ -38,6 +38,31 @@ public sealed class AppCelular
     public void Registrar(IEnumerable<Salvo> salvos) =>
         Configurar(p => p with { UltimosGerados = [.. salvos.Concat(p.UltimosGerados).Take(6)] });
 
+    /// <summary>
+    /// Exclui de vez um arquivo que o app gerou (depois do tempo do Desfazer) e tira da lista. Devolve o motivo se
+    /// nao der.
+    /// </summary>
+    public async Task<string?> ExcluirGeradoAsync(Salvo arquivo)
+    {
+        bool ok;
+        try
+        {
+            ok = await Plataforma.ApagarAsync(arquivo);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ok = false;
+        }
+
+        if (!ok)
+        {
+            return $"Não deu para excluir “{arquivo.Nome}”: este local não deixa o app apagar. Apague pelo gerenciador de arquivos.";
+        }
+
+        Configurar(p => p with { UltimosGerados = [.. p.UltimosGerados.Where(s => s.Id != arquivo.Id)] });
+        return null;
+    }
+
     private DateTimeOffset? _ultimaReleitura;
 
     /// <summary>

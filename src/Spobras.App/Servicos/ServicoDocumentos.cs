@@ -125,7 +125,11 @@ public sealed class ServicoModelos(string pastaDados)
         string chave = $"{foto}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|{rotacao}";
         string nome = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(chave)))[..32] + ".jpg";
         string caminho = Path.Combine(PastaMiniaturas, nome);
-        if (!File.Exists(caminho))
+        if (File.Exists(caminho))
+        {
+            MarcarUso(caminho);
+        }
+        else
         {
             Directory.CreateDirectory(PastaMiniaturas);
             string temporario = caminho + "." + Guid.NewGuid().ToString("N")[..6] + ".tmp";
@@ -141,5 +145,48 @@ public sealed class ServicoModelos(string pastaDados)
         }
 
         return caminho;
+    }
+
+    /// <summary>Miniaturas guardadas sem uso por este tempo sao apagadas (copias internas, nunca fotos do usuario).</summary>
+    public static readonly TimeSpan ValidadeDasMiniaturas = TimeSpan.FromDays(30);
+
+    // A data do arquivo marca o ultimo uso (a "data de acesso" do Windows costuma vir desligada); no maximo 1x por dia.
+    private static void MarcarUso(string caminho)
+    {
+        try
+        {
+            var agora = DateTime.UtcNow;
+            if (agora - File.GetLastWriteTimeUtc(caminho) > TimeSpan.FromDays(1))
+            {
+                File.SetLastWriteTimeUtc(caminho, agora);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    /// <summary>Apaga as miniaturas sem uso ha mais de 30 dias (chamado ao abrir o app, em segundo plano).</summary>
+    public int LimparMiniaturasAntigas(DateTime? agoraUtc = null)
+    {
+        if (!Directory.Exists(PastaMiniaturas)) return 0;
+        var limite = (agoraUtc ?? DateTime.UtcNow) - ValidadeDasMiniaturas;
+        int apagadas = 0;
+        foreach (var m in Directory.EnumerateFiles(PastaMiniaturas))
+        {
+            try
+            {
+                if (File.GetLastWriteTimeUtc(m) < limite)
+                {
+                    File.Delete(m);
+                    apagadas++;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return apagadas;
     }
 }

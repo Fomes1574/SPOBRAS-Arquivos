@@ -261,6 +261,21 @@ async function texto(page, seletor, contem) {
     await page.evaluate(() => { const b = [...document.querySelectorAll('.btn.primario')].find(x => x.textContent.includes('Gerar relatório')); b.click(); b.click(); });
     await page.waitForSelector('text=Pronto!', { timeout: 60000 }).catch(() => problemas.push(`${w}x${h} dois toques em Gerar: nao chegou ao Pronto`));
     await foto(page, '17-rel-pronto', w, h, salvar);
+    // excluir um arquivo gerado pela tela inicial: lixeira, Desfazer devolve, depois de 5 s sai de vez
+    await ir(page, urlPronto, '');
+    const gerados = page.locator('.arquivo');
+    const nGerados = await gerados.count();
+    if (nGerados < 2) problemas.push(`${w}x${h} inicio: ultimos gerados nao apareceram`);
+    await page.locator('.excluir-arquivo').first().click();
+    await page.locator('.desfazer', { hasText: 'Arquivo excluído' }).waitFor({ timeout: 3000 }).catch(() => problemas.push(`${w}x${h} excluir: sem aviso de desfazer`));
+    if (await gerados.count() !== nGerados - 1) problemas.push(`${w}x${h} excluir: o arquivo nao saiu da lista`);
+    await foto(page, '17b-inicio-excluido', w, h, salvar);
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await esperar(page, n => document.querySelectorAll('.arquivo').length === n, nGerados, `${w}x${h} excluir: desfazer nao devolveu o arquivo`);
+    await page.locator('.excluir-arquivo').first().click();
+    await page.waitForTimeout(5800);
+    if (await gerados.count() !== nGerados - 1) problemas.push(`${w}x${h} excluir: depois de 5 s o arquivo voltou ou nao saiu`);
+    if (await page.locator('.aviso.erro').count() > 0) problemas.push(`${w}x${h} excluir: deu erro ao apagar`);
 
     await ir(page, urlPronto, 'pdf'); await foto(page, '18-pdf', w, h, salvar);
     await ir(page, urlPronto, 'pdf/juntar'); await texto(page, '.btn', 'Escolher PDFs'); await foto(page, '19-pdf-juntar', w, h, salvar);
@@ -373,6 +388,14 @@ async function texto(page, seletor, contem) {
     let n = await contar();
     await abrirCamera();
     if (!(await p.locator('.topo-cam .bt-cam', { hasText: '⚡' }).textContent()).includes('Desligado')) problemas.push('camera: o flash padrao nao e Desligado');
+    // engrenagem abre as configuracoes da camera: proporcao, flash e galeria juntos
+    await p.getByRole('button', { name: 'Configurações da câmera', exact: true }).click();
+    await p.locator('.folha').waitFor();
+    for (const t of ['Proporção da foto', 'Flash', 'Galeria', 'Guardar também na galeria']) {
+      if (await p.locator('.folha', { hasText: t }).count() === 0) problemas.push(`camera: configuracoes sem "${t}"`);
+    }
+    await foto(p, '44-camera-configuracoes', 412, 915, true);
+    await p.locator('.folha .btn.primario').click(); await p.waitForTimeout(300);
     // tirar e voltar na hora (botao voltar do Android)
     await p.locator('.disparo').click(); await p.goBack();
     if (await contar() !== n + 1) problemas.push('camera: tirar e voltar na hora perdeu a foto');

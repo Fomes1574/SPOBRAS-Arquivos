@@ -79,6 +79,59 @@ public class RelatorioFotograficoTests : IDisposable
 
     // ---- Fotos ----
 
+    /// <summary>
+    /// As 8 orientacoes de camera (EXIF) com os 4 giros manuais: cada canto colorido vai para onde deve, em foto
+    /// grande (aberta ja reduzida) e em miniatura. Protege a preparacao das fotos, que faz tudo num desenho so.
+    /// </summary>
+    [Fact]
+    public void Todas_as_orientacoes_com_todos_os_giros_ficam_no_lugar_certo()
+    {
+        SKColor[] cores = [SKColors.Red, SKColors.Lime, SKColors.Blue, SKColors.Yellow]; // canto: sup-esq, sup-dir, inf-esq, inf-dir
+        (float X, float Y)[] centros = [(0.25f, 0.25f), (0.75f, 0.25f), (0.25f, 0.75f), (0.75f, 0.75f)];
+        using var bitmap = new SKBitmap(1600, 1200);
+        using (var tela = new SKCanvas(bitmap))
+        {
+            for (int q = 0; q < 4; q++)
+            {
+                using var tinta = new SKPaint { Color = cores[q] };
+                tela.DrawRect(q % 2 * 800, q / 2 * 600, 800, 600, tinta);
+            }
+        }
+
+        byte[] jpeg = SKImage.FromBitmap(bitmap).Encode(SKEncodedImageFormat.Jpeg, 92).ToArray();
+        // onde um ponto (x, y) da foto gravada aparece depois de aplicar a orientacao EXIF e o giro (horario)
+        static (float, float) Exibir(int o, float x, float y) => o switch
+        {
+            2 => (1 - x, y), 3 => (1 - x, 1 - y), 4 => (x, 1 - y), 5 => (y, x), 6 => (1 - y, x), 7 => (1 - y, 1 - x), 8 => (y, 1 - x), _ => (x, y),
+        };
+        static (float, float) Girar(int g, float x, float y) => g switch { 90 => (1 - y, x), 180 => (1 - x, 1 - y), 270 => (y, 1 - x), _ => (x, y) };
+
+        foreach (int lado in new[] { 1600, 900, 320 })
+        {
+            for (int o = 1; o <= 8; o++)
+            {
+                string arquivo = Em($"o{o}.jpg");
+                File.WriteAllBytes(arquivo, o == 1 ? jpeg : ComExif(jpeg, o, null));
+                foreach (int g in new[] { 0, 90, 180, 270 })
+                {
+                    byte[] pronta = Fotos.Preparar(arquivo, lado, 90, g);
+                    var info = Fotos.Ler(arquivo, g);
+                    using var b = SKBitmap.Decode(pronta);
+                    Assert.Equal(info.Largura >= info.Altura, b.Width >= b.Height);
+                    Assert.True(Math.Max(b.Width, b.Height) <= lado);
+                    for (int q = 0; q < 4; q++)
+                    {
+                        var (x1, y1) = Exibir(o, centros[q].X, centros[q].Y);
+                        var (x2, y2) = Girar(g, x1, y1);
+                        var c = b.GetPixel((int)(x2 * b.Width), (int)(y2 * b.Height));
+                        int diferenca = Math.Abs(c.Red - cores[q].Red) + Math.Abs(c.Green - cores[q].Green) + Math.Abs(c.Blue - cores[q].Blue);
+                        Assert.True(diferenca < 90, $"lado {lado}, orientação {o}, giro {g}, canto {q}: {c}");
+                    }
+                }
+            }
+        }
+    }
+
     [Fact]
     public void T09_le_tamanho_e_data_de_captura_e_aplica_a_orientacao_exif()
     {

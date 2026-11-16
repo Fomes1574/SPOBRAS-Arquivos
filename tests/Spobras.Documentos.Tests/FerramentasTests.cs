@@ -132,4 +132,23 @@ public class FerramentasTests : IDisposable
         Assert.Equal("relatorio.pdf", Path.GetFileName(grupo.Arquivos[0])); // o mais antigo primeiro
         Assert.Equal(2 * 14, grupo.Sobra);
     }
+
+    [Fact]
+    public void Duplicados_grandes_com_o_mesmo_comeco_so_sao_iguais_se_o_resto_tambem_for()
+    {
+        var sorte = new Random(5);
+        byte[] base_ = new byte[300_000];
+        sorte.NextBytes(base_);
+        byte[] fimDiferente = (byte[])base_.Clone();
+        fimDiferente[^10] ^= 0xFF;          // mesmo comeco, final diferente
+        byte[] comecoDiferente = (byte[])base_.Clone();
+        comecoDiferente[5] ^= 0xFF;         // comeco diferente
+        File.WriteAllBytes(Em("A", "foto.jpg"), base_);
+        File.WriteAllBytes(Em("B", "copia.jpg"), base_);
+        File.WriteAllBytes(Em("B", "quase.jpg"), fimDiferente);
+        File.WriteAllBytes(Em("B", "outra.jpg"), comecoDiferente);
+
+        var grupo = Assert.Single(Duplicados.Procurar([Path.Combine(_pasta, "A"), Path.Combine(_pasta, "B")]));
+        Assert.Equal(["copia.jpg", "foto.jpg"], grupo.Arquivos.Select(Path.GetFileName).Order());
+    }
 }

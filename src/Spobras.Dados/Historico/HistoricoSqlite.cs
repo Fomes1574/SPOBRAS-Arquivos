@@ -5,8 +5,11 @@ using Spobras.Core.Operacoes;
 namespace Spobras.Dados.Historico;
 
 /// <summary>Historico por arquivo gravado no SQLite a cada mudanca de estado.</summary>
-public sealed class HistoricoSqlite(BancoApp banco) : IHistorico
+public sealed class HistoricoSqlite(BancoApp banco, int lotesGuardados = HistoricoSqlite.LotesGuardados) : IHistorico
 {
+    /// <summary>Acoes guardadas: as 20 ultimas; a 21a apaga a mais antiga (so as guardadas podem ser desfeitas).</summary>
+    public const int LotesGuardados = 20;
+
     public void CriarLote(Lote lote)
     {
         using var conexao = banco.Abrir();
@@ -42,6 +45,22 @@ public sealed class HistoricoSqlite(BancoApp banco) : IHistorico
             cmd.Parameters.AddWithValue("$destino", item.Destino);
             ParametrosDeEstado(cmd, item);
             cmd.ExecuteNonQuery();
+        }
+
+        using (var aparar = conexao.CreateCommand())
+        {
+            aparar.Transaction = transacao;
+            // Lote interrompido no meio (arquivo em troca ou ainda pendente) fica, para poder ser retomado.
+            aparar.CommandText = """
+                create temp table if not exists Velhos (id text primary key);
+                delete from Velhos;
+                insert into Velhos select id from Lote order by criado_em desc, rowid desc limit -1 offset $max;
+                delete from Velhos where id in (select lote_id from LoteItem where temporario is not null or estado in (0, 1));
+                delete from LoteItem where lote_id in (select id from Velhos);
+                delete from Lote where id in (select id from Velhos);
+                """;
+            aparar.Parameters.AddWithValue("$max", lotesGuardados);
+            aparar.ExecuteNonQuery();
         }
 
         transacao.Commit();

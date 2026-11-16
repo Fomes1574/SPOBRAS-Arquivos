@@ -162,16 +162,22 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         GravarFonte(conexao, null, fonte);
     }
 
+    /// <summary>Leituras guardadas por fonte: so as ultimas (o historico nao cresce para sempre).</summary>
+    public const int LeiturasGuardadas = 5;
+
     public void RegistrarImportacao(string fonteId, DateTimeOffset quando, bool ok, string mensagem, int linhas, long duracaoMs)
     {
         using var conexao = banco.Abrir();
         using var cmd = conexao.CreateCommand();
-        cmd.CommandText = "insert into ImportacaoLog (fonte_id, quando, ok, mensagem, linhas, duracao_ms) values ($f, $q, $ok, $m, $l, $d)";
-        Valores(Parametros(cmd, "$f", "$q", "$ok", "$m", "$l", "$d"), fonteId, Iso(quando), ok ? 1 : 0, mensagem, linhas, duracaoMs);
+        cmd.CommandText = """
+            insert into ImportacaoLog (fonte_id, quando, ok, mensagem, linhas, duracao_ms) values ($f, $q, $ok, $m, $l, $d);
+            delete from ImportacaoLog where fonte_id = $f and id not in (select id from ImportacaoLog where fonte_id = $f order by id desc limit $max);
+            """;
+        Valores(Parametros(cmd, "$f", "$q", "$ok", "$m", "$l", "$d", "$max"), fonteId, Iso(quando), ok ? 1 : 0, mensagem, linhas, duracaoMs, LeiturasGuardadas);
         cmd.ExecuteNonQuery();
     }
 
-    public IReadOnlyList<(DateTimeOffset Quando, bool Ok, string Mensagem, int Linhas)> HistoricoDeImportacoes(string fonteId, int maximo = 20)
+    public IReadOnlyList<(DateTimeOffset Quando, bool Ok, string Mensagem, int Linhas)> HistoricoDeImportacoes(string fonteId, int maximo = LeiturasGuardadas)
     {
         using var conexao = banco.Abrir();
         using var cmd = conexao.CreateCommand();

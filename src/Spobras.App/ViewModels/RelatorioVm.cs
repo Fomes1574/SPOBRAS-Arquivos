@@ -460,6 +460,11 @@ public sealed partial class RelatorioVm : TelaVm
         switch (e.PropertyName)
         {
             case nameof(Etapa):
+                if (EtapaConferencia && _previaVelha)
+                {
+                    MontarPaginas();
+                }
+
                 OnPropertyChanged(nameof(EtapaDados));
                 OnPropertyChanged(nameof(EtapaFotos));
                 OnPropertyChanged(nameof(EtapaConferencia));
@@ -1035,11 +1040,7 @@ public sealed partial class RelatorioVm : TelaVm
             _plano = _plano with { Avisos = [.. _plano.Avisos, Aviso.Impede("Há pendências que impedem gerar.")] };
         }
 
-        var porCaminho = Fotos.ToDictionary(f => f.Caminho, StringComparer.OrdinalIgnoreCase);
-        foreach (var pagina in _plano.Paginas)
-        {
-            Paginas.Add(new PaginaPreviaVm(pagina.Numero, _plano.Paginas.Count, MontarPrevia(pagina, _plano, porCaminho)));
-        }
+        MontarPaginas();
 
         Resumo = total == 0
             ? "Escolha as fotos na etapa Fotos e legendas."
@@ -1148,8 +1149,10 @@ public sealed partial class RelatorioVm : TelaVm
         Miniaturas = Task.Run(async () =>
         {
             await anterior.ConfigureAwait(false); // uma leva de cada vez
-            foreach (var (foto, caminho, rotacao) in pendentes)
+            // Ate 3 miniaturas ao mesmo tempo (cada uma e independente; o computador tem varios nucleos).
+            Parallel.ForEach(pendentes, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 1, 1, 3) }, item =>
             {
+                var (foto, caminho, rotacao) = item;
                 try
                 {
                     string miniatura = _modelos.Miniatura(caminho, rotacao);
@@ -1165,21 +1168,36 @@ public sealed partial class RelatorioVm : TelaVm
                 {
                     // Sem miniatura a foto continua na lista; o problema aparece ao gerar.
                 }
-            }
+            });
 
             _interface.Executar(AtualizarPrevia);
         });
     }
 
-    private void AtualizarPrevia()
+    private void AtualizarPrevia() => MontarPaginas();
+
+    private bool _previaVelha;
+
+    /// <summary>
+    /// Desenho das paginas: so com a Conferencia aberta. Digitar nos dados ou nas legendas nao refaz a previa de todas
+    /// as paginas a cada letra (com muitas fotos, a digitacao engasgava); ela e montada ao entrar na Conferencia.
+    /// </summary>
+    private void MontarPaginas()
     {
+        Paginas.Clear();
         if (_plano is null)
         {
             return;
         }
 
-        var porCaminho = Fotos.ToDictionary(f => f.Caminho, StringComparer.OrdinalIgnoreCase);
-        Paginas.Clear();
+        if (!EtapaConferencia)
+        {
+            _previaVelha = true;
+            return;
+        }
+
+        _previaVelha = false;
+        var porCaminho = Fotos.GroupBy(f => f.Caminho, StringComparer.OrdinalIgnoreCase).ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var pagina in _plano.Paginas)
         {
             Paginas.Add(new PaginaPreviaVm(pagina.Numero, _plano.Paginas.Count, MontarPrevia(pagina, _plano, porCaminho)));

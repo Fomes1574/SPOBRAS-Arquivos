@@ -53,7 +53,33 @@ public sealed class PlataformaDeTeste : IPlataforma
         }
 
         File.Copy(origem, destino, overwrite: true);
+        Copias++;
         return Task.FromResult(Copia.Ok);
+    }
+
+    /// <summary>Simula local que nao deixa apagar (ex.: pasta na nuvem).</summary>
+    public bool ApagarFalha { get; set; }
+
+    public Task<bool> ApagarAsync(Salvo arquivo)
+    {
+        if (ApagarFalha) return Task.FromResult(false);
+        string caminho = arquivo.Id.StartsWith("arquivo:", StringComparison.Ordinal) ? arquivo.Id[8..] : arquivo.Id;
+        if (File.Exists(caminho)) File.Delete(caminho);
+        return Task.FromResult(true);
+    }
+
+    /// <summary>Quantas vezes a planilha foi copiada (para conferir que nao copia o que nao mudou).</summary>
+    public int Copias { get; private set; }
+
+    /// <summary>Simula aparelho ou nuvem que nao informa tamanho e data.</summary>
+    public bool SemAssinatura { get; set; }
+
+    public Task<string?> AssinaturaAsync(string id)
+    {
+        string origem = id.StartsWith("arquivo:", StringComparison.Ordinal) ? id[8..] : id;
+        if (SemAssinatura || SemConexao || !File.Exists(origem)) return Task.FromResult<string?>(null);
+        var f = new FileInfo(origem);
+        return Task.FromResult<string?>($"{f.Length}|{f.LastWriteTimeUtc.Ticks}");
     }
 
     public Task<IReadOnlyList<Escolhido>> EscolherArquivosAsync(string tipo, bool varios, string pastaDestino)

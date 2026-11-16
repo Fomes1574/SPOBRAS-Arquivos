@@ -1,10 +1,11 @@
 @page "/"
 @inherits Tela
+@implements IAsyncDisposable
 
 <Barra Titulo="Arquivos SPOBRAS" Sub="@Subtitulo">
     <a class="acao" href="config" aria-label="Configurações" style="text-decoration:none"><Icone Nome="config" /></a>
 </Barra>
-<div class="conteudo">
+<div class="conteudo" style="@(_excluidos.Count > 0 ? "padding-bottom:150px" : null)">
     <SituacaoBase />
     <a class="atalho" href="base"><span class="ico"><Icone Nome="base" Cor="#231F20" /></span><span><b>Consultar a base</b><span>Escola, contrato, lote, prazos e valores</span></span></a>
     <a class="atalho" href="relatorio"><span class="ico"><Icone Nome="relatorio" Cor="#231F20" /></span><span><b>@(App.Rascunho.Vazio ? "Novo relatório fotográfico" : "Relatório fotográfico")</b><span>Fotos pela câmera, já com os dados da escola</span></span></a>
@@ -20,17 +21,29 @@
         </div>
     }
 
-    @if (App.Config.UltimosGerados.Count > 0)
+    @if (Erro is not null)
+    {
+        <Aviso Tipo="erro">@Erro</Aviso>
+    }
+    @if (Visiveis.Count > 0)
     {
         <div class="titulo-secao">Últimos gerados</div>
         <div class="painel" style="padding:4px 14px">
-            @foreach (var s in App.Config.UltimosGerados)
+            @foreach (var s in Visiveis)
             {
-                <ArquivoGerado Arquivo="s" />
+                <ArquivoGerado @key="s.Id" Arquivo="s" AoExcluir="Excluir" />
             }
         </div>
     }
 </div>
+@if (_excluidos.Count > 0)
+{
+    <div class="desfazer" role="status" aria-live="polite">
+        <span class="txt">@(_excluidos.Count == 1 ? "Arquivo excluído" : $"{_excluidos.Count} arquivos excluídos")</span>
+        <button @onclick="Desfazer">Desfazer</button>
+        <i class="tempo-desfazer" @key="_rodada"></i>
+    </div>
+}
 <Nav Ativo="inicio" />
 
 @code {
@@ -40,6 +53,69 @@
         EstadoBase.SemConexao => App.Base.UltimaLeitura is { } u ? $"Sem internet · dados de {Formato.Quando(u, App.Agora())}" : "Sem internet",
         _ => App.Base.UltimaLeitura is { } u ? $"Base lida {Formato.Quando(u, App.Agora())}" : "Base ainda não lida",
     };
+
+    // ---- Excluir com Desfazer (5 s): o arquivo so e apagado de verdade quando o tempo acaba ----
+    private readonly List<Salvo> _excluidos = [];
+    private int _rodada;
+    private CancellationTokenSource? _relogio;
+
+    private List<Salvo> Visiveis => [.. App.Config.UltimosGerados.Where(s => !_excluidos.Any(e => e.Id == s.Id))];
+
+    private void Excluir(Salvo s)
+    {
+        Erro = null;
+        _excluidos.Add(s);
+        _rodada++;
+        _relogio?.Cancel();
+        var este = _relogio = new CancellationTokenSource();
+        _ = Contar(este.Token);
+    }
+
+    private async Task Contar(CancellationToken cancelar)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), cancelar);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await InvokeAsync(Finalizar);
+    }
+
+    private async Task Finalizar()
+    {
+        var lista = _excluidos.ToList();
+        _excluidos.Clear();
+        var erros = new List<string>();
+        foreach (var s in lista)
+        {
+            if (await App.ExcluirGeradoAsync(s) is { } erro) erros.Add(erro);
+        }
+
+        Erro = erros.Count > 0 ? string.Join(" ", erros) : null;
+        StateHasChanged();
+    }
+
+    private void Desfazer()
+    {
+        _relogio?.Cancel();
+        _excluidos.Clear();
+    }
+
+    // Saiu da tela com o Desfazer aberto: a exclusao vale.
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        if (_excluidos.Count > 0)
+        {
+            _relogio?.Cancel();
+            foreach (var s in _excluidos.ToList()) await App.ExcluirGeradoAsync(s);
+            _excluidos.Clear();
+        }
+    }
 
     protected override void Iniciar()
     {

@@ -7,7 +7,10 @@
     <div class="topo-cam">
         <a class="bt-cam" href="relatorio/fotos" aria-label="Fechar a câmera" style="text-decoration:none;display:grid;place-items:center">✕</a>
         <span style="font-size:13px;text-align:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Foto @(App.Rascunho.Dados.Fotos.Count + 1)@(string.IsNullOrWhiteSpace(App.Rascunho.Dados.Unidade) ? "" : " · " + App.Rascunho.Dados.Unidade)</span>
-        <button class="bt-cam" @onclick="() => _opcoes = true" aria-label="Formato e flash">⚡ @NomeFlash(App.Config.Flash)</button>
+        <button class="bt-cam flash-atual" @onclick="() => _opcoes = true" aria-label="Flash: @NomeFlash(App.Config.Flash). Abrir configurações da câmera">⚡ @NomeFlash(App.Config.Flash)</button>
+        <button class="bt-cam engrenagem-cam" @onclick="() => _opcoes = true" aria-label="Configurações da câmera">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+        </button>
     </div>
     <div class="formatos" role="radiogroup" aria-label="Formato da foto">
         @foreach (var f in Enum.GetValues<FormatoFoto>())
@@ -44,7 +47,8 @@
     }
 </div>
 
-<Folha Aberta="_opcoes" Titulo="Formato da foto" AoFechar="() => _opcoes = false">
+<Folha Aberta="_opcoes" Titulo="Configurações da câmera" AoFechar="() => _opcoes = false">
+    <b style="font-size:16px;display:block;margin-bottom:8px">Proporção da foto</b>
     @foreach (var f in Enum.GetValues<FormatoFoto>())
     {
         <button class="opcao @(App.Config.FormatoFoto == f ? "on" : "")" @onclick="() => Formato_(f)"><span>@NomeFormato(f)<small>@ExplicaFormato(f)</small></span><span class="marca"></span></button>
@@ -61,8 +65,9 @@
     {
         <p class="mini" style="margin:8px 0 0">Este aparelho não deixa o app controlar o flash da foto; a lanterna @(_temLanterna ? "funciona" : "também não está disponível").</p>
     }
+    <b style="font-size:16px;display:block;margin-top:14px">Galeria</b>
     <button class="opcao @(App.Config.FotosNaGaleria ? "on" : "")" style="margin-top:8px" @onclick="Galeria"><span>Guardar também na galeria<small>Além do rascunho do app</small></span><span class="marca"></span></button>
-    <p class="mini" style="margin:10px 0 12px">O formato e o flash ficam guardados para as próximas fotos.</p>
+    <p class="mini" style="margin:10px 0 12px">Tudo fica guardado para as próximas fotos. O flash desligado tira a foto na hora; com flash, o celular pede para segurar firme um instante.</p>
     <button class="btn primario" @onclick="() => _opcoes = false">Voltar à câmera</button>
 </Folha>
 

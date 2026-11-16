@@ -135,6 +135,7 @@ public class RelatorioVmTests : ComApp
         Assert.Equal("Trocada", vm.Fotos[2].Legenda);
         Assert.Equal("Vista geral", vm.Fotos[0].Legenda);
 
+        vm.Etapa = 2; // a previa das paginas so e desenhada na Conferencia (onde ela aparece)
         vm.FotosPorPagina = 2;
         Assert.Equal("5 fotos em 3 páginas", vm.Resumo);
         vm.Assinaturas = true;
@@ -162,6 +163,8 @@ public class RelatorioVmTests : ComApp
         Assert.Contains(vm.Avisos, a => a.Impede && a.Texto.Contains("data do relatório não existe"));
         vm.DataTexto = "1/3/2026";
         Assert.True(vm.GerarCommand.CanExecute(null));
+        Assert.Empty(vm.Paginas); // fora da Conferencia a previa nao e desenhada a cada letra
+        vm.Etapa = 2;
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "01/03/2026");
     }
 
@@ -274,6 +277,7 @@ public class RelatorioVmTests : ComApp
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(1));
         await vm.Miniaturas;
+        vm.Etapa = 2;
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Imagem == config.Logo);
 
         Dialogos.Confirmacoes.Enqueue(true);

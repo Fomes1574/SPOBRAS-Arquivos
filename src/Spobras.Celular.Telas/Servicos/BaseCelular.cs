@@ -69,7 +69,7 @@ public sealed class BaseCelular
             return false;
         }
 
-        _preferencias.Gravar(_preferencias.Ler() with { Mestra = escolhida, HashDaMestra = null });
+        _preferencias.Gravar(_preferencias.Ler() with { Mestra = escolhida, HashDaMestra = null, AssinaturaDaMestra = null });
         await AtualizarAsync();
         return true;
     }
@@ -102,6 +102,16 @@ public sealed class BaseCelular
             string pasta = Path.Combine(_plataforma.PastaDoApp, "base");
             Directory.CreateDirectory(pasta);
             string copia = Path.Combine(pasta, "mestra-lida.xlsx");
+            // Tamanho e data iguais aos da ultima leitura: nem baixa a planilha de novo (economiza internet).
+            string? assinatura = await _plataforma.AssinaturaAsync(p.Mestra.Id);
+            if (!forcar && TemDados && assinatura is not null && assinatura == p.AssinaturaDaMestra)
+            {
+                Repositorio.RegistrarImportacao(Fontes.Mestra, _agora(), true, "Sem mudança.", TotalDeObras, 0);
+                _preferencias.Gravar(p with { UltimaLeitura = _agora() });
+                Definir(EstadoBase.Atualizada, "");
+                return;
+            }
+
             var resultado = await _plataforma.CopiarAsync(p.Mestra.Id, copia);
             if (resultado != Copia.Ok)
             {
@@ -118,7 +128,7 @@ public sealed class BaseCelular
             if (!forcar && hash == p.HashDaMestra && TemDados)
             {
                 Repositorio.RegistrarImportacao(Fontes.Mestra, _agora(), true, "Sem mudança.", TotalDeObras, 0);
-                _preferencias.Gravar(p with { UltimaLeitura = _agora() });
+                _preferencias.Gravar(p with { UltimaLeitura = _agora(), AssinaturaDaMestra = assinatura });
                 Definir(EstadoBase.Atualizada, "");
                 return;
             }
@@ -145,7 +155,7 @@ public sealed class BaseCelular
                 };
                 Repositorio.GravarMestra(dados, fonte with { Versao = fonte.Versao + 1 });
             });
-            _preferencias.Gravar(_preferencias.Ler() with { HashDaMestra = hash, UltimaLeitura = agora });
+            _preferencias.Gravar(_preferencias.Ler() with { HashDaMestra = hash, UltimaLeitura = agora, AssinaturaDaMestra = assinatura });
             Repositorio.RegistrarImportacao(Fontes.Mestra, agora, true, "Leitura concluída.", linhas, relogio.ElapsedMilliseconds);
             Definir(EstadoBase.Atualizada, "");
         }
@@ -226,7 +236,7 @@ public sealed class BaseCelular
         await AtualizarAsync(forcar: true);
     }
 
-    public IReadOnlyList<(DateTimeOffset Quando, bool Ok, string Mensagem, int Linhas)> Leituras(int maximo = 8) =>
+    public IReadOnlyList<(DateTimeOffset Quando, bool Ok, string Mensagem, int Linhas)> Leituras(int maximo = BaseRepositorio.LeiturasGuardadas) =>
         Repositorio.HistoricoDeImportacoes(Fontes.Mestra, maximo);
 
     private void Definir(EstadoBase estado, string mensagem)

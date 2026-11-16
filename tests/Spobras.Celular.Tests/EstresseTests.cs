@@ -123,7 +123,7 @@ public sealed class EstresseTests : IDisposable
         tempo.Restart();
         await r.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
         Assert.Equal(Total, Directory.GetFiles(r.PastaDasMiniaturas, "*.jpg").Length);
-        Anotar($"300 miniaturas em segundo plano: {tempo.ElapsedMilliseconds} ms ({tempo.ElapsedMilliseconds / Total} ms cada)");
+        Anotar($"300 miniaturas e fotos do relatório preparadas em segundo plano: {tempo.ElapsedMilliseconds / 1000.0:0.0} s ({tempo.ElapsedMilliseconds / Total} ms cada, um núcleo só)");
 
         tempo.Restart();
         for (int i = 0; i < Total; i++)
@@ -154,13 +154,34 @@ public sealed class EstresseTests : IDisposable
         Assert.Equal(Enumerable.Range(1, Total).Select(i => $"Foto {i} da vistoria, ambiente {(i - 1) % 17 + 1}"), reaberto.Dados.Fotos.Select(f => f.Legenda));
         Anotar($"20 rodadas de tirar 30 fotos e desfazer: {tempo.ElapsedMilliseconds} ms");
 
-        foreach (var (formato, nome) in new[] { (FormatoGerado.Excel, "Excel"), (FormatoGerado.Pdf, "PDF") })
+        // 1) sem nada preparado (o usuario gerou logo depois de colocar as fotos)
+        app.Rascunho.PrepararEmSegundoPlano = false;
+        reaberto.PrepararEmSegundoPlano = false;
+        await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
+        await reaberto.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
+        foreach (var f in Directory.GetFiles(app.Rascunho.PastaDasPreparadas)) File.Delete(f);
+        foreach (var (formato, nome) in new[] { (FormatoGerado.Excel, "Excel"), (FormatoGerado.Pdf, "PDF"), (FormatoGerado.ExcelEPdf, "Excel e PDF") })
         {
+            if (formato == FormatoGerado.ExcelEPdf)
+            {
+                foreach (var f in Directory.GetFiles(app.Rascunho.PastaDasPreparadas)) File.Delete(f);
+            }
+
             RelatorioPronto? pronto = null;
             var (ms, pico) = await ComMemoria(async () => pronto = await app.Rascunho.GerarAsync(p, app.Config with { Formato = formato, PastaPorEscola = false }));
             long tamanho = new FileInfo(pronto!.Locais[0]).Length / (1024 * 1024);
-            Anotar($"gerar o {nome}: {ms / 1000.0:0.0} s, arquivo de {tamanho} MB, memória do processo no pico: {pico} MB");
+            Anotar($"gerar {nome} (fotos não preparadas antes): {ms / 1000.0:0.0} s, arquivo de {tamanho} MB, memória no pico: {pico} MB");
             Assert.Equal(Total, pronto.Fotos);
         }
+
+        // 2) com as fotos ja preparadas em segundo plano (o normal: prepara enquanto o usuario escreve as legendas)
+        app.Rascunho.PrepararEmSegundoPlano = true;
+        tempo.Restart();
+        app.Rascunho.Girar(0); // acorda o segundo plano
+        app.Rascunho.Girar(0); app.Rascunho.Girar(0); app.Rascunho.Girar(0);
+        await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
+        Assert.Equal(Total, Directory.GetFiles(app.Rascunho.PastaDasPreparadas, "*.jpg").Length);
+        var (msPronto, picoPronto) = await ComMemoria(async () => await app.Rascunho.GerarAsync(p, app.Config with { Formato = FormatoGerado.ExcelEPdf, PastaPorEscola = false }));
+        Anotar($"gerar Excel e PDF com as fotos já preparadas: {msPronto / 1000.0:0.0} s, memória no pico: {picoPronto} MB");
     }
 }

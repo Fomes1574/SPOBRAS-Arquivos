@@ -143,11 +143,11 @@
                     }
                 </div>
             }
-            <div class="titulo-secao">Últimas leituras</div>
+            <div class="titulo-secao">Últimas leituras (horário de Brasília)</div>
             <div class="painel" style="padding:4px 14px">
                 @foreach (var l in App.Base.Leituras())
                 {
-                    <div class="linha-diag"><span>@Formato.Quando(l.Quando, App.Agora())</span><b style="color:@(l.Ok ? "var(--verde)" : "var(--vermelho-escuro)")">@(l.Ok ? (l.Mensagem.StartsWith("Sem", StringComparison.Ordinal) ? "sem mudança" : $"ok · {Formato.Plural(l.Linhas, "obra", "obras")}") : l.Mensagem)</b></div>
+                    <div class="linha-diag"><span>@Spobras.Core.HoraDeBrasilia.Texto(l.Quando)</span><b style="color:@(l.Ok ? "var(--verde)" : "var(--vermelho-escuro)")">@(l.Ok ? (l.Mensagem.StartsWith("Sem", StringComparison.Ordinal) ? "sem mudança" : $"ok · {Formato.Plural(l.Linhas, "obra", "obras")}") : l.Mensagem)</b></div>
                 }
                 @if (App.Base.Leituras().Count == 0)
                 {
@@ -315,7 +315,7 @@
             $"Colunas fora do padrão: {string.Join("; ", App.Base.Mapeamento.Tabelas.Concat(App.Base.Mapeamento.Colunas).Select(kv => $"{kv.Key} = {kv.Value}"))}",
             $"Regras de status: {string.Join("; ", MedicoesEmTramite.Personalizadas.Select(kv => $"{kv.Key} = {kv.Value}"))}",
         };
-        linhas.AddRange(App.Base.Leituras().Select(l => $"{l.Quando:dd/MM/yyyy HH:mm} {(l.Ok ? "ok" : "erro")} {l.Mensagem} {l.Linhas}"));
+        linhas.AddRange(App.Base.Leituras().Select(l => $"{Spobras.Core.HoraDeBrasilia.Texto(l.Quando)} {(l.Ok ? "ok" : "erro")} {l.Mensagem} {l.Linhas}"));
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", string.Join("\n", linhas));

@@ -47,6 +47,9 @@ public sealed record Preferencias
 
     /// <summary>Hash da ultima copia da planilha lida (se nao mudou, nao precisa ler de novo).</summary>
     public string? HashDaMestra { get; init; }
+
+    /// <summary>Tamanho e data da planilha na ultima leitura: igual, nem copia de novo.</summary>
+    public string? AssinaturaDaMestra { get; init; }
     public DateTimeOffset? UltimaLeitura { get; init; }
 
     public IReadOnlyList<Salvo> UltimosGerados { get; init; } = [];

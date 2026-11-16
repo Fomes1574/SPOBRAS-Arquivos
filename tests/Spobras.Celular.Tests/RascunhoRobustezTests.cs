@@ -381,6 +381,41 @@ public sealed class RascunhoRobustezTests : IDisposable
     }
 
     [Fact]
+    public async Task Copia_do_relatorio_no_app_sai_depois_de_salvo_e_o_salvo_fica()
+    {
+        var app = await AppPronto(3);
+        var p = new PlataformaDeTeste(_raiz);
+        var r = await app.Rascunho.GerarAsync(p, app.Config);
+        Assert.All(r.Locais, l => Assert.True(File.Exists(l)));
+        app.Rascunho.LimparGerado();
+        Assert.All(r.Locais, l => Assert.False(File.Exists(l)));
+        Assert.All(r.Arquivos, a => Assert.True(File.Exists(a.Id[8..]))); // o salvo na pasta escolhida continua
+    }
+
+    [Fact]
+    public async Task Excluir_relatorio_gerado_apaga_o_salvo_e_nao_toca_nas_fotos()
+    {
+        var app = await AppPronto(3);
+        var p = (PlataformaDeTeste)app.Plataforma;
+        var r = await app.Rascunho.GerarAsync(p, app.Config);
+        app.Registrar(r.Arquivos);
+        var fotos = Directory.GetFiles(app.Rascunho.PastaDasFotos).Length;
+        var salvo = r.Arquivos[0];
+
+        p.ApagarFalha = true;
+        var erro = await app.ExcluirGeradoAsync(salvo);
+        Assert.Contains("não deixa o app apagar", erro);
+        Assert.Contains(app.Config.UltimosGerados, s => s.Id == salvo.Id); // nao sumiu da lista sem ter sido apagado
+
+        p.ApagarFalha = false;
+        Assert.Null(await app.ExcluirGeradoAsync(salvo));
+        Assert.False(File.Exists(salvo.Id[8..]));
+        Assert.DoesNotContain(app.Config.UltimosGerados, s => s.Id == salvo.Id);
+        Assert.True(File.Exists(r.Arquivos[1].Id[8..]));
+        Assert.Equal(fotos, Directory.GetFiles(app.Rascunho.PastaDasFotos).Length); // fotos intactas
+    }
+
+    [Fact]
     public async Task Gerar_duas_vezes_ao_mesmo_tempo_faz_um_e_explica_o_outro()
     {
         var app = await AppPronto(6);

@@ -20,7 +20,8 @@ public static class GeradorRelatorioPdf
     private const string SufixoParcial = ".spobras-parcial";
 
     public static RelatorioGerado Gerar(
-        PlanoRelatorio plano, string caminhoSaida, string? caminhoLogo = null, IProgress<int>? fotosFeitas = null, CancellationToken cancelamento = default)
+        PlanoRelatorio plano, string caminhoSaida, string? caminhoLogo = null, IProgress<int>? fotosFeitas = null, CancellationToken cancelamento = default,
+        PreparoDeFotos? preparo = null)
     {
         if (!plano.PodeGerar)
         {
@@ -42,7 +43,7 @@ public static class GeradorRelatorioPdf
         string parcial = caminhoSaida + SufixoParcial;
         try
         {
-            Escrever(plano, parcial, caminhoLogo, fotosFeitas, cancelamento);
+            Escrever(plano, parcial, caminhoLogo, fotosFeitas, cancelamento, preparo ?? new PreparoDeFotos());
             File.Move(parcial, caminhoSaida, overwrite: false);
         }
         finally
@@ -56,8 +57,10 @@ public static class GeradorRelatorioPdf
         return new RelatorioGerado(caminhoSaida, plano.Paginas.Count, plano.TotalDeFotos, new FileInfo(caminhoSaida).Length);
     }
 
-    private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento)
+    private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento, PreparoDeFotos preparo)
     {
+        // As fotos primeiro, todas de uma vez em paralelo (a parte demorada); depois so montar o arquivo.
+        preparo.PrepararTodas(plano, fotosFeitas, cancelamento);
         using var doc = new PdfDocument();
         doc.Info.Title = CabecalhoRelatorio.NomeSugerido(plano.Dados);
         var normal = new XFont(FontesPdf.Familia, 11 * Escala / 0.75);
@@ -68,7 +71,6 @@ public static class GeradorRelatorioPdf
         byte[]? logo = !string.IsNullOrWhiteSpace(caminhoLogo) && File.Exists(caminhoLogo) ? Fotos.Preparar(caminhoLogo, 1200, 92) : null;
         var cab = plano.Cabecalho;
         double esquerda = (A4Largura - GradeRelatorio.Largura * Escala) / 2;
-        int feitas = 0;
 
         foreach (var pagina in plano.Paginas)
         {
@@ -150,7 +152,7 @@ public static class GeradorRelatorioPdf
             foreach (var foto in pagina.Fotos)
             {
                 cancelamento.ThrowIfCancellationRequested();
-                byte[] jpeg = Fotos.Preparar(foto.Foto.Caminho, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto, foto.Foto.Rotacao);
+                byte[] jpeg = preparo.Obter(foto.Foto, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto);
                 using (var imagem = XImage.FromStream(new MemoryStream(jpeg)))
                 {
                     g.DrawImage(imagem, R(foto.Imagem.X, foto.Imagem.Y, foto.Imagem.Largura, foto.Imagem.Altura));
@@ -167,7 +169,6 @@ public static class GeradorRelatorioPdf
                     Paragrafo(g, foto.Descricao, normal, R(foto.Texto.X + 4, foto.Texto.Y + alturaTitulo + 2, foto.Texto.Largura - 8, foto.Texto.Altura - alturaTitulo - 2), XParagraphAlignment.Left);
                 }
 
-                fotosFeitas?.Report(++feitas);
             }
 
             foreach (var continuacao in pagina.Continuacoes)

@@ -69,6 +69,10 @@
                                         <Button Style="{StaticResource BotaoLinha}" Content="Desfazer" Margin="0,0,6,0"
                                                 Command="{Binding DataContext.DesfazerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
                                                 Visibility="{Binding PodeDesfazer, Converter={StaticResource Visivel}}" />
+                                        <Button Style="{StaticResource BotaoLinha}" Content="Excluir arquivo" Margin="0,0,6,0"
+                                                Command="{Binding DataContext.ExcluirArquivoCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding PodeExcluirArquivo, Converter={StaticResource Visivel}}"
+                                                ToolTip="Manda o arquivo que o app gerou para a Lixeira do Windows" />
                                         <Button Style="{StaticResource BotaoLinha}" Content="Abrir pasta"
                                                 Command="{Binding DataContext.AbrirPastaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
                                                 Visibility="{Binding PodeAbrirPasta, Converter={StaticResource Visivel}}" />

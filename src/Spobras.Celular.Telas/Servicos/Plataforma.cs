@@ -29,8 +29,20 @@ public interface IPlataforma
     /// <summary>Escolhe a planilha mestra (.xlsx) uma vez; a permissao de leitura fica guardada.</summary>
     Task<Escolhido?> EscolherPlanilhaAsync();
 
+    /// <summary>
+    /// Apaga um arquivo que o proprio app gerou e salvou (relatorio, PDF). Falso se o local nao deixa apagar. As fotos
+    /// da galeria nunca passam por aqui.
+    /// </summary>
+    Task<bool> ApagarAsync(Salvo arquivo);
+
     /// <summary>Copia a planilha escolhida para um arquivo do app, para ler sem tocar na original.</summary>
     Task<Copia> CopiarAsync(string id, string destino);
+
+    /// <summary>
+    /// Tamanho e data da planilha sem baixar o arquivo (para nao copiar de novo o que nao mudou). Nulo quando o
+    /// aparelho ou o servico de nuvem nao informam: ai a planilha e copiada como sempre.
+    /// </summary>
+    Task<string?> AssinaturaAsync(string id) => Task.FromResult<string?>(null);
 
     /// <summary>Escolhe arquivos e copia para a pasta indicada (as originais nao mudam).</summary>
     Task<IReadOnlyList<Escolhido>> EscolherArquivosAsync(string tipo, bool varios, string pastaDestino);

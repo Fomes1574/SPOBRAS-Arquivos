@@ -58,6 +58,37 @@ public sealed class PlataformaAndroid : IPlataforma
         }
     });
 
+    public Task<bool> ApagarAsync(Salvo arquivo) => Task.Run(() =>
+    {
+        try
+        {
+            return DocumentsContract.DeleteDocument(Resolver, AUri.Parse(arquivo.Id)!);
+        }
+        catch (Java.IO.FileNotFoundException)
+        {
+            return true; // ja nao existia
+        }
+        catch (Exception ex) when (ex is Java.Lang.Exception or IOException)
+        {
+            return false; // o local (ex.: nuvem) nao deixa o app apagar
+        }
+    });
+
+    public Task<string?> AssinaturaAsync(string id) => Task.Run(() =>
+    {
+        try
+        {
+            using var c = Resolver.Query(AUri.Parse(id)!, [DocumentsContract.Document.ColumnSize, DocumentsContract.Document.ColumnLastModified], null, null, null);
+            if (c is null || !c.MoveToFirst() || c.IsNull(0) || c.IsNull(1)) return null;
+            long tamanho = c.GetLong(0), modificado = c.GetLong(1);
+            return tamanho > 0 && modificado > 0 ? $"{tamanho}|{modificado}" : (string?)null;
+        }
+        catch (Exception ex) when (ex is Java.Lang.Exception or IOException)
+        {
+            return null; // sem a informacao: copia como sempre
+        }
+    });
+
     public async Task<IReadOnlyList<Escolhido>> EscolherArquivosAsync(string tipo, bool varios, string pastaDestino)
     {
         var intent = new Intent(Intent.ActionOpenDocument);

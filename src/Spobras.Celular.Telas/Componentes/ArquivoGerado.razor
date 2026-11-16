@@ -3,10 +3,19 @@
     <span class="ext @(Pdf ? "p" : "x")">@(Pdf ? "PDF" : "XLSX")</span>
     <div><b>@Path.GetFileNameWithoutExtension(Arquivo.Nome)</b><span>@Formato.Tamanho(Arquivo.Tamanho) · @Arquivo.Onde</span></div>
     <button class="btn pequeno linha" style="flex:none" @onclick="Abrir" aria-label="Abrir @Arquivo.Nome">Abrir</button>
+    @if (AoExcluir.HasDelegate)
+    {
+        <button class="excluir-arquivo" @onclick="() => AoExcluir.InvokeAsync(Arquivo)" aria-label="Excluir @Arquivo.Nome">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" /></svg>
+        </button>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired] public Salvo Arquivo { get; set; } = default!;
+
+    /// <summary>Com isto, aparece a lixeira para excluir o arquivo (com Desfazer na tela que chamou).</summary>
+    [Parameter] public EventCallback<Salvo> AoExcluir { get; set; }
 
     private bool Pdf => Arquivo.Nome.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
 
