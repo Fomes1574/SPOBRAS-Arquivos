@@ -27,7 +27,7 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <!-- Sem corte de codigo: as bibliotecas de Excel e PDF usam reflexao; o APK fica maior, mas sem surpresa. -->
     <PublishTrimmed>false</PublishTrimmed>
-    <RunAOTCompilation>true</RunAOTCompilation>
+    <RunAOTCompilation>false</RunAOTCompilation>
   </PropertyGroup>
 
   <ItemGroup>
