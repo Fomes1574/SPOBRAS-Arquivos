@@ -1,5 +1,14 @@
 # Progresso
 
+## Planejado para o Codex em 16/11/2026: resumo por contrato
+
+Especificação completa em `docs/codex/RESUMO-POR-CONTRATO.md`, com os modelos visuais em `docs/codex/modelos/` (dados inventados). Resumo:
+- Estudo da planilha: o nome do lote não identifica um contrato (lotes com vários contratos são sempre de modalidades diferentes); a unidade é o contrato.
+- Exportar PDF "Resumo da obra" (ficha) e "Resumo do contrato" (uma página por contrato), com logo, selos de prazo (verde > 90 dias, laranja ≤ 90, vermelho vencido, cinza encerrado só com a data), pizza e percentuais; sem assinatura, escopo nem avanço físico.
+- Base no computador e no celular: sai o filtro Lote; o filtro Contrato mostra lote, modalidade, escolas e portaria; ✕ dentro do filtro; resumo do contrato com todas as escolas e Exportar PDF.
+- Cronograma: adicionar todas as escolas de um contrato; sugestões só do mesmo contrato (hoje "mesmo lote" compara só o número e mistura programas).
+- Ideia para depois: resumo por empresa.
+
 ## Desempenho, histórico e exclusão em 16/11/2026
 
 **Gerar o relatório (celular e computador):** cada foto agora é aberta já reduzida (perto do tamanho do relatório) e girada e reduzida num desenho só; é preparada uma vez para o Excel e o PDF e as fotos são preparadas em paralelo (até 4). No celular, depois das miniaturas, o app vai preparando as fotos no tamanho do relatório em segundo plano (um núcleo, enquanto o usuário escreve as legendas). Medido com 300 fotos de 12 MP neste computador: Excel + PDF de ~137 s para **16 s** sem nada preparado e **1,9 s** com as fotos já preparadas. As 8 orientações de câmera × 4 giros conferidas canto a canto; o PDF sai com as mesmas imagens com ou sem preparo.
