@@ -8,6 +8,8 @@ Windows e Android usam o mesmo gerador PDF para contrato e escola, com prazo cal
 
 **Verificação visual e beta:** as oito telas de referência do celular foram abertas em 360 e 412 px. O roteiro cobre tamanho dos alvos, contraste, texto, elementos cobertos e valores de R$ 99.999.999,99 com nomes extensos. Também foi testado um contrato com todas as escolas ocultas por outro filtro. A primeira execução WPF encontrou controles cortados na Base e no Cronograma em janela menor. O resumo passou a dividir a altura com a ficha, e a área de obras do Cronograma passou a rolar com a busca, a tabela, as sugestões e os avisos.
 
+**Regressão encontrada na CI:** Excel e PDF podiam tentar substituir uma foto preparada que outro leitor mantinha aberta no Windows. A primeira cópia completa passa a ficar no cache, com teste para o caso em que já está aberta para leitura.
+
 ## Desempenho, histórico e exclusão em 16/11/2026
 
 **Gerar o relatório (celular e computador):** cada foto agora é aberta já reduzida (perto do tamanho do relatório) e girada e reduzida num desenho só; é preparada uma vez para o Excel e o PDF e as fotos são preparadas em paralelo (até 4). No celular, depois das miniaturas, o app vai preparando as fotos no tamanho do relatório em segundo plano (um núcleo, enquanto o usuário escreve as legendas). Medido com 300 fotos de 12 MP neste computador: Excel + PDF de ~137 s para **16 s** sem nada preparado e **1,9 s** com as fotos já preparadas. As 8 orientações de câmera × 4 giros conferidas canto a canto; o PDF sai com as mesmas imagens com ou sem preparo.

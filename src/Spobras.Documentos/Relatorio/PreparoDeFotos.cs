@@ -47,19 +47,24 @@ public sealed class PreparoDeFotos(string? pastaCache = null)
         return _memoria.GetOrAdd(Chave(foto, lado, qualidade), _ => Fotos.Preparar(foto.Caminho, lado, qualidade, foto.Rotacao));
     }
 
-    /// <summary>Grava inteira ou nada (arquivo temporario trocado de uma vez).</summary>
+    /// <summary>Publica a primeira copia completa da foto preparada (o cache e imutavel).</summary>
     public static void Gravar(string arquivo, byte[] dados)
     {
+        if (File.Exists(arquivo)) return;
         Directory.CreateDirectory(Path.GetDirectoryName(arquivo)!);
         string temp = arquivo + "." + Guid.NewGuid().ToString("N")[..6] + ".tmp";
         try
         {
             File.WriteAllBytes(temp, dados);
-            File.Move(temp, arquivo, overwrite: true);
+            File.Move(temp, arquivo);
         }
         catch (IOException)
         {
             // outra preparacao da mesma foto ganhou a corrida: tanto faz qual fica
+        }
+        catch (UnauthorizedAccessException) when (File.Exists(arquivo))
+        {
+            // No Windows o leitor pode estar com a primeira copia aberta, sem compartilhar exclusao.
         }
         finally
         {
