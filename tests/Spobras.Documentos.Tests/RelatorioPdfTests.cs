@@ -106,4 +106,63 @@ public class RelatorioPdfTests : IDisposable
         Assert.Throws<IOException>(() => GeradorRelatorioPdf.Gerar(plano, pdf));
         Assert.Empty(Directory.GetFiles(_pasta, "*.spobras-parcial"));
     }
+
+    [Fact]
+    public void Cada_palavra_cai_no_lugar_planejado_com_a_fonte_embutida_e_o_cabecalho_reduzido()
+    {
+        string legenda = "EXECUÇÃO DA ARMADURA DO BLOCO DE COROAMENTO B12 COM CONFERÊNCIA DE COBRIMENTO E ESPAÇADORES NA OBRA.";
+        var lista = Enumerable.Range(1, 10).Select(n =>
+        {
+            string caminho = Foto($"g{n}.jpg", n % 2 == 0 ? 300 : 400, n % 2 == 0 ? 400 : 300);
+            var info = Fotos.Ler(caminho);
+            return new FotoRelatorio(caminho, info.Largura, info.Altura) { Legenda = legenda, Descricao = new string('a', 10) + " descrição detalhada do serviço executado" };
+        }).ToList();
+        var opcoes = new OpcoesRelatorio { Modo = ModoLegenda.DescricaoServico, FotosPorPagina = 4, Assinaturas = true, AssinaturaFiscal = "Fulano", AssinaturaContratada = "Beltrano" };
+        var plano = PaginadorRelatorio.Paginar(lista, opcoes, Dados);
+        string pdf = Path.Combine(_pasta, "lugar.pdf");
+        GeradorRelatorioPdf.Gerar(plano, pdf);
+        Guardar(pdf);
+
+        using var doc = PdfDocument.Open(pdf);
+        Assert.Equal(plano.Paginas.Count, doc.NumberOfPages);
+        for (int i = 0; i < doc.NumberOfPages; i++)
+        {
+            var pagina = doc.GetPage(i + 1);
+            var planejada = plano.Paginas[i];
+            var palavras = pagina.GetWords().ToList();
+            Assert.All(palavras, w => Assert.Contains("Carlito", w.Letters[0].FontName));
+            foreach (var w in palavras)
+            {
+                // PdfPig mede de baixo para cima; o plano, de cima para baixo.
+                double x1 = w.BoundingBox.Left, x2 = w.BoundingBox.Right, y1 = pagina.Height - w.BoundingBox.Top, y2 = pagina.Height - w.BoundingBox.Bottom;
+                Assert.True(x1 >= GradeRelatorio.MargemLateral - 0.5 && x2 <= pagina.Width - GradeRelatorio.MargemLateral + 0.5, $"pág {i + 1}: \"{w.Text}\" sai pela lateral");
+                Assert.True(y1 >= GradeRelatorio.MargemDeCima - 0.5 && y2 <= pagina.Height - GradeRelatorio.MargemDeBaixo + 0.5, $"pág {i + 1}: \"{w.Text}\" sai pela margem");
+                // palavra da legenda ou da descricao: dentro do espaco de texto da sua foto (nunca em cima de uma foto)
+                var dono = planejada.Fotos.FirstOrDefault(f => x1 >= f.Espaco.X - 0.5 && x2 <= f.Espaco.Direita + 0.5 && y1 >= f.Espaco.Y - 0.5 && y2 <= f.Espaco.Base + 0.5);
+                if (dono is not null)
+                {
+                    Assert.True(y1 >= dono.Quadro.Base - 0.5, $"pág {i + 1}: \"{w.Text}\" em cima da foto {dono.Numero}");
+                }
+            }
+
+            string texto = string.Join(" ", palavras.Select(w => w.Text));
+            Assert.Contains($"Página {i + 1} de {plano.Paginas.Count}", texto);
+            Assert.Contains("CEU Exemplo Alfa · Relatório fotográfico de 10/11/2026", texto);
+            if (i > 0)
+            {
+                Assert.Contains("continuação", texto);
+                Assert.DoesNotContain("UNIDADE", texto);
+            }
+            else
+            {
+                Assert.Contains("10 de novembro de 2026", texto);
+                Assert.Contains("UNIDADE EDUCACIONAL", texto);
+            }
+        }
+
+        string ultima = string.Join(" ", doc.GetPage(doc.NumberOfPages).GetWords().Select(w => w.Text));
+        Assert.Contains("Fiscalização SPOBRAS", ultima);
+        Assert.Contains("Beltrano", ultima);
+        Assert.NotEmpty(doc.GetPage(doc.NumberOfPages).GetImages()); // assinatura junto de fotos
+    }
 }

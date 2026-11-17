@@ -9,4 +9,9 @@
     <PackageReference Include="PDFsharp" />
     <PackageReference Include="PdfPig" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Carlito (SIL Open Font License 1.1, ver Fontes/OFL.txt): a fonte do relatorio fotografico. -->
+    <EmbeddedResource Include="Fontes/Carlito-Regular.ttf" LogicalName="Spobras.Documentos.Fontes.Carlito-Regular.ttf" />
+    <EmbeddedResource Include="Fontes/Carlito-Bold.ttf" LogicalName="Spobras.Documentos.Fontes.Carlito-Bold.ttf" />
+  </ItemGroup>
 </Project>

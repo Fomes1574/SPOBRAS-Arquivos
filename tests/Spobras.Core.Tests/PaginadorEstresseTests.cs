@@ -3,12 +3,13 @@ using Spobras.Core.Relatorio;
 namespace Spobras.Core.Tests;
 
 /// <summary>
-/// Milhares de relatorios aleatorios (legendas de 0 a 5.000 caracteres, descricoes, cabecalhos enormes, todas as
-/// quantidades por pagina, com e sem assinaturas). Antes, legenda longa ou cabecalho grande derrubavam a geracao.
+/// Milhares de relatorios aleatorios (legendas e descricoes de qualquer tamanho, inclusive acima do limite,
+/// cabecalhos enormes, todas as quantidades por pagina, com e sem assinaturas). Nunca quebra, nunca perde foto
+/// ou palavra, e tudo que o modelo promete vale em todas as paginas.
 /// </summary>
 public class PaginadorEstresseTests
 {
-    private static readonly string[] Palavras = ["piso", "execução", "da", "sala", "cobertura", "telhas", "pintura", "acessibilidade", "rampa", "e", "muro", "SuperPalavraSemEspaçoNenhumQueNãoCabeNaLinha"];
+    private static readonly string[] Palavras = ["piso", "EXECUÇÃO", "da", "sala", "cobertura", "telhas", "pintura", "acessibilidade", "rampa", "e", "muro", "WWWWMMMM", "SuperPalavraSemEspaçoNenhumQueNãoCabeNaLinha"];
 
     private static string Texto(Random sorte, int maximo)
     {
@@ -23,37 +24,43 @@ public class PaginadorEstresseTests
             tamanho += p.Length + 1;
         }
 
-        return string.Join(" ", partes).Trim();
+        string t = string.Join(" ", partes).Trim();
+        return t.Length > maximo ? t[..maximo].Trim() : t;
     }
 
-    private static IEnumerable<string> PalavrasDe(string t) => t.Split([' ', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
+    private static string SemEspacos(string t) => string.Concat(t.Where(c => !char.IsWhiteSpace(c)));
 
     [Fact]
     public void Relatorios_aleatorios_nunca_quebram_nem_perdem_texto_ou_foto()
     {
         var sorte = new Random(2026);
-        int comPendencia = 0;
+        int impedidos = 0, gerados = 0;
         for (int rodada = 0; rodada < 1500; rodada++)
         {
-            int n = sorte.Next(1, 25);
+            int n = sorte.Next(1, 30);
+            bool passarDoLimite = sorte.Next(8) == 0;
             var opcoes = new OpcoesRelatorio
             {
                 FotosPorPagina = OpcoesRelatorio.Capacidades[sorte.Next(OpcoesRelatorio.Capacidades.Count)],
                 Modo = sorte.Next(2) == 0 ? ModoLegenda.LegendaCurta : ModoLegenda.DescricaoServico,
                 Assinaturas = sorte.Next(3) == 0,
+                AssinaturaFiscal = Texto(sorte, 80),
             };
             var dados = new DadosRelatorio
             {
                 Unidade = Texto(sorte, 200),
                 Objeto = Texto(sorte, sorte.Next(5) == 0 ? 4000 : 300),
-                Descricao = Texto(sorte, sorte.Next(5) == 0 ? 6000 : 400),
+                Descricao = Texto(sorte, passarDoLimite ? 600 : 300),
                 Contratada = Texto(sorte, 120),
                 Contrato = "044/EX/2026",
+                Lote = Texto(sorte, 60),
+                Portaria = Texto(sorte, 60),
             };
-            var fotos = Enumerable.Range(1, n).Select(i => new FotoRelatorio($"f{i}.jpg", sorte.Next(2) == 0 ? 4000 : 3000, sorte.Next(2) == 0 ? 3000 : 4000)
+            var fotos = Enumerable.Range(1, n).Select(i => new FotoRelatorio($"f{i}.jpg", sorte.Next(1, 6000), sorte.Next(1, 6000))
             {
-                Legenda = Texto(sorte, sorte.Next(6) == 0 ? 5000 : 300),
-                Descricao = Texto(sorte, sorte.Next(6) == 0 ? 5000 : 600),
+                Legenda = Texto(sorte, passarDoLimite && sorte.Next(3) == 0 ? 400 : OpcoesRelatorio.MaximoDaLegenda),
+                Descricao = Texto(sorte, passarDoLimite && sorte.Next(3) == 0 ? 900 : OpcoesRelatorio.MaximoDaDescricao),
+                Rotacao = sorte.Next(4) * 90,
             }).ToList();
 
             PlanoRelatorio plano;
@@ -67,51 +74,46 @@ public class PaginadorEstresseTests
                 return;
             }
 
-            if (plano.Avisos.Any(a => a.Gravidade == Gravidade.ImpedeGerar))
+            bool acimaDoLimite = fotos.Any(f => f.Legenda.Length > OpcoesRelatorio.MaximoDaLegenda
+                                                || (opcoes.Modo == ModoLegenda.DescricaoServico && f.Descricao.Length > OpcoesRelatorio.MaximoDaDescricao))
+                                 || dados.Descricao.Length > OpcoesRelatorio.MaximoDaDescricaoGeral;
+            if (!plano.PodeGerar)
             {
-                comPendencia++;
+                impedidos++;
                 Assert.Empty(plano.Paginas);
-                Assert.Contains(plano.Avisos, a => a.Mensagem.Contains("cabeçalho"));
+                Assert.True(acimaDoLimite || plano.Avisos.Any(a => a.Mensagem.Contains("cabeçalho")), $"rodada {rodada}: impediu sem motivo: " + string.Join(" ", plano.Avisos.Select(a => a.Mensagem)));
                 continue;
             }
 
-            int corpo = plano.Cabecalho.LinhasDoCorpo;
+            gerados++;
+            Assert.False(acimaDoLimite, $"rodada {rodada}: gerou com texto acima do limite");
 
-            // cada foto exatamente uma vez, na ordem
+            // cada foto exatamente uma vez, na ordem, e a capacidade respeitada
             Assert.Equal(Enumerable.Range(1, n), plano.Paginas.SelectMany(p => p.Fotos).Select(f => f.Numero));
+            Assert.All(plano.Paginas, p => Assert.InRange(p.Fotos.Count, 1, opcoes.Capacidade));
+            Assert.Equal(opcoes.Assinaturas, plano.Paginas[^1].Assinaturas is not null);
+            RelatorioTests.ConferirPlano(plano, $"rodada {rodada}:");
 
-            foreach (var pagina in plano.Paginas)
+            // nenhuma letra se perde: o que foi escrito e o que vai para a pagina
+            foreach (var f in plano.Paginas.SelectMany(p => p.Fotos))
             {
-                foreach (var f in pagina.Fotos)
-                {
-                    Assert.True(f.LinhasDaFoto >= 5, $"rodada {rodada}: foto pequena demais");
-                    Assert.True(f.LinhaInicial + f.LinhasDaFoto + f.LinhasDoTexto <= corpo, $"rodada {rodada}: foto {f.Numero} passou da página");
-                    double largura = f.Espaco.Largura;
-                    int precisa = (f.Titulo.Length > 0 ? PaginadorRelatorio.LinhasDe(f.Titulo, largura) : 0)
-                                  + (f.Descricao.Length > 0 ? PaginadorRelatorio.LinhasDe(f.Descricao, largura) : 0);
-                    Assert.True(precisa <= f.LinhasDoTexto, $"rodada {rodada}: texto da foto {f.Numero} não cabe ({precisa} > {f.LinhasDoTexto})");
-                }
-
-                foreach (var c in pagina.Continuacoes)
-                {
-                    Assert.True(c.LinhaInicial + c.Linhas <= corpo, $"rodada {rodada}: continuação passou da página");
-                    Assert.True(PaginadorRelatorio.LinhasDe(c.Texto, GradeRelatorio.Largura) + 1 <= c.Linhas, $"rodada {rodada}: continuação cortada");
-                }
-
-                if (pagina.Assinaturas is { } a)
-                {
-                    Assert.True(a.LinhaInicial >= 0 && a.LinhaInicial + a.Linhas <= corpo);
-                    Assert.All(pagina.Fotos, f => Assert.True(f.LinhaInicial + f.LinhasDaFoto + f.LinhasDoTexto <= a.LinhaInicial, $"rodada {rodada}: foto embaixo das assinaturas"));
-                }
+                Assert.Equal(SemEspacos(f.Foto.Legenda), SemEspacos(string.Concat(f.LinhasDaLegenda)));
+                Assert.Equal(opcoes.Modo == ModoLegenda.DescricaoServico ? SemEspacos(f.Foto.Descricao) : "", SemEspacos(string.Concat(f.LinhasDaDescricao)));
             }
 
-            // nenhuma palavra se perde: tudo que foi escrito aparece embaixo da foto ou na continuacao
-            var escritas = fotos.SelectMany(f => PalavrasDe(f.Legenda).Concat(opcoes.Modo == ModoLegenda.DescricaoServico ? PalavrasDe(f.Descricao) : [])).ToList();
-            var mostradas = plano.Paginas.SelectMany(p => p.Fotos).SelectMany(f => PalavrasDe(f.Titulo.Replace(" (continua na próxima página)", "")).Concat(PalavrasDe(f.Descricao.Replace(" (continua na próxima página)", ""))))
-                .Concat(plano.Paginas.SelectMany(p => p.Continuacoes).SelectMany(c => PalavrasDe(c.Texto))).ToList();
-            Assert.Equal(escritas.Order(StringComparer.Ordinal), mostradas.Order(StringComparer.Ordinal));
+            // o desenho de cada pagina tambem fica dentro da folha
+            foreach (var p in plano.Paginas)
+            {
+                foreach (var e in DesenhoRelatorio.Pagina(plano, p, temLogo: true))
+                {
+                    var a = e switch { RetanguloDesenho r => r.Area, TextoDesenho t => t.Area, ImagemDesenho i => i.Area, LinhaDesenho l => new Area(Math.Min(l.X1, l.X2), Math.Min(l.Y1, l.Y2), Math.Abs(l.X2 - l.X1), Math.Abs(l.Y2 - l.Y1)), _ => default };
+                    Assert.True(a.X >= GradeRelatorio.MargemLateral - 0.01 && a.Direita <= GradeRelatorio.LarguraDaFolha - GradeRelatorio.MargemLateral + 0.01, $"rodada {rodada}: peça sai pela lateral: {e}");
+                    Assert.True(a.Base <= GradeRelatorio.AlturaDaFolha - GradeRelatorio.MargemDeBaixo + 0.01, $"rodada {rodada}: peça passa da margem de baixo");
+                }
+            }
         }
 
-        Assert.InRange(comPendencia, 1, 1499); // houve cabecalhos enormes, mas nem todos
+        Assert.InRange(impedidos, 1, 1400); // houve textos acima do limite e cabecalhos enormes, mas nem todos
+        Assert.True(gerados > 1000);
     }
 }

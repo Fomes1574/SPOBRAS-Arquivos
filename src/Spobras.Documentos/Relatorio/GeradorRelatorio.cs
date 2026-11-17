@@ -10,21 +10,22 @@ namespace Spobras.Documentos.Relatorio;
 public sealed record RelatorioGerado(string Caminho, int Paginas, int Fotos, long Tamanho);
 
 /// <summary>
-/// Gera o relatorio fotografico em .xlsx (Open XML, sem abrir o Excel) a partir do plano de paginas.
-/// As posicoes vem todas do plano: a previa da tela e o arquivo usam a mesma conta.
+/// Gera o relatorio fotografico em .xlsx (Open XML, sem abrir o Excel) com o mesmo layout do PDF: as linhas da
+/// planilha seguem o plano (cabecalho, quadro, legenda, descricao, espaco), os quadros e as fotos sao desenhos
+/// na posicao exata, e a impressao usa "ajustar todas as colunas em uma pagina" com a quebra no fim de cada pagina.
 /// </summary>
 public static class GeradorRelatorio
 {
     public const string NomeDaAba = "Relatório";
     private const int PrimeiraColuna = 3; // coluna C
-    private const int Emu = 9525;         // 1 pixel a 96 dpi
+    private const int UltimaColuna = PrimeiraColuna + 10; // coluna M
+    private const long EmuPorPonto = 12700;
     private const string SufixoParcial = ".spobras-parcial";
 
     // Indices dos estilos (ver Estilos()).
-    private const int ETitulo = 1, EOrgao = 2, ERotulo = 3, EValor = 4, ERotuloEsq = 5, EValorEsq = 6, EFaixa = 7,
-        ELegenda = 8, EDescricao = 9, EData = 10, EAssinatura = 11, ECaixa = 12, EContinuacao = 13, ENome = 14;
+    private const int ETopo = 1, ERotulo = 2, EValor = 3, ELegenda = 4, EDescricao = 5, ENome = 6, ECargo = 7, ECargoComLinha = 8;
 
-    private sealed record Celula(int Estilo, string? Texto = null, double? Numero = null);
+    private sealed record Celula(int Estilo, string? Xml = null);
 
     public static RelatorioGerado Gerar(
         PlanoRelatorio plano,
@@ -65,51 +66,56 @@ public static class GeradorRelatorio
         return new RelatorioGerado(caminhoSaida, plano.Paginas.Count, plano.TotalDeFotos, new FileInfo(caminhoSaida).Length);
     }
 
+    /// <summary>
+    /// Altura que o Excel realmente usa: ele arredonda cada linha para pixels inteiros (0,75 pt). Arredondando para
+    /// baixo aqui, a soma das linhas de uma pagina nunca passa do planejado.
+    /// </summary>
+    public static double AlturaNoExcel(double pontos) => Math.Max(0.75, Math.Floor(pontos / 0.75) * 0.75);
+
     private static void Escrever(PlanoRelatorio plano, string caminho, string? caminhoLogo, IProgress<int>? fotosFeitas, CancellationToken cancelamento, PreparoDeFotos preparo)
     {
         // As fotos primeiro, todas de uma vez em paralelo (a parte demorada); depois so montar o arquivo.
         preparo.PrepararTodas(plano, fotosFeitas, cancelamento);
-        var cabecalho = plano.Cabecalho;
-        int corpo = cabecalho.LinhasDoCorpo;
-        var alturas = new List<int>(cabecalho.Alturas);
-        int linhasFixas = alturas.Count;
-        alturas.AddRange(Enumerable.Repeat((int)GradeRelatorio.AlturaDaLinha, corpo));
-        int linhasPorPagina = alturas.Count;
-
+        var cab = plano.Cabecalho;
+        var linhas = new List<double>();                 // altura (pt) de cada linha da planilha
         var celulas = new SortedDictionary<(int Linha, int Coluna), Celula>();
         var mesclas = new List<string>();
-        var figuras = new StringBuilder();
-        int proximaFigura = 1;
+        var quebras = new List<int>();
+        var desenhos = new StringBuilder();
+        int proximoId = 1;
 
         using var doc = SpreadsheetDocument.Create(caminho, DocumentFormat.OpenXml.SpreadsheetDocumentType.Workbook);
         var pastaDeTrabalho = doc.AddWorkbookPart();
         var planilha = pastaDeTrabalho.AddNewPart<WorksheetPart>();
-        var desenhos = planilha.AddNewPart<DrawingsPart>();
+        var parteDesenhos = planilha.AddNewPart<DrawingsPart>();
         var estilos = pastaDeTrabalho.AddNewPart<WorkbookStylesPart>();
 
-        void Por(int linha, int coluna, int estilo, string? texto = null, double? numero = null) =>
-            celulas[(linha, coluna)] = new Celula(estilo, texto, numero);
+        int NovaLinha(double altura)
+        {
+            linhas.Add(AlturaNoExcel(altura));
+            return linhas.Count; // numero da linha (1..)
+        }
 
-        // Preenche a faixa com o estilo (a borda precisa estar em todas as celulas) e mescla.
-        void Caixa(int linha1, int coluna1, int linha2, int coluna2, int estilo, string? texto = null, double? numero = null)
+        // Caixa mesclada com o estilo em todas as celulas (a borda precisa estar em todas).
+        void Caixa(int linha1, int coluna1, int linha2, int coluna2, int estilo, string? xmlDoTexto = null)
         {
             for (int l = linha1; l <= linha2; l++)
             {
                 for (int c = coluna1; c <= coluna2; c++)
                 {
-                    Por(l, c, estilo);
+                    celulas[(l, c)] = new Celula(estilo);
                 }
             }
 
-            Por(linha1, coluna1, estilo, texto, numero);
+            celulas[(linha1, coluna1)] = new Celula(estilo, xmlDoTexto);
             if (linha1 != linha2 || coluna1 != coluna2)
             {
                 mesclas.Add($"{Ref(linha1, coluna1)}:{Ref(linha2, coluna2)}");
             }
         }
 
-        // Posicao absoluta (pixels dentro da pagina) -> celula + deslocamento.
-        (int Coluna, int DeslocX, int Linha, int DeslocY) Ancora(int basePagina, double x, double y)
+        // Posicao (pontos dentro da area util da pagina que comeca na linha "primeira") -> celula + deslocamento.
+        (int Coluna, long DeslocX, int Linha, long DeslocY) Ancora(int primeira, double x, double y)
         {
             int coluna = 0;
             double restoX = x;
@@ -118,23 +124,33 @@ public static class GeradorRelatorio
                 restoX -= GradeRelatorio.Colunas[coluna++];
             }
 
-            int linha = 0;
+            int linha = primeira - 1; // indice 0.. na lista
             double restoY = y;
-            while (linha < alturas.Count - 1 && restoY >= alturas[linha])
+            while (linha < linhas.Count - 1 && restoY >= linhas[linha])
             {
-                restoY -= alturas[linha++];
+                restoY -= linhas[linha++];
             }
 
-            return (PrimeiraColuna - 1 + coluna, (int)Math.Round(restoX * Emu), basePagina - 1 + linha, (int)Math.Round(restoY * Emu));
+            return (PrimeiraColuna - 1 + coluna, (long)Math.Round(restoX * EmuPorPonto), linha, (long)Math.Round(restoY * EmuPorPonto));
         }
 
-        void Figura(int basePagina, Area area, string idRelacao, string nome)
+        string De(int primeira, Area a, double yDaPagina)
         {
-            var (coluna, dx, linha, dy) = Ancora(basePagina, area.X, area.Y);
-            int id = proximaFigura++;
-            figuras.Append(CultureInfo.InvariantCulture, $"""
-                <xdr:oneCellAnchor><xdr:from><xdr:col>{coluna}</xdr:col><xdr:colOff>{dx}</xdr:colOff><xdr:row>{linha}</xdr:row><xdr:rowOff>{dy}</xdr:rowOff></xdr:from><xdr:ext cx="{(long)Math.Round(area.Largura * Emu)}" cy="{(long)Math.Round(area.Altura * Emu)}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{id}" name="{SecurityElement.Escape(nome)}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="{idRelacao}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{(long)Math.Round(area.Largura * Emu)}" cy="{(long)Math.Round(area.Altura * Emu)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>
-                """);
+            var (coluna, dx, linha, dy) = Ancora(primeira, a.X - GradeRelatorio.MargemLateral, a.Y - yDaPagina);
+            return string.Create(CultureInfo.InvariantCulture,
+                $"<xdr:from><xdr:col>{coluna}</xdr:col><xdr:colOff>{dx}</xdr:colOff><xdr:row>{linha}</xdr:row><xdr:rowOff>{dy}</xdr:rowOff></xdr:from><xdr:ext cx=\"{(long)Math.Round(a.Largura * EmuPorPonto)}\" cy=\"{(long)Math.Round(a.Altura * EmuPorPonto)}\"/>");
+        }
+
+        void Quadro(int primeira, Area a, double yDaPagina)
+        {
+            int id = proximoId++;
+            desenhos.Append(CultureInfo.InvariantCulture, $"""<xdr:oneCellAnchor>{De(primeira, a, yDaPagina)}<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{id}" name="Quadro {id}"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{(long)Math.Round(a.Largura * EmuPorPonto)}" cy="{(long)Math.Round(a.Altura * EmuPorPonto)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="{DesenhoRelatorio.FundoDoQuadro}"/></a:solidFill><a:ln w="6350"><a:solidFill><a:srgbClr val="{DesenhoRelatorio.BordaDoQuadro}"/></a:solidFill></a:ln></xdr:spPr></xdr:sp><xdr:clientData/></xdr:oneCellAnchor>""");
+        }
+
+        void Figura(int primeira, Area a, double yDaPagina, string idRelacao, string nome)
+        {
+            int id = proximoId++;
+            desenhos.Append(CultureInfo.InvariantCulture, $"""<xdr:oneCellAnchor>{De(primeira, a, yDaPagina)}<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="{id}" name="{SecurityElement.Escape(nome)}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="{idRelacao}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{(long)Math.Round(a.Largura * EmuPorPonto)}" cy="{(long)Math.Round(a.Altura * EmuPorPonto)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>""");
         }
 
         // Logo: uma parte de imagem so, usada em todas as paginas.
@@ -145,174 +161,175 @@ public static class GeradorRelatorio
             var info = Fotos.Ler(caminhoLogo);
             tamanhoLogo = (info.Largura, info.Altura);
             bool png = Path.GetExtension(caminhoLogo).Equals(".png", StringComparison.OrdinalIgnoreCase);
-            var parte = desenhos.AddImagePart(png ? ImagePartType.Png : ImagePartType.Jpeg);
+            var parte = parteDesenhos.AddImagePart(png ? ImagePartType.Png : ImagePartType.Jpeg);
             using var logo = png ? File.OpenRead(caminhoLogo) : new MemoryStream(Fotos.Preparar(caminhoLogo, 1200, 92)) as Stream;
             parte.FeedData(logo);
-            idLogo = desenhos.GetIdOfPart(parte);
+            idLogo = parteDesenhos.GetIdOfPart(parte);
         }
 
-        var dados = plano.Dados;
-        const int c = PrimeiraColuna; // C=3 ... L=12
+        const int c = PrimeiraColuna, m = UltimaColuna;
+        int C(int indice) => c + indice;
 
         foreach (var pagina in plano.Paginas)
         {
             cancelamento.ThrowIfCancellationRequested();
-            int b = (pagina.Numero - 1) * linhasPorPagina + 1; // primeira linha desta pagina
+            int primeira = linhas.Count + 1;
+            double yDaPagina = GradeRelatorio.MargemDeCima; // o topo da pagina na folha
 
-            // ---- Cabecalho (repetido em cada pagina), em grade como no modelo de referencia ----
-            const int t = c + GradeRelatorio.ColunaDoTitulo, k = c + GradeRelatorio.ColunaDaCaixa, v = c + GradeRelatorio.ColunaDoValor;
-            Caixa(b, c, b + 3, t - 1, ECaixa);
-            if (idLogo is not null)
+            // ---- Cabecalho ----
+            if (!pagina.CabecalhoReduzido)
             {
-                double larguraCaixa = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoTitulo), alturaCaixa = alturas.Take(4).Sum();
-                Figura(b, PaginadorRelatorio.Encaixar(tamanhoLogo.Largura, tamanhoLogo.Altura, new Area(6, 6, larguraCaixa - 12, alturaCaixa - 12)), idLogo, "Logo");
-            }
+                int l = NovaLinha(GradeRelatorio.AlturaDoTopo);
+                Caixa(l, C(0), l, C(2), ETopo);
+                string titulo = Rico(("RELATÓRIO FOTOGRÁFICO", GradeRelatorio.LetraDoTitulo, true, DesenhoRelatorio.Preto))
+                                + (cab.DataPorExtenso.Length > 0 ? Rico(("\n" + cab.DataPorExtenso, GradeRelatorio.LetraDaData, false, DesenhoRelatorio.Cinza)) : "");
+                Caixa(l, C(3), l, C(8), ETopo, titulo);
+                Caixa(l, C(9), l, m, ETopo, Rico(("SÃO PAULO OBRAS", GradeRelatorio.LetraDoOrgao, false, DesenhoRelatorio.Preto), ("\nSPOBRAS", GradeRelatorio.LetraDoOrgaoForte, true, DesenhoRelatorio.Preto)));
+                if (idLogo is not null)
+                {
+                    var area = new Area(GradeRelatorio.MargemLateral + 3 * GradeRelatorio.Mm, GradeRelatorio.MargemDeCima + 3 * GradeRelatorio.Mm,
+                        GradeRelatorio.LarguraDoLogo - 6 * GradeRelatorio.Mm, GradeRelatorio.AlturaDoTopo - 6 * GradeRelatorio.Mm);
+                    Figura(primeira, PaginadorRelatorio.Encaixar(tamanhoLogo.Largura, tamanhoLogo.Altura, area), yDaPagina, idLogo, "Logo");
+                }
 
-            Caixa(b, t, b + 3, k - 1, ETitulo, "RELATÓRIO FOTOGRÁFICO");
-            Caixa(b, k, b, c + 9, EOrgao, "SÃO PAULO OBRAS - SPOBRAS");
-            if (dados.Data is { } data)
-            {
-                Caixa(b + 1, k, b + 1, k, ERotulo, "DATA");
-                Caixa(b + 1, c + GradeRelatorio.ColunaDoValorDaData, b + 1, c + 9, EData, null, data.ToDateTime(TimeOnly.MinValue).ToOADate());
+                foreach (var campo in cab.Campos)
+                {
+                    int lc = NovaLinha(campo.Altura);
+                    Caixa(lc, C(0), lc, C(1), ERotulo, Texto(campo.Rotulo));
+                    if (campo.Dupla)
+                    {
+                        Caixa(lc, C(2), lc, C(4), EValor, Texto(campo.Valor));
+                        Caixa(lc, C(5), lc, C(7), ERotulo, Texto(campo.Rotulo2!));
+                        Caixa(lc, C(8), lc, m, EValor, Texto(campo.Valor2!));
+                    }
+                    else
+                    {
+                        Caixa(lc, C(2), lc, m, EValor, Texto(campo.Valor));
+                    }
+                }
             }
             else
             {
-                Caixa(b + 1, k, b + 1, c + 9, ECaixa);
-            }
-
-            bool temContratada = !string.IsNullOrWhiteSpace(dados.Contratada);
-            Caixa(b + 2, k, b + 2, c + 9, temContratada ? ERotulo : ECaixa, temContratada ? "CONTRATADA" : null);
-            Caixa(b + 3, k, b + 3, c + 9, temContratada ? EValor : ECaixa, temContratada ? dados.Contratada.Trim() : null);
-
-            for (int i = 0; i < cabecalho.Campos.Count; i++)
-            {
-                var campo = cabecalho.Campos[i];
-                int linha = b + cabecalho.PrimeiroCampo + i;
-                Caixa(linha, c, linha, v - 1, ERotuloEsq, campo.Rotulo);
-                if (campo.Dupla)
+                int l = NovaLinha(GradeRelatorio.AlturaDoTopoReduzido);
+                // logo de 30 mm: colunas C e D (o rotulo tem 33 mm; a diferenca nao aparece)
+                Caixa(l, C(0), l, C(1), ETopo);
+                Caixa(l, C(2), l, m, ETopo, Rico(("RELATÓRIO FOTOGRÁFICO", GradeRelatorio.LetraDoTituloReduzido, true, DesenhoRelatorio.Preto),
+                    ("\n" + cab.LinhasDoSubtitulo[0], GradeRelatorio.LetraDoSubtitulo, false, DesenhoRelatorio.Cinza)));
+                if (idLogo is not null)
                 {
-                    // Contrato e Data da OS lado a lado.
-                    const int r2 = c + CabecalhoRelatorio.ColunaDoRotulo2, v2 = c + CabecalhoRelatorio.ColunaDoValor2;
-                    Caixa(linha, v, linha, r2 - 1, EValor, campo.Valor);
-                    Caixa(linha, r2, linha, v2 - 1, ERotuloEsq, campo.Rotulo2);
-                    Caixa(linha, v2, linha, c + 9, EValor, campo.Valor2);
-                }
-                else
-                {
-                    Caixa(linha, v, linha, c + 9, EValorEsq, campo.Valor);
+                    var area = new Area(GradeRelatorio.MargemLateral + 2 * GradeRelatorio.Mm, GradeRelatorio.MargemDeCima + 2 * GradeRelatorio.Mm,
+                        GradeRelatorio.LarguraDoRotulo - 4 * GradeRelatorio.Mm, GradeRelatorio.AlturaDoTopoReduzido - 4 * GradeRelatorio.Mm);
+                    Figura(primeira, PaginadorRelatorio.Encaixar(tamanhoLogo.Largura, tamanhoLogo.Altura, area), yDaPagina, idLogo, "Logo");
                 }
             }
 
-            // ---- Faixa de titulo ----
-            Caixa(b + cabecalho.PrimeiroCampo + cabecalho.Campos.Count + 1, c, b + cabecalho.PrimeiroCampo + cabecalho.Campos.Count + 1, c + 9, EFaixa, "RELATÓRIO FOTOGRÁFICO");
+            // Respiro ate as fotos: a linha vai ate o topo das fotos que o plano calculou.
+            double usado = linhas.Skip(primeira - 1).Sum();
+            NovaLinha(pagina.TopoDasFotos - yDaPagina - usado);
 
-            int corpo0 = b + linhasFixas; // linha da planilha da primeira linha do corpo
-
-            // ---- Fotos e textos ----
-            foreach (var foto in pagina.Fotos)
+            // ---- Fotos: linha do quadro, da legenda, da descricao e o espaco ----
+            var faixas = pagina.Fotos.GroupBy(f => f.Faixa).ToList();
+            for (int k = 0; k < faixas.Count; k++)
             {
-                cancelamento.ThrowIfCancellationRequested();
-                var parte = desenhos.AddImagePart(ImagePartType.Jpeg);
-                using (var jpeg = new MemoryStream(preparo.Obter(foto.Foto, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto)))
+                var faixa = faixas[k].ToList();
+                // A linha do quadro comeca exatamente onde o plano manda (o arredondamento das linhas nao acumula).
+                double topo = faixa[0].Quadro.Y - yDaPagina;
+                usado = linhas.Skip(primeira - 1).Sum();
+                if (topo - usado > 0.75)
                 {
-                    parte.FeedData(jpeg);
+                    NovaLinha(topo - usado);
                 }
 
-                Figura(b, foto.Imagem, desenhos.GetIdOfPart(parte), PaginadorRelatorio.Rotulo(foto.Numero, plano.TotalDeFotos));
-
-                var (primeira, ultima) = GradeRelatorio.ColunasDoEspaco(foto.Coluna, foto.Colunas);
-                int linhaTexto = corpo0 + foto.LinhaInicial + foto.LinhasDaFoto;
-                int linhasTitulo = foto.Titulo.Length == 0 ? 0 : PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura);
-                int linhasUteis = foto.LinhasDoTexto - 1; // a ultima e o respiro
-                // Sem legenda nem descricao, nada embaixo da foto.
-                if (foto.Titulo.Length > 0 && foto.Descricao.Length == 0)
+                NovaLinha(faixa[0].Quadro.Altura + GradeRelatorio.RespiroDaLegenda);
+                int lLegenda = NovaLinha(faixa.Max(f => f.Legenda.Altura));
+                double descricao = faixa.Max(f => f.LinhasDaDescricao.Count > 0 ? f.Descricao.Base - f.Legenda.Base : 0);
+                int? lDescricao = descricao > 0 ? NovaLinha(descricao) : null;
+                foreach (var f in faixa)
                 {
-                    TextoMesclado(linhaTexto, c + primeira, linhaTexto + Math.Max(1, linhasUteis) - 1, c + ultima, ELegenda, foto.Titulo);
-                }
-                else if (foto.Descricao.Length > 0)
-                {
-                    if (foto.Titulo.Length > 0)
+                    cancelamento.ThrowIfCancellationRequested();
+                    var (primeiraCol, ultimaCol) = GradeRelatorio.ColunasDoEspaco(f.Coluna, f.Colunas);
+                    Quadro(primeira, f.Quadro, yDaPagina);
+                    var parte = parteDesenhos.AddImagePart(ImagePartType.Jpeg);
+                    using (var jpeg = new MemoryStream(preparo.Obter(f.Foto, plano.Opcoes.LadoMaximoFoto, plano.Opcoes.QualidadeFoto)))
                     {
-                        TextoMesclado(linhaTexto, c + primeira, linhaTexto + linhasTitulo - 1, c + ultima, ELegenda, foto.Titulo);
+                        parte.FeedData(jpeg);
                     }
 
-                    int inicio = foto.Titulo.Length > 0 ? linhaTexto + linhasTitulo : linhaTexto;
-                    TextoMesclado(inicio, c + primeira, linhaTexto + linhasUteis - 1, c + ultima, EDescricao, foto.Descricao);
+                    Figura(primeira, f.Imagem, yDaPagina, parteDesenhos.GetIdOfPart(parte), PaginadorRelatorio.Rotulo(f.Numero, plano.TotalDeFotos));
+                    if (f.Titulo.Length > 0)
+                    {
+                        Caixa(lLegenda, C(primeiraCol), lLegenda, C(ultimaCol), ELegenda, Texto(f.Titulo));
+                    }
+
+                    if (lDescricao is { } ld && f.LinhasDaDescricao.Count > 0)
+                    {
+                        Caixa(ld, C(primeiraCol), ld, C(ultimaCol), EDescricao, Texto(f.Foto.Descricao.Trim()));
+                    }
                 }
-
             }
 
-            foreach (var continuacao in pagina.Continuacoes)
-            {
-                int linha = corpo0 + continuacao.LinhaInicial;
-                TextoMesclado(linha, c, linha, c + 9, EContinuacao, continuacao.Titulo);
-                TextoMesclado(linha + 1, c, linha + Math.Max(1, continuacao.Linhas - 1), c + 9, EDescricao, continuacao.Texto);
-            }
-
-            // ---- Assinaturas ----
+            // ---- Assinaturas, no pe da pagina ----
             if (pagina.Assinaturas is { } assinaturas)
             {
-                int linha = corpo0 + assinaturas.LinhaInicial + 3;
-                Caixa(linha, c, linha, c + 3, EAssinatura, "Fiscalização SPOBRAS");
-                Caixa(linha, c + 6, linha, c + 9, EAssinatura, "Contratada");
-                if (!string.IsNullOrWhiteSpace(plano.Opcoes.AssinaturaFiscal))
+                usado = linhas.Skip(primeira - 1).Sum();
+                double antes = assinaturas.Espaco.Y - yDaPagina - usado;
+                if (antes > 0.75)
                 {
-                    Caixa(linha + 1, c, linha + 1, c + 3, ENome, plano.Opcoes.AssinaturaFiscal.Trim());
+                    NovaLinha(antes);
                 }
 
-                if (!string.IsNullOrWhiteSpace(plano.Opcoes.AssinaturaContratada))
+                double aNome = GradeRelatorio.LetraDoNome * 1.3, aCargo = GradeRelatorio.LetraDoCargo * 1.3;
+                NovaLinha(GradeRelatorio.AlturaDasAssinaturas - aNome - aCargo - 1.4 * GradeRelatorio.Mm);
+                bool nomeFiscal = plano.Opcoes.AssinaturaFiscal.Trim().Length > 0, nomeContratada = plano.Opcoes.AssinaturaContratada.Trim().Length > 0;
+                int lNome = NovaLinha(aNome + 1.4 * GradeRelatorio.Mm);
+                int lCargo = NovaLinha(aCargo);
+                void Assinatura(int col1, int col2, bool comNome, string nome, string cargo)
                 {
-                    Caixa(linha + 1, c + 6, linha + 1, c + 9, ENome, plano.Opcoes.AssinaturaContratada.Trim());
+                    if (comNome)
+                    {
+                        Caixa(lNome, col1, lNome, col2, ENome, Texto(nome.Trim()));
+                        Caixa(lCargo, col1, lCargo, col2, ECargo, Texto(cargo));
+                    }
+                    else
+                    {
+                        Caixa(lNome, col1, lNome, col2, ECargoComLinha, Texto(cargo));
+                    }
                 }
+
+                Assinatura(C(0), C(4), nomeFiscal, plano.Opcoes.AssinaturaFiscal, "Fiscalização SPOBRAS");
+                Assinatura(C(6), m, nomeContratada, plano.Opcoes.AssinaturaContratada, "Contratada");
             }
+
+            quebras.Add(linhas.Count);
         }
 
-        void TextoMesclado(int linha1, int coluna1, int linha2, int coluna2, int estilo, string texto)
-        {
-            Por(linha1, coluna1, estilo, texto);
-            if (linha2 < linha1)
-            {
-                linha2 = linha1;
-            }
-
-            if (linha1 != linha2 || coluna1 != coluna2)
-            {
-                mesclas.Add($"{Ref(linha1, coluna1)}:{Ref(linha2, coluna2)}");
-            }
-        }
-
-        int totalDeLinhas = plano.Paginas.Count * linhasPorPagina;
+        int totalDeLinhas = linhas.Count;
 
         // ---- Planilha ----
         var xml = new StringBuilder();
         xml.Append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">""");
+        xml.Append("""<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>""");
         xml.Append("""<sheetViews><sheetView showGridLines="0" view="pageBreakPreview" zoomScale="85" zoomScaleNormal="85" zoomScaleSheetLayoutView="85" workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/>""");
         xml.Append("""<cols><col min="1" max="1" width="1.71" customWidth="1"/><col min="2" max="2" width="2.71" customWidth="1"/>""");
         for (int i = 0; i < GradeRelatorio.Colunas.Count; i++)
         {
-            // Largura gravada pela conta do proprio Excel (inclui a margem interna): a coluna fica com os pixels planejados.
-            xml.Append(CultureInfo.InvariantCulture, $"""<col min="{c + i}" max="{c + i}" width="{GradeRelatorio.LarguraNoExcel(GradeRelatorio.Colunas[i]):0.########}" customWidth="1"/>""");
+            int pixels = (int)Math.Round(GradeRelatorio.Colunas[i] / 0.75);
+            xml.Append(CultureInfo.InvariantCulture, $"""<col min="{c + i}" max="{c + i}" width="{GradeRelatorio.LarguraNoExcel(pixels):0.########}" customWidth="1"/>""");
         }
 
         xml.Append("</cols><sheetData>");
+        var porLinha = celulas.GroupBy(k => k.Key.Linha).ToDictionary(g => g.Key, g => g.ToList());
         for (int linha = 1; linha <= totalDeLinhas; linha++)
         {
-            double pontos = alturas[(linha - 1) % linhasPorPagina] * 0.75;
-            xml.Append(CultureInfo.InvariantCulture, $"""<row r="{linha}" ht="{pontos:0.##}" customHeight="1">""");
-            foreach (var ((l, coluna), celula) in celulas.Where(k => k.Key.Linha == linha))
+            xml.Append(CultureInfo.InvariantCulture, $"""<row r="{linha}" ht="{linhas[linha - 1]:0.##}" customHeight="1">""");
+            if (porLinha.TryGetValue(linha, out var daLinha))
             {
-                string r = Ref(l, coluna);
-                if (celula.Numero is { } n)
+                foreach (var ((l, coluna), celula) in daLinha)
                 {
-                    xml.Append(CultureInfo.InvariantCulture, $"""<c r="{r}" s="{celula.Estilo}"><v>{n}</v></c>""");
-                }
-                else if (celula.Texto is { } texto)
-                {
-                    xml.Append(CultureInfo.InvariantCulture, $"""<c r="{r}" s="{celula.Estilo}" t="inlineStr"><is><t xml:space="preserve">{Xml(texto)}</t></is></c>""");
-                }
-                else
-                {
-                    xml.Append(CultureInfo.InvariantCulture, $"""<c r="{r}" s="{celula.Estilo}"/>""");
+                    string r = Ref(l, coluna);
+                    xml.Append(celula.Xml is { } texto
+                        ? string.Create(CultureInfo.InvariantCulture, $"""<c r="{r}" s="{celula.Estilo}" t="inlineStr"><is>{texto}</is></c>""")
+                        : string.Create(CultureInfo.InvariantCulture, $"""<c r="{r}" s="{celula.Estilo}"/>"""));
                 }
             }
 
@@ -323,74 +340,90 @@ public static class GeradorRelatorio
         if (mesclas.Count > 0)
         {
             xml.Append(CultureInfo.InvariantCulture, $"""<mergeCells count="{mesclas.Count}">""");
-            foreach (string m in mesclas)
+            foreach (string mescla in mesclas)
             {
-                xml.Append(CultureInfo.InvariantCulture, $"""<mergeCell ref="{m}"/>""");
+                xml.Append(CultureInfo.InvariantCulture, $"""<mergeCell ref="{mescla}"/>""");
             }
 
             xml.Append("</mergeCells>");
         }
 
-        // Margens estreitas e escala fixa (e nao "ajustar a pagina"): o Excel respeita as quebras de pagina manuais
-        // e cada folha sai igual, com qualquer quantidade de fotos.
-        xml.Append("""<printOptions horizontalCentered="1"/><pageMargins left="0.25" right="0.25" top="0.4" bottom="0.5" header="0.2" footer="0.2"/>""");
-        xml.Append(CultureInfo.InvariantCulture, $"""<pageSetup paperSize="9" scale="{GradeRelatorio.EscalaDeImpressao}" orientation="portrait"/>""");
-        xml.Append("""<headerFooter><oddFooter>&amp;C&amp;"Calibri,Regular"&amp;11Página &amp;P de &amp;N</oddFooter></headerFooter>""");
-        if (plano.Paginas.Count > 1)
+        // A4; "ajustar todas as colunas em uma pagina" (a largura serve em qualquer computador, mesmo com a fonte um
+        // pouco diferente) e a altura livre, com a quebra manual no fim de cada pagina. As margens deixam a altura
+        // util maior que a de cada pagina do plano; o rodape fica na margem de baixo.
+        double baixo = (GradeRelatorio.MargemDeBaixo + GradeRelatorio.AlturaDoRodape) / 72 + 0.02;
+        xml.Append(CultureInfo.InvariantCulture, $"""<printOptions horizontalCentered="1"/><pageMargins left="{GradeRelatorio.MargemLateral / 72 - 0.08:0.###}" right="{GradeRelatorio.MargemLateral / 72 - 0.08:0.###}" top="{GradeRelatorio.MargemDeCima / 72 - 0.03:0.###}" bottom="{baixo:0.###}" header="0.2" footer="{GradeRelatorio.MargemDeBaixo / 72:0.###}"/>""");
+        xml.Append("""<pageSetup paperSize="9" fitToWidth="1" fitToHeight="0" orientation="portrait"/>""");
+        string rodape = cab.Rodape.Replace("&", "&&");
+        xml.Append(CultureInfo.InvariantCulture, $"""<headerFooter><oddFooter>{Xml($"&L&\"Calibri,Regular\"&8&K555555{rodape}&R&\"Calibri,Regular\"&8&K555555Página &P de &N")}</oddFooter></headerFooter>""");
+        if (quebras.Count > 1)
         {
-            xml.Append(CultureInfo.InvariantCulture, $"""<rowBreaks count="{plano.Paginas.Count - 1}" manualBreakCount="{plano.Paginas.Count - 1}">""");
-            for (int p = 1; p < plano.Paginas.Count; p++)
+            xml.Append(CultureInfo.InvariantCulture, $"""<rowBreaks count="{quebras.Count - 1}" manualBreakCount="{quebras.Count - 1}">""");
+            foreach (int q in quebras.Take(quebras.Count - 1))
             {
-                xml.Append(CultureInfo.InvariantCulture, $"""<brk id="{p * linhasPorPagina}" max="16383" man="1"/>""");
+                xml.Append(CultureInfo.InvariantCulture, $"""<brk id="{q}" max="16383" man="1"/>""");
             }
 
             xml.Append("</rowBreaks>");
         }
 
-        xml.Append(CultureInfo.InvariantCulture, $"""<drawing r:id="{planilha.GetIdOfPart(desenhos)}"/></worksheet>""");
+        xml.Append(CultureInfo.InvariantCulture, $"""<drawing r:id="{planilha.GetIdOfPart(parteDesenhos)}"/></worksheet>""");
         Gravar(planilha, xml.ToString());
 
-        Gravar(desenhos,
+        Gravar(parteDesenhos,
             """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">"""
-            + figuras + "</xdr:wsDr>");
+            + desenhos + "</xdr:wsDr>");
 
         Gravar(estilos, Estilos());
 
         Gravar(pastaDeTrabalho, string.Create(CultureInfo.InvariantCulture, $"""
-            <?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="{NomeDaAba}" sheetId="1" r:id="{pastaDeTrabalho.GetIdOfPart(planilha)}"/></sheets><definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">'{NomeDaAba}'!$C$1:$L${totalDeLinhas}</definedName></definedNames></workbook>
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="{NomeDaAba}" sheetId="1" r:id="{pastaDeTrabalho.GetIdOfPart(planilha)}"/></sheets><definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">'{NomeDaAba}'!$C$1:$M${totalDeLinhas}</definedName></definedNames></workbook>
             """).Trim());
     }
 
+    private static string Texto(string texto) => $"""<t xml:space="preserve">{Xml(texto)}</t>""";
+
+    /// <summary>Texto com trechos de tamanhos e pesos diferentes na mesma celula (titulo e data).</summary>
+    private static string Rico(params (string Texto, double Tamanho, bool Negrito, string Cor)[] trechos) =>
+        string.Concat(trechos.Select(t => string.Create(CultureInfo.InvariantCulture,
+            $"""<r><rPr>{(t.Negrito ? "<b/>" : "")}<sz val="{t.Tamanho:0.#}"/><color rgb="FF{t.Cor}"/><rFont val="Calibri"/><family val="2"/></rPr><t xml:space="preserve">{Xml(t.Texto)}</t></r>""")));
+
     private static string Estilos()
     {
-        const string borda = """<border><left style="thin"><color auto="1"/></left><right style="thin"><color auto="1"/></right><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>""";
-        string Xf(int fonte, int preenchimento, int bordaId, string alinhamento, int formato = 0) =>
-            $"""<xf numFmtId="{formato}" fontId="{fonte}" fillId="{preenchimento}" borderId="{bordaId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"{(formato != 0 ? " applyNumberFormat=\"1\"" : "")}><alignment {alinhamento}/></xf>""";
+        string Borda(string cor) => $"""<border><left style="thin"><color rgb="FF{cor}"/></left><right style="thin"><color rgb="FF{cor}"/></right><top style="thin"><color rgb="FF{cor}"/></top><bottom style="thin"><color rgb="FF{cor}"/></bottom><diagonal/></border>""";
+        string Xf(int fonte, int preenchimento, int borda, string alinhamento) =>
+            $"""<xf numFmtId="0" fontId="{fonte}" fillId="{preenchimento}" borderId="{borda}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment {alinhamento}/></xf>""";
+        string Fonte(double tamanho, bool negrito, string cor) =>
+            string.Create(CultureInfo.InvariantCulture, $"""<font>{(negrito ? "<b/>" : "")}<sz val="{tamanho:0.#}"/><color rgb="FF{cor}"/><name val="Calibri"/><family val="2"/></font>""");
+
+        var fontes = new[]
+        {
+            Fonte(11, false, DesenhoRelatorio.Preto),                                          // 0 padrao
+            Fonte(GradeRelatorio.LetraDoRotulo, true, DesenhoRelatorio.Preto),                 // 1 rotulo
+            Fonte(GradeRelatorio.LetraDoValor, true, DesenhoRelatorio.Preto),                  // 2 valor
+            Fonte(GradeRelatorio.LetraDaLegenda, true, DesenhoRelatorio.Preto),                // 3 legenda
+            Fonte(GradeRelatorio.LetraDaDescricao, false, DesenhoRelatorio.Descricao),         // 4 descricao
+            Fonte(GradeRelatorio.LetraDoNome, true, DesenhoRelatorio.Preto),                   // 5 nome
+            Fonte(GradeRelatorio.LetraDoCargo, false, DesenhoRelatorio.Cinza),                 // 6 cargo
+        };
 
         var xfs = new[]
         {
             """<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>""",
-            Xf(1, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),            // 1 titulo
-            Xf(2, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),            // 2 orgao
-            Xf(3, 0, 1, """horizontal="center" vertical="center" """),                         // 3 rotulo
-            Xf(0, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),            // 4 valor
-            Xf(3, 0, 1, """horizontal="left" vertical="center" indent="1" """),                // 5 rotulo a esquerda
-            Xf(0, 0, 1, """horizontal="left" vertical="center" wrapText="1" indent="1" """),   // 6 valor a esquerda
-            Xf(3, 2, 1, """horizontal="center" vertical="center" """),                         // 7 faixa
-            Xf(3, 0, 0, """horizontal="center" vertical="top" wrapText="1" """),               // 8 legenda
-            Xf(0, 0, 0, """horizontal="left" vertical="top" wrapText="1" """),                 // 9 descricao
-            Xf(3, 0, 1, """horizontal="center" vertical="center" """, 164),                    // 10 data
-            Xf(0, 0, 2, """horizontal="center" vertical="top" """),                            // 11 assinatura (linha em cima)
-            Xf(0, 0, 1, """vertical="center" """),                                             // 12 caixa vazia
-            Xf(3, 0, 0, """horizontal="left" vertical="top" wrapText="1" """),                 // 13 titulo de continuacao
-            Xf(0, 0, 0, """horizontal="center" vertical="top" wrapText="1" """),               // 14 nome sob a assinatura
+            Xf(0, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),              // 1 faixa de cima
+            Xf(1, 2, 2, """horizontal="left" vertical="center" wrapText="1" indent="1" """),     // 2 rotulo
+            Xf(2, 0, 2, """horizontal="left" vertical="center" wrapText="1" indent="1" """),     // 3 valor
+            Xf(3, 0, 0, """horizontal="center" vertical="top" wrapText="1" """),                 // 4 legenda
+            Xf(4, 0, 0, """horizontal="justify" vertical="top" wrapText="1" """),                // 5 descricao
+            Xf(5, 0, 3, """horizontal="center" vertical="top" wrapText="1" """),                 // 6 nome (linha em cima)
+            Xf(6, 0, 0, """horizontal="center" vertical="top" """),                              // 7 cargo
+            Xf(6, 0, 3, """horizontal="center" vertical="top" """),                              // 8 cargo sem nome (linha em cima)
         };
 
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"""
-               + """<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>"""
-               + """<fonts count="4"><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="18"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="12"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font></fonts>"""
-               + """<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFD9D9D9"/><bgColor indexed="64"/></patternFill></fill></fills>"""
-               + $"""<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>{borda}<border><left/><right/><top style="thin"><color auto="1"/></top><bottom/><diagonal/></border></borders>"""
+               + $"""<fonts count="{fontes.Length}">{string.Concat(fontes)}</fonts>"""
+               + $"""<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF{DesenhoRelatorio.FundoDoRotulo}"/><bgColor indexed="64"/></patternFill></fill></fills>"""
+               + $"""<borders count="4"><border><left/><right/><top/><bottom/><diagonal/></border>{Borda(DesenhoRelatorio.Borda)}{Borda(DesenhoRelatorio.BordaClara)}<border><left/><right/><top style="thin"><color rgb="FF{DesenhoRelatorio.Preto}"/></top><bottom/><diagonal/></border></borders>"""
                + """<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>"""
                + $"""<cellXfs count="{xfs.Length}">{string.Concat(xfs)}</cellXfs>"""
                + """<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>""";

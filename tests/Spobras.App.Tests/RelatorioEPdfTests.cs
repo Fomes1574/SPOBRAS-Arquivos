@@ -59,7 +59,7 @@ public class RelatorioVmTests : ComApp
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "Fachada"); // so a legenda, sem "Foto 01"
         Assert.DoesNotContain(vm.Paginas[0].Elementos, e => e.Texto?.StartsWith("Foto ") == true);
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "EMEF Exemplo");
-        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "10/11/2026");
+        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "10 de novembro de 2026");
         await vm.Miniaturas; // miniaturas em segundo plano
         Assert.All(vm.Fotos, f => Assert.NotNull(f.Miniatura));
 
@@ -140,7 +140,7 @@ public class RelatorioVmTests : ComApp
         Assert.Equal("5 fotos em 3 páginas", vm.Resumo);
         vm.Assinaturas = true;
         vm.AssinaturaFiscal = "Fulano";
-        Assert.Contains(vm.Paginas[^1].Elementos, e => e.Texto == "Fiscalização SPOBRAS" && e.LinhaEmCima);
+        Assert.Contains(vm.Paginas[^1].Elementos, e => e.Texto == "Fiscalização SPOBRAS");
         vm.Modo = ModoLegenda.DescricaoServico;
         vm.Fotos[0].Descricao = "Serviço executado conforme projeto.";
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "Serviço executado conforme projeto.");
@@ -165,7 +165,7 @@ public class RelatorioVmTests : ComApp
         Assert.True(vm.GerarCommand.CanExecute(null));
         Assert.Empty(vm.Paginas); // fora da Conferencia a previa nao e desenhada a cada letra
         vm.Etapa = 2;
-        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "01/03/2026");
+        Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "1 de março de 2026");
     }
 
     [Fact]

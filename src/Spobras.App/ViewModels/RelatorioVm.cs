@@ -107,25 +107,29 @@ public sealed partial class FotoVm(string caminho, Action aoMudar) : ObservableO
 }
 
 /// <summary>Um elemento desenhado na previa da pagina (mesmas medidas do arquivo gerado).</summary>
+/// <summary>Uma peca da previa da pagina (vem de <see cref="DesenhoRelatorio"/>, o mesmo desenho do PDF). Medidas em pontos.</summary>
 public sealed record ElementoPrevia(double X, double Y, double Largura, double Altura)
 {
     public string Texto { get; init; } = "";
     public string? Imagem { get; init; }
     public bool Negrito { get; init; }
-    public double Fonte { get; init; } = 14.67; // 11 pt
-    public bool Borda { get; init; }
-    public bool Fundo { get; init; }
+    public double Fonte { get; init; } = 10;
+    public double AlturaDaLinha { get; init; } = 12;
+    public string Cor { get; init; } = "#1D1D1F";
+    public string? Fundo { get; init; }
+    public string? Borda { get; init; }
+    public double Espessura { get; init; }
     public bool Centro { get; init; }
     public bool Meio { get; init; }
-    public bool LinhaEmCima { get; init; }
     public bool Faltando { get; init; }
+    public bool TemImagem { get; init; }
 }
 
 public sealed record PaginaPreviaVm(int Numero, int Total, IReadOnlyList<ElementoPrevia> Elementos)
 {
     public string Titulo => $"Página {Numero} de {Total}";
-    public double Largura => GradeRelatorio.Largura;
-    public double Altura => GradeRelatorio.AlturaDaPagina;
+    public double Largura => GradeRelatorio.LarguraDaFolha;
+    public double Altura => GradeRelatorio.AlturaDaFolha;
 }
 
 public sealed partial class RelatorioVm : TelaVm
@@ -1049,85 +1053,38 @@ public sealed partial class RelatorioVm : TelaVm
         SalvarRascunho();
     }
 
-    /// <summary>Desenha a pagina com as mesmas medidas que o gerador usa no arquivo.</summary>
+    /// <summary>Desenha a pagina com as mesmas pecas que o PDF desenha (DesenhoRelatorio).</summary>
     private List<ElementoPrevia> MontarPrevia(PaginaRelatorio pagina, PlanoRelatorio plano, Dictionary<string, FotoVm> fotos)
     {
         var e = new List<ElementoPrevia>();
-        var dados = plano.Dados;
-        double X(int coluna) => GradeRelatorio.XDaColuna(coluna);
-        var cab = plano.Cabecalho;
-        var h = cab.Alturas;
-        double y4 = h.Take(4).Sum();
-        double largura = GradeRelatorio.Largura;
-        double xt = X(GradeRelatorio.ColunaDoTitulo), xk = X(GradeRelatorio.ColunaDaCaixa), xd = X(GradeRelatorio.ColunaDoValorDaData), xv = X(GradeRelatorio.ColunaDoValor);
-
-        // Cabecalho: logo, titulo e a caixa SPOBRAS / data / contratada; depois um campo por linha.
-        e.Add(new ElementoPrevia(0, 0, xt, y4) { Borda = true, Imagem = _modelos.Logo });
-        e.Add(new ElementoPrevia(xt, 0, xk - xt, y4) { Borda = true, Texto = "RELATÓRIO FOTOGRÁFICO", Negrito = true, Fonte = 24, Centro = true, Meio = true });
-        e.Add(new ElementoPrevia(xk, 0, largura - xk, h[0]) { Borda = true, Texto = "SÃO PAULO OBRAS - SPOBRAS", Negrito = true, Fonte = 16, Centro = true, Meio = true });
-        if (dados.Data is not null)
+        string? logo = _modelos.Logo;
+        foreach (var elemento in DesenhoRelatorio.Pagina(plano, pagina, logo is not null))
         {
-            e.Add(new ElementoPrevia(xk, h[0], xd - xk, h[1]) { Borda = true, Texto = "DATA", Negrito = true, Centro = true, Meio = true });
-            e.Add(new ElementoPrevia(xd, h[0], largura - xd, h[1]) { Borda = true, Texto = CabecalhoRelatorio.Data(dados.Data), Negrito = true, Centro = true, Meio = true });
-        }
-        else
-        {
-            e.Add(new ElementoPrevia(xk, h[0], largura - xk, h[1]) { Borda = true });
-        }
-
-        bool temContratada = !string.IsNullOrWhiteSpace(dados.Contratada);
-        e.Add(new ElementoPrevia(xk, h[0] + h[1], largura - xk, h[2]) { Borda = true, Texto = temContratada ? "CONTRATADA" : "", Negrito = true, Centro = true, Meio = true });
-        e.Add(new ElementoPrevia(xk, h[0] + h[1] + h[2], largura - xk, h[3]) { Borda = true, Texto = temContratada ? dados.Contratada.Trim() : "", Centro = true, Meio = true });
-        for (int i = 0; i < cab.Campos.Count; i++)
-        {
-            double y = cab.YDoCampo(i), alt = h[cab.PrimeiroCampo + i];
-            var campo = cab.Campos[i];
-            e.Add(new ElementoPrevia(0, y, xv, alt) { Borda = true, Texto = campo.Rotulo, Negrito = true, Meio = true });
-            if (campo.Dupla)
+            switch (elemento)
             {
-                double x2 = X(CabecalhoRelatorio.ColunaDoRotulo2), xv2 = X(CabecalhoRelatorio.ColunaDoValor2);
-                e.Add(new ElementoPrevia(xv, y, x2 - xv, alt) { Borda = true, Texto = campo.Valor, Centro = true, Meio = true });
-                e.Add(new ElementoPrevia(x2, y, xv2 - x2, alt) { Borda = true, Texto = campo.Rotulo2 ?? "", Negrito = true, Meio = true });
-                e.Add(new ElementoPrevia(xv2, y, largura - xv2, alt) { Borda = true, Texto = campo.Valor2 ?? "", Centro = true, Meio = true });
+                case RetanguloDesenho r:
+                    e.Add(new ElementoPrevia(r.Area.X, r.Area.Y, r.Area.Largura, r.Area.Altura)
+                    { Fundo = r.Fundo is null ? null : "#" + r.Fundo, Borda = r.Borda is null ? null : "#" + r.Borda, Espessura = r.Borda is null ? 0 : r.Espessura });
+                    break;
+                case LinhaDesenho l:
+                    double x = Math.Min(l.X1, l.X2), y = Math.Min(l.Y1, l.Y2);
+                    e.Add(new ElementoPrevia(x - l.Espessura / 2, y - l.Espessura / 2, Math.Abs(l.X2 - l.X1) + l.Espessura, Math.Abs(l.Y2 - l.Y1) + l.Espessura) { Fundo = "#" + l.Cor });
+                    break;
+                case ImagemDesenho { Foto: { } foto } im:
+                    fotos.TryGetValue(foto.Caminho, out var vm);
+                    e.Add(new ElementoPrevia(im.Area.X, im.Area.Y, im.Area.Largura, im.Area.Altura) { Imagem = vm?.Miniatura, TemImagem = true, Faltando = vm?.Faltando == true });
+                    break;
+                case ImagemDesenho im:
+                    e.Add(new ElementoPrevia(im.Area.X, im.Area.Y, im.Area.Largura, im.Area.Altura) { Imagem = logo, TemImagem = true });
+                    break;
+                case TextoDesenho t:
+                    e.Add(new ElementoPrevia(t.Area.X, t.Area.Y, t.Area.Largura, Math.Max(t.Area.Altura, t.Linhas.Count * t.AlturaDaLinha))
+                    {
+                        Texto = string.Join("\n", t.Linhas), Negrito = t.Negrito, Fonte = t.Tamanho, AlturaDaLinha = t.AlturaDaLinha, Cor = "#" + t.Cor,
+                        Centro = t.Alinhamento == Alinhamento.Centro, Meio = t.CentroNaAltura,
+                    });
+                    break;
             }
-            else
-            {
-                e.Add(new ElementoPrevia(xv, y, largura - xv, alt) { Borda = true, Texto = campo.Valor, Meio = true });
-            }
-        }
-
-        e.Add(new ElementoPrevia(0, cab.YDoTitulo + GradeRelatorio.LinhasDoTitulo[0], largura, GradeRelatorio.LinhasDoTitulo[1])
-        { Borda = true, Fundo = true, Texto = "RELATÓRIO FOTOGRÁFICO", Negrito = true, Centro = true, Meio = true });
-
-        // Fotos e textos
-        foreach (var foto in pagina.Fotos)
-        {
-            fotos.TryGetValue(foto.Foto.Caminho, out var vm);
-            e.Add(new ElementoPrevia(foto.Imagem.X, foto.Imagem.Y, foto.Imagem.Largura, foto.Imagem.Altura) { Imagem = vm?.Miniatura, Faltando = vm?.Faltando == true, Borda = vm?.Miniatura is null });
-            double alturaTitulo = foto.Titulo.Length == 0 ? 0 : PaginadorRelatorio.LinhasDe(foto.Titulo, foto.Espaco.Largura) * GradeRelatorio.AlturaDaLinha;
-            if (foto.Titulo.Length > 0)
-            {
-                e.Add(new ElementoPrevia(foto.Texto.X, foto.Texto.Y, foto.Texto.Largura, alturaTitulo) { Texto = foto.Titulo, Negrito = true, Centro = true });
-            }
-            if (foto.Descricao.Length > 0)
-            {
-                e.Add(new ElementoPrevia(foto.Texto.X, foto.Texto.Y + alturaTitulo, foto.Texto.Largura, foto.Texto.Altura - alturaTitulo) { Texto = foto.Descricao });
-            }
-        }
-
-        foreach (var continuacao in pagina.Continuacoes)
-        {
-            e.Add(new ElementoPrevia(continuacao.Texto_.X, continuacao.Texto_.Y, continuacao.Texto_.Largura, GradeRelatorio.AlturaDaLinha) { Texto = continuacao.Titulo, Negrito = true });
-            e.Add(new ElementoPrevia(continuacao.Texto_.X, continuacao.Texto_.Y + GradeRelatorio.AlturaDaLinha, continuacao.Texto_.Largura, continuacao.Texto_.Altura - GradeRelatorio.AlturaDaLinha) { Texto = continuacao.Texto });
-        }
-
-        if (pagina.Assinaturas is { } assinaturas)
-        {
-            double y = assinaturas.Espaco.Y + 3 * GradeRelatorio.AlturaDaLinha;
-            e.Add(new ElementoPrevia(0, y, X(4), GradeRelatorio.AlturaDaLinha) { Texto = "Fiscalização SPOBRAS", Centro = true, LinhaEmCima = true });
-            e.Add(new ElementoPrevia(X(6), y, largura - X(6), GradeRelatorio.AlturaDaLinha) { Texto = "Contratada", Centro = true, LinhaEmCima = true });
-            e.Add(new ElementoPrevia(0, y + GradeRelatorio.AlturaDaLinha, X(4), GradeRelatorio.AlturaDaLinha) { Texto = plano.Opcoes.AssinaturaFiscal.Trim(), Centro = true });
-            e.Add(new ElementoPrevia(X(6), y + GradeRelatorio.AlturaDaLinha, largura - X(6), GradeRelatorio.AlturaDaLinha) { Texto = plano.Opcoes.AssinaturaContratada.Trim(), Centro = true });
         }
 
         return e;

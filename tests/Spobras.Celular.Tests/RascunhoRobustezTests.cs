@@ -313,15 +313,49 @@ public sealed class RascunhoRobustezTests : IDisposable
     }
 
     [Fact]
-    public void Legenda_tem_no_maximo_300_caracteres()
+    public void Legenda_tem_no_maximo_100_e_descricao_300_caracteres()
     {
         var r = Novo();
         r.AdicionarFoto(_jpeg);
         r.AdicionarFoto(_jpeg);
         r.Legendar(0, new string('a', 1000));
-        Assert.Equal(RascunhoRelatorio.MaximoDaLegenda, r.Dados.Fotos[0].Legenda.Length);
-        r.LegendarVarias([1], new string('b', 500));
-        Assert.Equal(300, r.Dados.Fotos[1].Legenda.Length);
+        Assert.Equal(100, r.Dados.Fotos[0].Legenda.Length);
+        r.Descrever(0, new string('d', 1000));
+        Assert.Equal(300, r.Dados.Fotos[0].Descricao.Length);
+        r.TextoEmVarias([1], new string('b', 500), new string('e', 900));
+        Assert.Equal((100, 300), (r.Dados.Fotos[1].Legenda.Length, r.Dados.Fotos[1].Descricao.Length));
+    }
+
+    [Fact]
+    public void Mesmo_texto_em_varias_marcadas_ou_so_nas_em_branco_e_campo_vazio_nao_apaga()
+    {
+        var r = Novo();
+        for (int i = 0; i < 4; i++) r.AdicionarFoto(_jpeg);
+        r.Legendar(1, "Já tinha");
+        r.Descrever(2, "Descrição já escrita");
+
+        // sem marcadas: so onde o campo esta em branco
+        Assert.Equal(4, r.AlvoDoTexto([], comLegenda: true, comDescricao: true));
+        Assert.Equal(4, r.TextoEmVarias([], "Vista geral", "Serviço executado"));
+        Assert.Equal(["Vista geral", "Já tinha", "Vista geral", "Vista geral"], r.Dados.Fotos.Select(f => f.Legenda));
+        Assert.Equal(["Serviço executado", "Serviço executado", "Descrição já escrita", "Serviço executado"], r.Dados.Fotos.Select(f => f.Descricao));
+
+        // com marcadas: troca nelas; campo vazio nao apaga
+        Assert.Equal(2, r.TextoEmVarias([0, 3], "Fachada", ""));
+        Assert.Equal(["Fachada", "Já tinha", "Vista geral", "Fachada"], r.Dados.Fotos.Select(f => f.Legenda));
+        Assert.Equal("Serviço executado", r.Dados.Fotos[0].Descricao);
+        Assert.Equal(0, r.TextoEmVarias([0], "  ", null));
+        Assert.Equal(2, r.AlvoDoTexto([0, 1], true, false));
+
+        // trocar de modo nao perde a descricao
+        r.TrocarModo(Spobras.Core.Relatorio.ModoLegenda.DescricaoServico);
+        Assert.Equal(0, r.DescricoesGuardadas);
+        r.TrocarModo(Spobras.Core.Relatorio.ModoLegenda.LegendaCurta);
+        Assert.Equal(4, r.DescricoesGuardadas);
+        Assert.Equal("Descrição já escrita", r.Dados.Fotos[2].Descricao);
+        var reaberto = Novo();
+        Assert.Equal(Spobras.Core.Relatorio.ModoLegenda.LegendaCurta, reaberto.Dados.Modo);
+        Assert.Equal("Descrição já escrita", reaberto.Dados.Fotos[2].Descricao);
     }
 
     [Fact]
@@ -375,9 +409,21 @@ public sealed class RascunhoRobustezTests : IDisposable
         Assert.True(r.Onde.Length < 120, r.Onde); // a pasta da escola tambem // antes: caminho longo demais
         Assert.Equal(4, r.Fotos);
 
-        app.Rascunho.Alterar(d => d with { Unidade = "EMEI Exemplo", Descricao = string.Join(" ", Enumerable.Repeat("texto", 3000)) });
+        app.Rascunho.Alterar(d => d with { Unidade = "EMEI Exemplo", Objeto = string.Join(" ", Enumerable.Repeat("texto", 3000)) });
         var erro = await Assert.ThrowsAsync<InvalidOperationException>(() => app.Rascunho.GerarAsync(p, app.Config));
         Assert.Contains("cabeçalho ficou grande demais", erro.Message); // antes: erro interno sem explicacao
+
+        // legenda e descricao no limite (100 e 300): sempre cabem; a legenda digitada para alem do limite e cortada
+        app.Rascunho.Alterar(d => d with { Objeto = "", Modo = Spobras.Core.Relatorio.ModoLegenda.DescricaoServico, FotosPorPagina = 8 });
+        for (int i = 0; i < 4; i++)
+        {
+            app.Rascunho.Legendar(i, new string('L', 150));
+            app.Rascunho.Descrever(i, new string('d', 400));
+        }
+
+        Assert.All(app.Rascunho.Dados.Fotos, f => Assert.Equal((100, 300), (f.Legenda.Length, f.Descricao.Length)));
+        var r2 = await app.Rascunho.GerarAsync(p, app.Config);
+        Assert.Equal(1, r2.Paginas); // com descricao, 8 por pagina vira 4
     }
 
     [Fact]

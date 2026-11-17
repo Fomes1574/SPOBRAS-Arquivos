@@ -10,6 +10,24 @@ namespace Spobras.Documentos.Pdf;
 public sealed class FontesPdf : IFontResolver
 {
     public const string Familia = "Arquivos SPOBRAS";
+
+    /// <summary>
+    /// Fonte do relatorio fotografico: Carlito (licenca OFL, medidas iguais as da Calibri do Excel), embutida no app.
+    /// Igual no computador, no celular e nos testes, e com as mesmas larguras da conta do plano (TextoMedido).
+    /// </summary>
+    public const string FamiliaDoRelatorio = "SPOBRAS Relatorio";
+
+    private static readonly Lazy<byte[]> CarlitoRegular = new(() => Embutida("Carlito-Regular.ttf"));
+    private static readonly Lazy<byte[]> CarlitoNegrito = new(() => Embutida("Carlito-Bold.ttf"));
+
+    private static byte[] Embutida(string nome)
+    {
+        using var fluxo = typeof(FontesPdf).Assembly.GetManifestResourceStream("Spobras.Documentos.Fontes." + nome)
+            ?? throw new PdfInvalidoException("A fonte do relatório não foi encontrada no app.");
+        using var copia = new MemoryStream();
+        fluxo.CopyTo(copia);
+        return copia.ToArray();
+    }
     private static readonly string[] Preferidas = ["Segoe UI", "Arial", "Inter", "Roboto", "DejaVu Sans", "Liberation Sans", "FreeSans"];
     private static readonly Lazy<byte[]> Regular = new(() => Carregar(SKFontStyle.Normal));
     private static readonly Lazy<byte[]> Negrito = new(() => Carregar(SKFontStyle.Bold));
@@ -24,7 +42,8 @@ public sealed class FontesPdf : IFontResolver
     }
 
     public FontResolverInfo? ResolveTypeface(string familyName, bool bold, bool italic) =>
-        !bold ? new("spobras-regular")
+        familyName == FamiliaDoRelatorio ? new(bold ? "carlito-negrito" : "carlito-regular")
+        : !bold ? new("spobras-regular")
         : NegritoDeVerdade.Value ? new("spobras-negrito")
         : new("spobras-regular", mustSimulateBold: true, mustSimulateItalic: false);
 
@@ -34,7 +53,13 @@ public sealed class FontesPdf : IFontResolver
     /// </summary>
     private static readonly Lazy<bool> NegritoDeVerdade = new(() => !Negrito.Value.AsSpan().SequenceEqual(Regular.Value));
 
-    public byte[]? GetFont(string faceName) => faceName == "spobras-negrito" ? Negrito.Value : Regular.Value;
+    public byte[]? GetFont(string faceName) => faceName switch
+    {
+        "carlito-regular" => CarlitoRegular.Value,
+        "carlito-negrito" => CarlitoNegrito.Value,
+        "spobras-negrito" => Negrito.Value,
+        _ => Regular.Value,
+    };
 
     private static byte[] Carregar(SKFontStyle estilo)
     {

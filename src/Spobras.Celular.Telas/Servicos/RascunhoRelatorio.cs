@@ -57,6 +57,12 @@ public sealed record DadosRascunho
     public string Objeto { get; init; } = "";
     public string Descricao { get; init; } = "";
     public int FotosPorPagina { get; init; } = 6;
+
+    /// <summary>So a legenda (ate 6 por pagina) ou legenda e descricao do servico (ate 4 por pagina).</summary>
+    public ModoLegenda Modo { get; init; } = ModoLegenda.LegendaCurta;
+    public bool Assinaturas { get; init; }
+    public string AssinaturaFiscal { get; init; } = "";
+    public string AssinaturaContratada { get; init; } = "";
     public List<FotoRascunho> Fotos { get; init; } = [];
     public DateTimeOffset? Alterado { get; init; }
 
@@ -195,6 +201,8 @@ public sealed class RascunhoRelatorio
             Contratada = d.Contratada ?? "", DataOs = d.DataOs ?? "", Data = d.Data ?? "", Fiscal = d.Fiscal ?? "",
             ProcessoSei = d.ProcessoSei ?? "", Objeto = d.Objeto ?? "", Descricao = d.Descricao ?? "",
             FotosPorPagina = OpcoesRelatorio.Capacidades.Contains(d.FotosPorPagina) ? d.FotosPorPagina : 6,
+            Modo = Enum.IsDefined(d.Modo) ? d.Modo : ModoLegenda.LegendaCurta,
+            AssinaturaFiscal = d.AssinaturaFiscal ?? "", AssinaturaContratada = d.AssinaturaContratada ?? "",
             Fotos = fotos,
             Removidas = removidas,
         };
@@ -340,25 +348,84 @@ public sealed class RascunhoRelatorio
         });
     }
 
-    /// <summary>Legenda curta: ate 300 caracteres (texto maior continua cabendo, mas deixa de ser legenda).</summary>
-    public const int MaximoDaLegenda = 300;
+    /// <summary>Limites do modelo aprovado: com eles o texto sempre cabe embaixo da foto.</summary>
+    public const int MaximoDaLegenda = OpcoesRelatorio.MaximoDaLegenda, MaximoDaDescricao = OpcoesRelatorio.MaximoDaDescricao;
 
-    private static string Limitar(string? texto) => (texto ?? "") is { Length: > MaximoDaLegenda } t ? t[..MaximoDaLegenda] : texto ?? "";
+    private static string Limitar(string? texto, int maximo) => (texto ?? "") is { } t && t.Length > maximo ? t[..maximo] : texto ?? "";
 
-    public void Legendar(int i, string legenda) => Trocar(i, f => f with { Legenda = Limitar(legenda) });
+    public void Legendar(int i, string legenda) => Trocar(i, f => f with { Legenda = Limitar(legenda, MaximoDaLegenda) });
 
-    public int LegendarVarias(IEnumerable<int> indices, string legenda)
+    public void Descrever(int i, string descricao) => Trocar(i, f => f with { Descricao = Limitar(descricao, MaximoDaDescricao) });
+
+    public int LegendarVarias(IEnumerable<int> indices, string legenda) => TextoEmVarias(indices, legenda, null);
+
+    /// <summary>
+    /// Mesmo texto em varias fotos. Com fotos marcadas, vai para elas; sem nenhuma marcada, so para as fotos com o
+    /// campo em branco. Campo deixado vazio (ou null) nao apaga nada. Devolve quantas fotos mudaram.
+    /// </summary>
+    public int TextoEmVarias(IEnumerable<int> indices, string? legenda, string? descricao)
     {
+        string leg = Limitar((legenda ?? "").Trim(), MaximoDaLegenda), desc = Limitar((descricao ?? "").Trim(), MaximoDaDescricao);
+        if (leg.Length == 0 && desc.Length == 0)
+        {
+            return 0;
+        }
+
         var marcadas = indices.Where(i => i >= 0 && i < Dados.Fotos.Count).ToHashSet();
-        if (marcadas.Count == 0)
-            marcadas = Dados.Fotos.Select((foto, i) => (foto, i)).Where(x => x.foto.Legenda.Length == 0).Select(x => x.i).ToHashSet();
-        if (marcadas.Count > 0)
-            Alterar(d => d with
+        bool soEmBranco = marcadas.Count == 0;
+        int mudaram = 0;
+        Alterar(d =>
+        {
+            mudaram = 0;
+            var fotos = d.Fotos.Select((foto, i) =>
             {
-                Fotos = d.Fotos.Select((foto, i) => marcadas.Contains(i) ? foto with { Legenda = Limitar(legenda.Trim()) } : foto).ToList(),
-            });
-        return marcadas.Count;
+                if (!soEmBranco && !marcadas.Contains(i))
+                {
+                    return foto;
+                }
+
+                var nova = foto;
+                if (leg.Length > 0 && (!soEmBranco || foto.Legenda.Trim().Length == 0))
+                {
+                    nova = nova with { Legenda = leg };
+                }
+
+                if (desc.Length > 0 && (!soEmBranco || foto.Descricao.Trim().Length == 0))
+                {
+                    nova = nova with { Descricao = desc };
+                }
+
+                if (nova != foto)
+                {
+                    mudaram++;
+                }
+
+                return nova;
+            }).ToList();
+            return d with { Fotos = fotos };
+        });
+        return mudaram;
     }
+
+    /// <summary>Quantas fotos ficariam com o texto, para o botao dizer antes de aplicar.</summary>
+    public int AlvoDoTexto(IReadOnlyCollection<int> marcadas, bool comLegenda, bool comDescricao) =>
+        marcadas.Count > 0 ? marcadas.Count
+        : Dados.Fotos.Count(f => (comLegenda && f.Legenda.Trim().Length == 0) || (comDescricao && f.Descricao.Trim().Length == 0));
+
+    /// <summary>Troca o modo. Nada do que foi escrito se perde: a descricao fica guardada mesmo no modo so legenda.</summary>
+    public void TrocarModo(ModoLegenda modo) => Alterar(d => d with { Modo = modo });
+
+    /// <summary>Fotos com descricao guardada que nao sai no modo so legenda.</summary>
+    public int DescricoesGuardadas => Dados.Modo == ModoLegenda.LegendaCurta ? Dados.Fotos.Count(f => f.Descricao.Trim().Length > 0) : 0;
+
+    public OpcoesRelatorio Opcoes() => new()
+    {
+        FotosPorPagina = Dados.FotosPorPagina,
+        Modo = Dados.Modo,
+        Assinaturas = Dados.Assinaturas,
+        AssinaturaFiscal = Dados.AssinaturaFiscal.Trim(),
+        AssinaturaContratada = Dados.AssinaturaContratada.Trim(),
+    };
 
     public void Girar(int i)
     {
@@ -953,7 +1020,7 @@ public sealed class RascunhoRelatorio
 
             return new FotoRelatorio(c, l, a) { Legenda = f.Legenda.Trim(), Descricao = f.Descricao.Trim(), Rotacao = f.Rotacao };
         }).ToList();
-        return PaginadorRelatorio.Paginar(fotos, new OpcoesRelatorio { FotosPorPagina = Dados.FotosPorPagina }, Cabecalho());
+        return PaginadorRelatorio.Paginar(fotos, Opcoes(), Cabecalho());
     }
 
     /// <summary>

@@ -425,10 +425,10 @@
                                 <DataTemplate>
                                     <StackPanel Margin="8">
                                         <TextBlock Text="{Binding Titulo}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,0,0,4" />
-                                        <Border Background="White" BorderBrush="{StaticResource Borda}" BorderThickness="1" Padding="14">
-                                            <Viewbox Width="330" Stretch="Uniform">
+                                        <Border Background="White" BorderBrush="{StaticResource Borda}" BorderThickness="1">
+                                            <Viewbox Width="340" Stretch="Uniform">
                                                 <ItemsControl ItemsSource="{Binding Elementos}" Width="{Binding Largura}" Height="{Binding Altura}" Focusable="False"
-                                                              FontFamily="Calibri, Carlito, Segoe UI" Foreground="Black">
+                                                              FontFamily="Calibri, Carlito, Segoe UI" Foreground="Black" ClipToBounds="True">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
                                                             <Canvas />
@@ -444,24 +444,20 @@
                                                     </ItemsControl.ItemContainerStyle>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border x:Name="Caixa" BorderBrush="Black" BorderThickness="0" Background="Transparent">
+                                                            <Border Background="{Binding Fundo}" BorderBrush="{Binding Borda}" BorderThickness="{Binding Espessura}">
                                                                 <Grid>
-                                                                    <Image Source="{Binding Imagem, Converter={StaticResource Imagem}, ConverterParameter=360}" Stretch="Uniform" />
-                                                                    <TextBlock x:Name="Txt" Text="{Binding Texto}" FontSize="{Binding Fonte}" TextWrapping="Wrap" Padding="6,0"
+                                                                    <Image x:Name="Img" Source="{Binding Imagem, Converter={StaticResource Imagem}, ConverterParameter=360}" Stretch="Uniform" Visibility="Collapsed" />
+                                                                    <TextBlock x:Name="Txt" Text="{Binding Texto}" FontSize="{Binding Fonte}" Foreground="{Binding Cor}" TextWrapping="NoWrap"
+                                                                               LineHeight="{Binding AlturaDaLinha}" LineStackingStrategy="BlockLineHeight"
                                                                                VerticalAlignment="Top" TextAlignment="Left" />
-                                                                    <TextBlock x:Name="Falta" Text="Foto não encontrada" Foreground="{StaticResource Vermelho}" FontWeight="Bold" FontSize="16"
+                                                                    <TextBlock x:Name="Falta" Text="Foto não encontrada" Foreground="{StaticResource Vermelho}" FontWeight="Bold" FontSize="10"
                                                                                HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
                                                                 </Grid>
                                                             </Border>
                                                             <DataTemplate.Triggers>
-                                                                <DataTrigger Binding="{Binding Borda}" Value="True">
-                                                                    <Setter TargetName="Caixa" Property="BorderThickness" Value="1" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding LinhaEmCima}" Value="True">
-                                                                    <Setter TargetName="Caixa" Property="BorderThickness" Value="0,1,0,0" />
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding Fundo}" Value="True">
-                                                                    <Setter TargetName="Caixa" Property="Background" Value="#D9D9D9" />
+                                                                <DataTrigger Binding="{Binding TemImagem}" Value="True">
+                                                                    <Setter TargetName="Img" Property="Visibility" Value="Visible" />
+                                                                    <Setter TargetName="Txt" Property="Visibility" Value="Collapsed" />
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Negrito}" Value="True">
                                                                     <Setter TargetName="Txt" Property="FontWeight" Value="Bold" />

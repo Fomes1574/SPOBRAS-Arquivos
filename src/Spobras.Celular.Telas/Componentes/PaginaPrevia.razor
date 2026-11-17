@@ -1,38 +1,38 @@
 @using Spobras.Core.Relatorio
-@* Miniatura fiel da pagina: as mesmas posicoes do plano usado no Excel e no PDF. *@
-<div style="background:#fff;border:1px solid var(--borda);border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4%">
-    <div style="position:relative;width:100%;aspect-ratio:@Num(GradeRelatorio.Largura) / @Num(GradeRelatorio.AlturaDaPagina);font-size:@(Fonte)">
-        @{
-            var cab = Plano.Cabecalho;
-            double y4 = cab.Alturas.Take(4).Sum();
-            double xt = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoTitulo), xk = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDaCaixa);
-            double xv = GradeRelatorio.XDaColuna(GradeRelatorio.ColunaDoValor), L = GradeRelatorio.Largura;
-        }
-        <div style="@Caixa(0, 0, xt, y4)">@if (Logo is not null)
-            {
-                <img src="@Logo" alt="" style="max-width:90%;max-height:90%;object-fit:contain" />
-            }</div>
-        <div style="@Caixa(xt, 0, xk - xt, y4);font-weight:800;font-size:1.5em">RELATÓRIO FOTOGRÁFICO</div>
-        <div style="@Caixa(xk, 0, L - xk, cab.Alturas[0]);font-weight:700">SÃO PAULO OBRAS - SPOBRAS</div>
-        <div style="@Caixa(xk, cab.Alturas[0], L - xk, cab.Alturas[1])">@(Plano.Dados.Data is { } d ? "DATA " + CabecalhoRelatorio.Data(d) : "")</div>
-        <div style="@Caixa(xk, cab.Alturas[0] + cab.Alturas[1], L - xk, cab.Alturas[2] + cab.Alturas[3])">@Plano.Dados.Contratada</div>
-        @for (int i = 0; i < cab.Campos.Count; i++)
+@using System.Globalization
+@* Miniatura fiel da pagina: as mesmas pecas (DesenhoRelatorio) que o PDF desenha, em SVG na escala da tela. *@
+<div class="previa-pagina">
+    <svg viewBox="0 0 @Num(GradeRelatorio.LarguraDaFolha) @Num(GradeRelatorio.AlturaDaFolha)" role="img" aria-label="@($"Página {Pagina.Numero} de {Plano.Paginas.Count}")">
+        @foreach (var elemento in DesenhoRelatorio.Pagina(Plano, Pagina, Logo is not null))
         {
-            var c = cab.Campos[i];
-            double y = cab.YDoCampo(i), h = cab.Alturas[cab.PrimeiroCampo + i];
-            <div style="@Caixa(0, y, xv, h, esquerda: true);font-weight:700">@c.Rotulo</div>
-            <div style="@Caixa(xv, y, L - xv, h, esquerda: true)">@c.Valor@(c.Dupla ? $"   {c.Rotulo2} {c.Valor2}" : "")</div>
-        }
-        <div style="@Caixa(0, cab.YDoTitulo + GradeRelatorio.LinhasDoTitulo[0], L, GradeRelatorio.LinhasDoTitulo[1]);background:#D9D9D9;font-weight:700">RELATÓRIO FOTOGRÁFICO</div>
-        @foreach (var f in Pagina.Fotos)
-        {
-            <img src="@Miniatura(f)" alt="" style="position:absolute;@Pos(f.Imagem.X, f.Imagem.Y, f.Imagem.Largura, f.Imagem.Altura)" />
-            @if (f.Titulo.Length > 0)
+            switch (elemento)
             {
-                <div style="position:absolute;@Pos(f.Texto.X, f.Texto.Y, f.Texto.Largura, GradeRelatorio.AlturaDaLinha);text-align:center;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">@f.Titulo</div>
+                case RetanguloDesenho r:
+                    <rect x="@Num(r.Area.X)" y="@Num(r.Area.Y)" width="@Num(r.Area.Largura)" height="@Num(r.Area.Altura)"
+                          fill="@(r.Fundo is null ? "none" : "#" + r.Fundo)" stroke="@(r.Borda is null ? "none" : "#" + r.Borda)" stroke-width="@Num(r.Espessura)" />
+                    break;
+                case LinhaDesenho l:
+                    <line x1="@Num(l.X1)" y1="@Num(l.Y1)" x2="@Num(l.X2)" y2="@Num(l.Y2)" stroke="#@l.Cor" stroke-width="@Num(l.Espessura)" />
+                    break;
+                case ImagemDesenho { Foto: { } foto } im:
+                    <image href="@Foto(foto)" x="@Num(im.Area.X)" y="@Num(im.Area.Y)" width="@Num(im.Area.Largura)" height="@Num(im.Area.Altura)" preserveAspectRatio="xMidYMid meet" />
+                    break;
+                case ImagemDesenho im when Logo is not null:
+                    <image href="@Logo" x="@Num(im.Area.X)" y="@Num(im.Area.Y)" width="@Num(im.Area.Largura)" height="@Num(im.Area.Altura)" preserveAspectRatio="xMidYMid meet" />
+                    break;
+                case TextoDesenho t:
+                    double topo = t.CentroNaAltura ? t.Area.Y + (t.Area.Altura - t.Linhas.Count * t.AlturaDaLinha) / 2 : t.Area.Y;
+                    double baseDaLetra = (t.AlturaDaLinha - t.Tamanho) / 2 + t.Tamanho * 0.8;
+                    for (int i = 0; i < t.Linhas.Count; i++)
+                    {
+                        bool justificar = t.Alinhamento == Alinhamento.Justificado && i < t.Linhas.Count - 1 && t.Linhas[i].Contains(' ');
+                        double x = t.Alinhamento == Alinhamento.Centro ? t.Area.X + t.Area.Largura / 2 : t.Area.X;
+                        @((MarkupString)Linha(t, i, x, topo + i * t.AlturaDaLinha + baseDaLetra, justificar))
+                    }
+                    break;
             }
         }
-    </div>
+    </svg>
 </div>
 
 @code {
@@ -41,16 +41,12 @@
     [Parameter, EditorRequired] public Func<FotoRelatorio, string> Foto { get; set; } = default!;
     [Parameter] public string? Logo { get; set; }
 
-    // 11 px do Excel na largura da pagina (cerca de 720 px) vira uma fracao da largura da tela.
-    private static string Fonte => "calc(min(100vw, 720px) * 0.0118)";
+    private static string Num(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
-    private static string Num(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
-
-    private static string Pos(double x, double y, double l, double a) =>
-        $"left:{Num(x / GradeRelatorio.Largura * 100)}%;top:{Num(y / GradeRelatorio.AlturaDaPagina * 100)}%;width:{Num(l / GradeRelatorio.Largura * 100)}%;height:{Num(a / GradeRelatorio.AlturaDaPagina * 100)}%";
-
-    private static string Caixa(double x, double y, double l, double a, bool esquerda = false) =>
-        $"position:absolute;{Pos(x, y, l, a)};border:1px solid #555;display:flex;align-items:center;justify-content:{(esquerda ? "flex-start" : "center")};text-align:center;padding:0 2px;overflow:hidden;white-space:nowrap;line-height:1.1";
-
-    private string Miniatura(FotoNaPagina f) => Foto(f.Foto);
+    // O Razor reserva a etiqueta "text": a linha do SVG e montada como texto (sempre escapado).
+    private static string Linha(TextoDesenho t, int i, double x, double y, bool justificar) =>
+        $"<text x=\"{Num(x)}\" y=\"{Num(y)}\" font-size=\"{Num(t.Tamanho)}\" font-weight=\"{(t.Negrito ? 700 : 400)}\" fill=\"#{t.Cor}\" " +
+        $"text-anchor=\"{(t.Alinhamento == Alinhamento.Centro ? "middle" : "start")}\"" +
+        (justificar ? $" textLength=\"{Num(t.Area.Largura)}\" lengthAdjust=\"spacing\"" : "") +
+        $">{System.Net.WebUtility.HtmlEncode(t.Linhas[i])}</text>";
 }

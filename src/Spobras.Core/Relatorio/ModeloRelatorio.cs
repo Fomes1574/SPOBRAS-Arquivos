@@ -32,7 +32,7 @@ public enum ModoLegenda
 
 public sealed record OpcoesRelatorio
 {
-    /// <summary>Capacidade desejada por pagina: 1, 2, 4, 6 ou 8.</summary>
+    /// <summary>Capacidade desejada por pagina: 1, 2, 4, 6 ou 8 (com descricao do servico, no maximo 4).</summary>
     public int FotosPorPagina { get; init; } = 6;
     public ModoLegenda Modo { get; init; } = ModoLegenda.LegendaCurta;
     public bool Assinaturas { get; init; }
@@ -46,6 +46,19 @@ public sealed record OpcoesRelatorio
     public int QualidadeFoto { get; init; } = 82;
 
     public static readonly IReadOnlyList<int> Capacidades = [1, 2, 4, 6, 8];
+
+    /// <summary>Com legenda e descricao do servico, o texto ocupa mais espaco: cabem no maximo 4 fotos por pagina.</summary>
+    public const int MaximoComDescricao = 4;
+
+    /// <summary>Limites de caracteres: com eles o texto sempre cabe no espaco reservado embaixo da foto.</summary>
+    public const int MaximoDaLegenda = 100, MaximoDaDescricao = 300, MaximoDaDescricaoGeral = 300;
+
+    /// <summary>Capacidades que cabem no modo escolhido.</summary>
+    public static IReadOnlyList<int> CapacidadesDoModo(ModoLegenda modo) =>
+        modo == ModoLegenda.DescricaoServico ? [.. Capacidades.Where(c => c <= MaximoComDescricao)] : Capacidades;
+
+    /// <summary>A capacidade que vale de fato: com descricao, 6 ou 8 viram 4.</summary>
+    public int Capacidade => Modo == ModoLegenda.DescricaoServico ? Math.Min(FotosPorPagina, MaximoComDescricao) : FotosPorPagina;
 }
 
 /// <summary>Uma foto do relatorio. Largura e altura ja com a orientacao EXIF e a rotacao manual aplicadas.</summary>
@@ -58,37 +71,48 @@ public sealed record FotoRelatorio(string Caminho, int Largura, int Altura)
     public int Rotacao { get; init; }
 }
 
-/// <summary>Retangulo em pixels dentro da pagina (origem no canto superior esquerdo da area impressa).</summary>
+/// <summary>Retangulo em pontos na folha A4 (origem no canto de cima a esquerda da folha).</summary>
 public readonly record struct Area(double X, double Y, double Largura, double Altura)
 {
     public double Direita => X + Largura;
     public double Base => Y + Altura;
 }
 
+/// <summary>
+/// Uma foto posicionada: o espaco todo (quadro e textos), o quadro cinza claro, a foto encaixada nele sem cortar
+/// nem distorcer, e as linhas ja quebradas da legenda e da descricao (o PDF e a previa desenham exatamente estas).
+/// </summary>
 public sealed record FotoNaPagina(
     FotoRelatorio Foto,
     int Numero,
     Area Espaco,
+    Area Quadro,
     Area Imagem,
-    Area Texto,
-    int LinhaInicial,
-    int LinhasDaFoto,
-    int LinhasDoTexto,
+    Area Legenda,
+    IReadOnlyList<string> LinhasDaLegenda,
+    Area Descricao,
+    IReadOnlyList<string> LinhasDaDescricao,
     int Coluna,
     int Colunas,
-    string Titulo,
-    string Descricao);
+    int Faixa)
+{
+    public string Titulo => Foto.Legenda.Trim();
+    public string TextoDaDescricao => string.Join(" ", LinhasDaDescricao);
+}
 
-/// <summary>Texto que nao coube junto da foto e continua no alto da pagina seguinte.</summary>
-public sealed record Continuacao(string Titulo, string Texto, int LinhaInicial, int Linhas, Area Texto_);
-
-public sealed record BlocoAssinaturas(int LinhaInicial, int Linhas, Area Espaco);
+/// <summary>Bloco das assinaturas, no pe da ultima pagina (nunca sozinho numa pagina).</summary>
+public sealed record BlocoAssinaturas(Area Espaco);
 
 public sealed record PaginaRelatorio(
     int Numero,
     IReadOnlyList<FotoNaPagina> Fotos,
-    IReadOnlyList<Continuacao> Continuacoes,
-    BlocoAssinaturas? Assinaturas);
+    BlocoAssinaturas? Assinaturas,
+    bool CabecalhoReduzido,
+    double TopoDasFotos)
+{
+    /// <summary>Altura das faixas de fotos desta pagina, de cima para baixo (pontos).</summary>
+    public double BaseDasFotos => Fotos.Count == 0 ? TopoDasFotos : Fotos.Max(f => f.Espaco.Base);
+}
 
 public sealed record PlanoRelatorio(
     IReadOnlyList<PaginaRelatorio> Paginas,
@@ -99,4 +123,7 @@ public sealed record PlanoRelatorio(
 {
     public bool PodeGerar => Paginas.Count > 0 && !Avisos.Any(a => a.Gravidade == Gravidade.ImpedeGerar);
     public int TotalDeFotos => Paginas.Sum(p => p.Fotos.Count);
+
+    /// <summary>Altura do quadro das fotos (igual em todo o relatorio).</summary>
+    public double AlturaDoQuadro => Paginas.SelectMany(p => p.Fotos).Select(f => f.Quadro.Altura).DefaultIfEmpty(0).First();
 }

@@ -290,3 +290,9 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .linha-diag span { color: var(--sec); }
 .linha-diag b { text-align: right; font-weight: 600; }
 .padrao { margin-top: 14px; }
+
+/* Fonte do relatorio (Carlito, licenca OFL: fontes/OFL.txt), a mesma do PDF: a previa quebra as linhas igual. */
+@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/Carlito-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/Carlito-Bold.ttf") format("truetype"); font-weight: 700; }
+.previa-pagina { background: #fff; border: 1px solid var(--borda); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.previa-pagina svg { display: block; width: 100%; height: auto; font-family: "SPOBRAS Relatorio", Carlito, Calibri, sans-serif; }
