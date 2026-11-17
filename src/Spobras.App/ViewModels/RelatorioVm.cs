@@ -24,7 +24,22 @@ public enum QualidadeFotos
     Leve,
 }
 
+/// <summary>O que o relatorio gera: o PDF e sempre montado pelo proprio app (A4 exato), sem depender do Excel.</summary>
+public enum FormatoRelatorio
+{
+    ExcelEPdf,
+    SoPdf,
+    SoExcel,
+}
+
 public sealed record FotoRascunho(string Caminho, string Legenda, string Descricao, int Rotacao);
+
+/// <summary>Uma opcao de "fotos por pagina": com descricao, 6 e 8 ficam apagadas.</summary>
+public sealed record OpcaoCapacidade(int Numero, bool Habilitada, bool Marcada)
+{
+    public string Texto => Numero.ToString(CultureInfo.InvariantCulture);
+    public string Dica => Habilitada ? $"{Numero} por página" : "Com legenda e descrição do serviço, cabem no máximo 4 fotos por página.";
+}
 
 public sealed record RascunhoRelatorio
 {
@@ -37,6 +52,8 @@ public sealed record RascunhoRelatorio
     public string AssinaturaFiscal { get; init; } = "";
     public string AssinaturaContratada { get; init; } = "";
     public QualidadeFotos Qualidade { get; init; } = QualidadeFotos.Media;
+
+    /// <summary>Rascunhos antigos (o PDF era feito pelo Excel). Hoje vale o formato das preferencias.</summary>
     public bool GerarPdf { get; init; }
     public List<FotoRascunho> Fotos { get; init; } = [];
 }
@@ -81,9 +98,31 @@ public sealed partial class FotoVm(string caminho, Action aoMudar) : ObservableO
             ? $"Tirada em {data.ToString("dd/MM/yyyy 'às' HH:mm", Formato.PtBr)}"
             : "Sem data de captura no arquivo";
 
-    partial void OnLegendaChanged(string value) => Avisar();
+    partial void OnLegendaChanged(string value)
+    {
+        OnPropertyChanged(nameof(ContadorLegenda));
+        OnPropertyChanged(nameof(LegendaPertoDoLimite));
+        Avisar();
+    }
 
-    partial void OnDescricaoChanged(string value) => Avisar();
+    partial void OnDescricaoChanged(string value)
+    {
+        OnPropertyChanged(nameof(ContadorDescricao));
+        OnPropertyChanged(nameof(DescricaoPertoDoLimite));
+        Avisar();
+    }
+
+    partial void OnSelecionadaChanged(bool value) => AoMarcar?.Invoke();
+
+    /// <summary>Avisa a tela quando a foto e marcada ou desmarcada (contagem da barra "Mesmo texto").</summary>
+    public Action? AoMarcar { get; set; }
+
+    public static int MaximoDaLegenda => OpcoesRelatorio.MaximoDaLegenda;
+    public static int MaximoDaDescricao => OpcoesRelatorio.MaximoDaDescricao;
+    public string ContadorLegenda => $"{Legenda.Length} de {MaximoDaLegenda}";
+    public string ContadorDescricao => $"{Descricao.Length} de {MaximoDaDescricao}";
+    public bool LegendaPertoDoLimite => Legenda.Length >= MaximoDaLegenda * 9 / 10;
+    public bool DescricaoPertoDoLimite => Descricao.Length >= MaximoDaDescricao * 9 / 10;
 
     partial void OnCaminhoChanged(string value) => OnPropertyChanged(nameof(Nome));
 
@@ -143,7 +182,6 @@ public sealed partial class RelatorioVm : TelaVm
     private readonly ServicoPreferencias _preferencias;
     private readonly ServicoModelos _modelos;
     private readonly RascunhoRepositorio _rascunhos;
-    private readonly IExportadorPdf _exportadorPdf;
     private readonly IRelogio _relogio;
     private PlanoRelatorio? _plano;
     private bool _restaurando;
@@ -152,7 +190,7 @@ public sealed partial class RelatorioVm : TelaVm
 
     public RelatorioVm(
         IDialogos dialogos, IInterface @interface, ServicoOperacoes operacoes, ServicoPreferencias preferencias,
-        ServicoModelos modelos, RascunhoRepositorio rascunhos, IExportadorPdf exportadorPdf, IRelogio relogio)
+        ServicoModelos modelos, RascunhoRepositorio rascunhos, IRelogio relogio)
     {
         _dialogos = dialogos;
         _interface = @interface;
@@ -160,9 +198,9 @@ public sealed partial class RelatorioVm : TelaVm
         _preferencias = preferencias;
         _modelos = modelos;
         _rascunhos = rascunhos;
-        _exportadorPdf = exportadorPdf;
         _relogio = relogio;
         _pastaDestino = preferencias.DestinoDe(Modulo);
+        _formatoDeSaida = preferencias.Atual.FormatoDoRelatorio;
         Restaurar();
     }
 
@@ -416,8 +454,17 @@ public sealed partial class RelatorioVm : TelaVm
     [ObservableProperty]
     private QualidadeFotos _qualidade = QualidadeFotos.Media;
 
+    /// <summary>Excel e PDF, so PDF ou so Excel; lembrado para os proximos relatorios.</summary>
     [ObservableProperty]
-    private bool _gerarPdf;
+    private FormatoRelatorio _formatoDeSaida;
+
+    /// <summary>Descricao do servico para aplicar em varias fotos de uma vez.</summary>
+    [ObservableProperty]
+    private string _descricaoEmLote = "";
+
+    /// <summary>Texto da barra de Desfazer ("3 fotos tiradas do relatório"); vazio quando nao ha o que desfazer.</summary>
+    [ObservableProperty]
+    private string _textoDesfazer = "";
 
     [ObservableProperty]
     private string _pastaDestino;
@@ -442,7 +489,67 @@ public sealed partial class RelatorioVm : TelaVm
     public bool EtapaConferencia => Etapa == 2;
     public bool TemFotos => Fotos.Count > 0;
     public bool ModoDescricao => Modo == ModoLegenda.DescricaoServico;
-    public bool PdfDisponivel => _exportadorPdf.Disponivel;
+    public bool ModoSoLegenda => Modo == ModoLegenda.LegendaCurta;
+
+    /// <summary>Fotos por pagina como botoes: com descricao, 6 e 8 apagadas; marcada a que vale de fato.</summary>
+    public IReadOnlyList<OpcaoCapacidade> OpcoesDeCapacidade
+    {
+        get
+        {
+            int efetiva = Opcoes().Capacidade;
+            var validas = OpcoesRelatorio.CapacidadesDoModo(Modo);
+            return [.. OpcoesRelatorio.Capacidades.Select(n => new OpcaoCapacidade(n, validas.Contains(n), n == efetiva))];
+        }
+    }
+
+    public string TextoDoModoNaConferencia => ModoDescricao
+        ? "Texto de cada foto: legenda e descrição do serviço, por isso no máximo 4 fotos por página."
+        : "Texto de cada foto: só a legenda, até 6 fotos por página (ou 8, menores).";
+
+    /// <summary>No modo so legenda, quantas fotos tem descricao guardada (que nao sai no relatorio).</summary>
+    public int DescricoesGuardadas => ModoSoLegenda ? Fotos.Count(f => f.Descricao.Trim().Length > 0) : 0;
+
+    public string AvisoDescricoesGuardadas => DescricoesGuardadas == 0 ? "" :
+        $"{Formato.Plural(DescricoesGuardadas, "foto tem", "fotos têm")} descrição guardada. Com “Só legenda” ela não sai no relatório, mas continua aqui: volte para “Legenda e descrição” e ela reaparece.";
+
+    public int QuantasMarcadas => Fotos.Count(f => f.Selecionada);
+    public bool TemMarcadas => QuantasMarcadas > 0;
+    public string TextoMarcadas => TemMarcadas ? Formato.Plural(QuantasMarcadas, "foto marcada", "fotos marcadas") : "Nenhuma foto marcada";
+    public string TextoTirarMarcadas => $"Tirar {(QuantasMarcadas == 1 ? "a marcada" : $"as {QuantasMarcadas} marcadas")} do relatório";
+
+    /// <summary>Quantas fotos o "Mesmo texto" vai mudar: as marcadas ou, sem marcadas, as com o campo em branco.</summary>
+    private List<FotoVm> AlvoDoLote()
+    {
+        bool legenda = LegendaEmLote.Trim().Length > 0, descricao = ModoDescricao && DescricaoEmLote.Trim().Length > 0;
+        if (TemMarcadas)
+        {
+            return [.. Fotos.Where(f => f.Selecionada)];
+        }
+
+        return [.. Fotos.Where(f => (legenda && f.Legenda.Trim().Length == 0) || (descricao && f.Descricao.Trim().Length == 0)
+                                    || (!legenda && !descricao && (f.Legenda.Trim().Length == 0 || (ModoDescricao && f.Descricao.Trim().Length == 0))))];
+    }
+
+    public string TextoBotaoLote
+    {
+        get
+        {
+            if (TemMarcadas)
+            {
+                return QuantasMarcadas == 1 ? "Aplicar à marcada" : $"Aplicar às {QuantasMarcadas} marcadas";
+            }
+
+            int n = AlvoDoLote().Count;
+            string vazio = ModoDescricao ? "sem texto" : "sem legenda";
+            return n == 0 ? $"Nenhuma foto {vazio}" : n == 1 ? $"Aplicar à foto {vazio}" : $"Aplicar às {n} fotos {vazio}";
+        }
+    }
+
+    public string NotaDoLote => TemMarcadas
+        ? "Campo deixado vazio aqui não apaga nada nas fotos."
+        : "Sem nenhuma marcada, o texto vai só para as fotos com o campo em branco: nada já escrito é trocado.";
+
+    public bool TemDesfazer => TextoDesfazer.Length > 0;
     public bool TemLogo => _modelos.Logo is not null;
     public string TextoBotaoAvancar => Etapa == 0 ? "Continuar para as fotos" : "Continuar para a conferência";
 
@@ -480,6 +587,9 @@ public sealed partial class RelatorioVm : TelaVm
                 break;
             case nameof(Modo):
                 OnPropertyChanged(nameof(ModoDescricao));
+                OnPropertyChanged(nameof(ModoSoLegenda));
+                OnPropertyChanged(nameof(TextoDoModoNaConferencia));
+                AvisarLote();
                 Replanejar();
                 break;
             case nameof(Contrato):
@@ -492,8 +602,17 @@ public sealed partial class RelatorioVm : TelaVm
                 break;
             case nameof(Contratada) or nameof(Lote) or nameof(Portaria) or nameof(ProcessoSei)
                 or nameof(Objeto) or nameof(Responsavel) or nameof(Descricao) or nameof(DataTexto) or nameof(DataOsTexto) or nameof(FotosPorPagina)
-                or nameof(Assinaturas) or nameof(AssinaturaFiscal) or nameof(AssinaturaContratada) or nameof(Qualidade) or nameof(GerarPdf):
+                or nameof(Assinaturas) or nameof(AssinaturaFiscal) or nameof(AssinaturaContratada) or nameof(Qualidade):
                 Replanejar();
+                break;
+            case nameof(FormatoDeSaida):
+                _preferencias.Alterar(p => p with { FormatoDoRelatorio = FormatoDeSaida });
+                break;
+            case nameof(LegendaEmLote) or nameof(DescricaoEmLote):
+                AvisarLote();
+                break;
+            case nameof(TextoDesfazer):
+                OnPropertyChanged(nameof(TemDesfazer));
                 break;
         }
     }
@@ -555,7 +674,7 @@ public sealed partial class RelatorioVm : TelaVm
             try
             {
                 var info = Documentos.Imagens.Fotos.Ler(caminho);
-                var foto = new FotoVm(caminho, Replanejar) { Largura = info.Largura, Altura = info.Altura, CapturadaEm = info.CapturadaEm };
+                var foto = new FotoVm(caminho, Replanejar) { Largura = info.Largura, Altura = info.Altura, CapturadaEm = info.CapturadaEm, AoMarcar = AvisarLote };
                 Fotos.Add(foto);
             }
             catch (FotoInvalidaException ex)
@@ -575,11 +694,76 @@ public sealed partial class RelatorioVm : TelaVm
         GerarMiniaturas();
     }
 
+    /// <summary>Tempo que o Desfazer fica na tela depois de tirar fotos (5 s; os testes encurtam).</summary>
+    public TimeSpan TempoDoDesfazer { get; set; } = TimeSpan.FromSeconds(5);
+
+    private List<(FotoVm Foto, int Posicao)> _removidas = [];
+    private int _rodadaDoDesfazer;
+
+    /// <summary>O ✕ de uma foto: tira na hora, sem confirmar, com Desfazer. A foto nao e apagada do computador.</summary>
     [RelayCommand]
-    private void Remover(FotoVm foto)
+    private void Remover(FotoVm foto) => Tirar([foto]);
+
+    /// <summary>Tira as fotos marcadas depois de confirmar; o Desfazer devolve todas, cada uma no seu lugar.</summary>
+    [RelayCommand]
+    private void TirarMarcadas()
     {
-        Fotos.Remove(foto);
+        var marcadas = Fotos.Where(f => f.Selecionada).ToList();
+        if (marcadas.Count == 0)
+        {
+            return;
+        }
+
+        string quais = marcadas.Count == 1 ? "a foto marcada" : $"as {marcadas.Count} fotos marcadas";
+        if (!_dialogos.Confirmar("Tirar fotos do relatório", $"Tirar {quais} do relatório?\nAs fotos não são apagadas do computador. Dá para desfazer logo depois.",
+                marcadas.Count == 1 ? "Tirar a foto" : $"Tirar as {marcadas.Count}"))
+        {
+            return;
+        }
+
+        Tirar(marcadas);
+    }
+
+    private void Tirar(IReadOnlyCollection<FotoVm> fotos)
+    {
+        // Cada remocao nova substitui o Desfazer anterior (o anterior ja nao pode mais voltar).
+        _removidas = [.. fotos.Select(f => (f, Fotos.IndexOf(f))).Where(x => x.Item2 >= 0).OrderBy(x => x.Item2)];
+        foreach (var (foto, _) in _removidas)
+        {
+            foto.Selecionada = false;
+            Fotos.Remove(foto);
+        }
+
+        TextoDesfazer = _removidas.Count == 1 ? "Foto tirada do relatório" : $"{_removidas.Count} fotos tiradas do relatório";
+        int rodada = ++_rodadaDoDesfazer;
         Replanejar();
+        AvisarLote();
+        _ = EsquecerDepois(rodada);
+    }
+
+    private async Task EsquecerDepois(int rodada)
+    {
+        await Task.Delay(TempoDoDesfazer);
+        if (rodada == _rodadaDoDesfazer)
+        {
+            _removidas = [];
+            TextoDesfazer = "";
+        }
+    }
+
+    [RelayCommand]
+    private void Desfazer()
+    {
+        foreach (var (foto, posicao) in _removidas)
+        {
+            Fotos.Insert(Math.Min(posicao, Fotos.Count), foto);
+        }
+
+        _removidas = [];
+        _rodadaDoDesfazer++;
+        TextoDesfazer = "";
+        Replanejar();
+        AvisarLote();
     }
 
     [RelayCommand]
@@ -612,20 +796,79 @@ public sealed partial class RelatorioVm : TelaVm
         }
     }
 
-    /// <summary>Aplica a legenda digitada as fotos marcadas (ou, sem nenhuma marcada, as que estao sem legenda).</summary>
     [RelayCommand]
-    private void AplicarLegendaEmLote()
+    private void DesmarcarTodas()
     {
-        var alvo = Fotos.Any(f => f.Selecionada) ? Fotos.Where(f => f.Selecionada).ToList() : Fotos.Where(f => f.Legenda.Length == 0).ToList();
-        foreach (var foto in alvo)
+        foreach (var foto in Fotos)
         {
-            foto.Carregar(() => foto.Legenda = LegendaEmLote.Trim());
+            foto.Selecionada = false;
+        }
+    }
+
+    private void AvisarLote()
+    {
+        OnPropertyChanged(nameof(QuantasMarcadas));
+        OnPropertyChanged(nameof(TemMarcadas));
+        OnPropertyChanged(nameof(TextoMarcadas));
+        OnPropertyChanged(nameof(TextoTirarMarcadas));
+        OnPropertyChanged(nameof(TextoBotaoLote));
+        OnPropertyChanged(nameof(NotaDoLote));
+    }
+
+    /// <summary>
+    /// Mesmo texto em varias fotos: legenda e, no modo com descricao, a descricao. Com fotos marcadas, vai para elas;
+    /// sem nenhuma marcada, so para as fotos com o campo em branco. Campo deixado vazio nao apaga nada.
+    /// </summary>
+    [RelayCommand]
+    private void AplicarTextoEmLote()
+    {
+        string legenda = LegendaEmLote.Trim(), descricao = ModoDescricao ? DescricaoEmLote.Trim() : "";
+        if (legenda.Length == 0 && descricao.Length == 0)
+        {
+            Resultado = ModoDescricao ? "Escreva a legenda ou a descrição para aplicar." : "Escreva a legenda para aplicar.";
+            ResultadoComFalha = true;
+            return;
+        }
+
+        bool soEmBranco = !TemMarcadas;
+        int mudaram = 0;
+        foreach (var foto in AlvoDoLote())
+        {
+            bool mudou = false;
+            foto.Carregar(() =>
+            {
+                if (legenda.Length > 0 && (!soEmBranco || foto.Legenda.Trim().Length == 0) && foto.Legenda != legenda)
+                {
+                    foto.Legenda = legenda;
+                    mudou = true;
+                }
+
+                if (descricao.Length > 0 && (!soEmBranco || foto.Descricao.Trim().Length == 0) && foto.Descricao != descricao)
+                {
+                    foto.Descricao = descricao;
+                    mudou = true;
+                }
+            });
+            mudaram += mudou ? 1 : 0;
         }
 
         Replanejar();
-        Resultado = $"Legenda aplicada a {Formato.Plural(alvo.Count, "foto", "fotos")}.";
+        AvisarLote();
+        Resultado = mudaram == 0 ? "Nenhuma foto mudou: elas já tinham esse texto." : $"Texto aplicado a {Formato.Plural(mudaram, "foto", "fotos")}.";
         ResultadoComFalha = false;
     }
+
+    [RelayCommand]
+    private void EscolherCapacidade(OpcaoCapacidade opcao)
+    {
+        if (opcao.Habilitada)
+        {
+            FotosPorPagina = opcao.Numero;
+        }
+    }
+
+    [RelayCommand]
+    private void IrParaFotos() => Etapa = 1;
 
     /// <summary>Foto que mudou de lugar: o usuario aponta onde ela esta agora.</summary>
     [RelayCommand]
@@ -683,9 +926,12 @@ public sealed partial class RelatorioVm : TelaVm
             return;
         }
 
-        string xlsx = Path.Combine(PastaDestino, Spobras.Core.Nomes.NomeArquivo.Livre(nome + ".xlsx", n => File.Exists(Path.Combine(PastaDestino, n))));
+        // O mesmo nome para o Excel e o PDF; se um dos dois ja existir, os dois ganham o mesmo numero.
+        bool querExcel = FormatoDeSaida != FormatoRelatorio.SoPdf, querPdf = FormatoDeSaida != FormatoRelatorio.SoExcel;
+        string livre = Spobras.Core.Nomes.NomeArquivo.Livre(nome + ".xlsx", n =>
+            (querExcel && File.Exists(Path.Combine(PastaDestino, n))) || (querPdf && File.Exists(Path.Combine(PastaDestino, Path.ChangeExtension(n, ".pdf")))));
+        string xlsx = Path.Combine(PastaDestino, livre);
         string pdf = Path.ChangeExtension(xlsx, ".pdf");
-        bool querPdf = GerarPdf && _exportadorPdf.Disponivel;
         string? logo = _modelos.Logo;
         var criados = new List<string>();
         string? erro = null;
@@ -694,23 +940,24 @@ public sealed partial class RelatorioVm : TelaVm
         GerarCommand.NotifyCanExecuteChanged();
         try
         {
-            var tarefa = _operacoes.Fila.Enfileirar($"Relatório fotográfico: {Path.GetFileName(xlsx)}", (progresso, cancelamento) =>
+            var tarefa = _operacoes.Fila.Enfileirar($"Relatório fotográfico: {Path.GetFileNameWithoutExtension(xlsx)}", (progresso, cancelamento) =>
             {
                 try
                 {
                     int total = plano.TotalDeFotos;
-                    GeradorRelatorio.Gerar(plano, xlsx, logo, new Progresso(n => progresso.Report(new ProgressoTarefa(n, total, "Preparando as fotos"))), cancelamento);
-                    criados.Add(xlsx);
+                    // As fotos sao preparadas uma vez so e servem ao Excel e ao PDF.
+                    var preparo = new PreparoDeFotos();
+                    var passo = new Progresso(n => progresso.Report(new ProgressoTarefa(n, total, "Preparando as fotos")));
+                    if (querExcel)
+                    {
+                        GeradorRelatorio.Gerar(plano, xlsx, logo, passo, cancelamento, preparo);
+                        criados.Add(xlsx);
+                    }
+
                     if (querPdf)
                     {
-                        // Chamada ao Excel: nao da para cancelar no meio, so esperar terminar.
-                        progresso.Report(new ProgressoTarefa(total, total, "Aguardando o Excel gerar o PDF"));
-                        if (File.Exists(pdf))
-                        {
-                            pdf = Path.Combine(PastaDestino, Spobras.Core.Nomes.NomeArquivo.Livre(Path.GetFileName(pdf), n => File.Exists(Path.Combine(PastaDestino, n))));
-                        }
-
-                        _exportadorPdf.Exportar(xlsx, pdf);
+                        progresso.Report(new ProgressoTarefa(total, total, "Montando o PDF"));
+                        GeradorRelatorioPdf.Gerar(plano, pdf, logo, querExcel ? null : passo, cancelamento, preparo);
                         criados.Add(pdf);
                     }
                 }
@@ -718,8 +965,7 @@ public sealed partial class RelatorioVm : TelaVm
                 {
                     erro = "A geração foi cancelada. Nenhum arquivo incompleto ficou na pasta.";
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or FotoInvalidaException
-                                               or System.Runtime.InteropServices.COMException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or FotoInvalidaException)
                 {
                     erro = ex.Message;
                 }
@@ -742,12 +988,14 @@ public sealed partial class RelatorioVm : TelaVm
         }
 
         ResultadoComFalha = erro is not null;
-        Resultado = criados.Count switch
+        string paginas = $"{Formato.Plural(plano.Paginas.Count, "página", "páginas")}, {Formato.Plural(plano.TotalDeFotos, "foto", "fotos")}";
+        Resultado = (criados.Count, erro) switch
         {
-            0 => "O relatório não foi gerado: " + erro,
-            1 when erro is not null => $"O Excel foi gerado ({Path.GetFileName(xlsx)}), mas o PDF não: {erro}",
-            1 => $"Relatório gerado: {Path.GetFileName(xlsx)} ({Formato.Plural(plano.Paginas.Count, "página", "páginas")}, {Formato.Plural(plano.TotalDeFotos, "foto", "fotos")}).",
-            _ => $"Relatório gerado em Excel e PDF: {Path.GetFileNameWithoutExtension(xlsx)} ({Formato.Plural(plano.Paginas.Count, "página", "páginas")}).",
+            (0, _) => "O relatório não foi gerado: " + erro,
+            (1, not null) => $"O Excel foi gerado ({Path.GetFileName(xlsx)}), mas o PDF não: {erro}",
+            (1, null) when querPdf => $"Relatório gerado em PDF: {Path.GetFileName(pdf)} ({paginas}).",
+            (1, null) => $"Relatório gerado em Excel: {Path.GetFileName(xlsx)} ({paginas}).",
+            _ => $"Relatório gerado em Excel e PDF: {Path.GetFileNameWithoutExtension(xlsx)} ({paginas}).",
         };
     }
 
@@ -1033,11 +1281,6 @@ public sealed partial class RelatorioVm : TelaVm
             Avisos.Add(new AvisoVm(aviso));
         }
 
-        if (GerarPdf && !_exportadorPdf.Disponivel)
-        {
-            Avisos.Add(new AvisoVm(Gravidade.PrecisaConferir, "O PDF é feito pelo Excel, que não foi encontrado neste computador. Será gerado só o arquivo Excel."));
-        }
-
         bool erroDeData = Avisos.Any(a => a.Impede && a.Texto.Contains("data", StringComparison.OrdinalIgnoreCase) && a.Texto.Contains("não existe"));
         if (erroDeData || faltando > 0)
         {
@@ -1046,8 +1289,12 @@ public sealed partial class RelatorioVm : TelaVm
 
         MontarPaginas();
 
+        OnPropertyChanged(nameof(OpcoesDeCapacidade));
+        OnPropertyChanged(nameof(DescricoesGuardadas));
+        OnPropertyChanged(nameof(AvisoDescricoesGuardadas));
+        OnPropertyChanged(nameof(TextoBotaoLote));
         Resumo = total == 0
-            ? "Escolha as fotos na etapa Fotos e legendas."
+            ? "Escolha as fotos na etapa Fotos e textos."
             : $"{Formato.Plural(total, "foto", "fotos")} em {Formato.Plural(_plano.Paginas.Count, "página", "páginas")}";
         GerarCommand.NotifyCanExecuteChanged();
         SalvarRascunho();
@@ -1172,7 +1419,6 @@ public sealed partial class RelatorioVm : TelaVm
         AssinaturaFiscal = AssinaturaFiscal,
         AssinaturaContratada = AssinaturaContratada,
         Qualidade = Qualidade,
-        GerarPdf = GerarPdf,
         Fotos = [.. Fotos.Select(f => new FotoRascunho(f.Caminho, f.Legenda, f.Descricao, f.Rotacao))],
     }, _relogio.Agora);
 
@@ -1201,10 +1447,9 @@ public sealed partial class RelatorioVm : TelaVm
         AssinaturaFiscal = r.AssinaturaFiscal;
         AssinaturaContratada = r.AssinaturaContratada;
         Qualidade = r.Qualidade;
-        GerarPdf = r.GerarPdf;
         foreach (var f in r.Fotos)
         {
-            var foto = new FotoVm(f.Caminho, Replanejar);
+            var foto = new FotoVm(f.Caminho, Replanejar) { AoMarcar = AvisarLote };
             foto.Carregar(() =>
             {
                 foto.Legenda = f.Legenda;

@@ -13,6 +13,22 @@ public partial class RelatorioTela : UserControl
     public RelatorioTela()
     {
         InitializeComponent();
+        DataContextChanged += (_, e) =>
+        {
+            if (e.OldValue is RelatorioVm antigo) antigo.PropertyChanged -= AoMudarVm;
+            if (e.NewValue is RelatorioVm novo) novo.PropertyChanged += AoMudarVm;
+        };
+    }
+
+    /// <summary>A faixa vermelha do Desfazer encolhe no tempo que ele fica na tela (recomeca a cada remocao).</summary>
+    private void AoMudarVm(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(RelatorioVm.TextoDesfazer) || sender is not RelatorioVm { TemDesfazer: true } vm) return;
+        if (TempoDesfazer.RenderTransform is ScaleTransform escala)
+        {
+            escala.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(1, 0, new Duration(vm.TempoDoDesfazer)));
+        }
     }
 
     private (Popup Popup, ListBox Lista) Sugestoes(TextBox campo) => campo == SugestaoUnidade

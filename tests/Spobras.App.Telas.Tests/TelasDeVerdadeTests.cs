@@ -188,6 +188,21 @@ public class TelasDeVerdadeTests
             relatorio.Fotos[1].Legenda = "Fachada principal";
             Esperar(() => relatorio.Fotos.All(f => f.Miniatura is not null));
             Fotografar(janela, saida, "24-relatorio-fotos");
+            // Tela 2 nova: modo com descricao, fotos marcadas, mesmo texto e o Desfazer
+            relatorio.Modo = Spobras.Core.Relatorio.ModoLegenda.DescricaoServico;
+            relatorio.Fotos[0].Descricao = "Concreto usinado fck 30 MPa lançado nos blocos B1 a B4, com adensamento mecânico e cura úmida por sete dias.";
+            relatorio.Fotos[1].Selecionada = true;
+            relatorio.Fotos[2].Selecionada = true;
+            relatorio.LegendaEmLote = "Armação do bloco de fundação";
+            relatorio.DescricaoEmLote = "Aço CA-50, cobrimento conferido e espaçadores posicionados antes da concretagem.";
+            Fotografar(janela, saida, "24b-relatorio-fotos-descricao-marcadas");
+            relatorio.DesmarcarTodasCommand.Execute(null);
+            relatorio.TempoDoDesfazer = TimeSpan.FromMinutes(5);
+            relatorio.RemoverCommand.Execute(relatorio.Fotos[^1]);
+            Fotografar(janela, saida, "24c-relatorio-desfazer");
+            relatorio.DesfazerCommand.Execute(null);
+            relatorio.Modo = Spobras.Core.Relatorio.ModoLegenda.LegendaCurta;
+            Fotografar(janela, saida, "24d-relatorio-descricoes-guardadas");
             relatorio.Etapa = 2;
             Fotografar(janela, saida, "25-relatorio-conferencia");
             relatorio.Modo = Spobras.Core.Relatorio.ModoLegenda.DescricaoServico;

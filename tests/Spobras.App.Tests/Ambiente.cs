@@ -127,7 +127,7 @@ public abstract class ComApp : IDisposable
     protected ServicoModelos Modelos => new(Em("dados"));
     protected ExportadorFalso Exportador { get; } = new();
     protected RelatorioVm NovoRelatorio() =>
-        new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio);
+        new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Relogio);
     protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
     protected FerramentasVm NovoFerramentas() => new(Dialogos, Operacoes, Preferencias, new Spobras.Dados.Busca.IndiceSqlite(Banco), Exportador, Relogio);
     protected ServicoModelosExcel ModelosExcel => new(Em("dados"), new ConfigRepositorio(Banco));

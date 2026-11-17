@@ -24,6 +24,9 @@ public sealed record Preferencias
     /// <summary>Quanto da largura a ficha da obra ocupa na Base de dados (0,6 = 60%), como o usuario deixou.</summary>
     public double ProporcaoDaFichaBase { get; init; } = 0.6;
 
+    /// <summary>Formato do relatorio fotografico (Excel e PDF, so PDF ou so Excel), como o usuario escolheu da ultima vez.</summary>
+    public Spobras.App.ViewModels.FormatoRelatorio FormatoDoRelatorio { get; init; } = Spobras.App.ViewModels.FormatoRelatorio.ExcelEPdf;
+
     /// <summary>Configuracoes da base: onde estao as tabelas e colunas, se a planilha mudou de estrutura.</summary>
     public Spobras.Core.Base.MapeamentoMestra Mapeamento { get; init; } = new();
 

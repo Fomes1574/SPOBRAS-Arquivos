@@ -63,14 +63,19 @@ public class RelatorioVmTests : ComApp
         await vm.Miniaturas; // miniaturas em segundo plano
         Assert.All(vm.Fotos, f => Assert.NotNull(f.Miniatura));
 
-        vm.GerarPdf = true;
+        Assert.Equal(FormatoRelatorio.ExcelEPdf, vm.FormatoDeSaida); // padrao
         Assert.True(vm.GerarCommand.CanExecute(null));
         await vm.GerarCommand.ExecuteAsync(null);
 
         string xlsx = Em("Downloads", "Relatório Fotográfico - EMEF Exemplo - 2026-11-10.xlsx");
         Assert.True(File.Exists(xlsx));
         Assert.True(File.Exists(Path.ChangeExtension(xlsx, ".pdf")));
-        Assert.Equal((xlsx, Path.ChangeExtension(xlsx, ".pdf")), Assert.Single(Exportador.Chamadas));
+        Assert.Empty(Exportador.Chamadas); // o PDF e montado pelo app, sem o Excel
+        using (var pdfGerado = PdfReader.Open(Path.ChangeExtension(xlsx, ".pdf"), PdfDocumentOpenMode.Import))
+        {
+            Assert.Equal(2, pdfGerado.PageCount);
+            Assert.Equal(595, (int)pdfGerado.Pages[0].Width.Point); // A4
+        }
         Assert.StartsWith("Relatório gerado em Excel e PDF", vm.Resultado);
         using (var zip = ZipFile.OpenRead(xlsx))
         {
@@ -127,11 +132,11 @@ public class RelatorioVmTests : ComApp
 
         vm.Fotos[2].Legenda = "Já tinha";
         vm.LegendaEmLote = "Vista geral";
-        vm.AplicarLegendaEmLoteCommand.Execute(null); // sem selecao: so as vazias
+        vm.AplicarTextoEmLoteCommand.Execute(null); // sem selecao: so as vazias
         Assert.Equal(["Vista geral", "Vista geral", "Já tinha", "Vista geral", "Vista geral"], vm.Fotos.Select(f => f.Legenda));
         vm.Fotos[2].Selecionada = true;
         vm.LegendaEmLote = "Trocada";
-        vm.AplicarLegendaEmLoteCommand.Execute(null); // com selecao: so as marcadas
+        vm.AplicarTextoEmLoteCommand.Execute(null); // com selecao: so as marcadas
         Assert.Equal("Trocada", vm.Fotos[2].Legenda);
         Assert.Equal("Vista geral", vm.Fotos[0].Legenda);
 
@@ -241,25 +246,122 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
-    public async Task Sem_excel_gera_so_a_planilha_e_falha_do_pdf_e_explicada()
+    public async Task So_pdf_e_so_excel_sem_precisar_do_excel_e_a_escolha_fica_lembrada()
     {
-        Exportador.Disponivel = false;
+        Exportador.Disponivel = false; // o PDF nao depende do Excel
         var vm = NovoRelatorio();
         vm.Adicionar(CriarFotos(1));
         await vm.Miniaturas;
-        vm.GerarPdf = true;
-        Assert.False(vm.PdfDisponivel);
-        Assert.Contains(vm.Avisos, a => a.Conferir && a.Texto.Contains("Será gerado só o arquivo Excel"));
-        await vm.GerarCommand.ExecuteAsync(null);
-        Assert.Empty(Exportador.Chamadas);
-        Assert.StartsWith("Relatório gerado: Relatório Fotográfico.xlsx (1 página, 1 foto).", vm.Resultado);
+        Assert.DoesNotContain(vm.Avisos, a => a.Texto.Contains("Excel"));
 
-        Exportador.Disponivel = true;
-        Exportador.Falhar = true;
+        vm.FormatoDeSaida = FormatoRelatorio.SoPdf;
         await vm.GerarCommand.ExecuteAsync(null);
-        Assert.True(vm.ResultadoComFalha);
-        Assert.Contains("mas o PDF não: O Excel não respondeu.", vm.Resultado);
+        Assert.True(File.Exists(Em("Downloads", "Relatório Fotográfico.pdf")));
+        Assert.False(File.Exists(Em("Downloads", "Relatório Fotográfico.xlsx")));
+        Assert.Equal("Relatório gerado em PDF: Relatório Fotográfico.pdf (1 página, 1 foto).", vm.Resultado);
+
+        vm.FormatoDeSaida = FormatoRelatorio.SoExcel;
+        await vm.GerarCommand.ExecuteAsync(null);
+        Assert.True(File.Exists(Em("Downloads", "Relatório Fotográfico.xlsx")));
+        Assert.Equal("Relatório gerado em Excel: Relatório Fotográfico.xlsx (1 página, 1 foto).", vm.Resultado);
+
+        // Excel e PDF: os dois com o mesmo numero, mesmo que so um deles ja exista
+        vm.FormatoDeSaida = FormatoRelatorio.ExcelEPdf;
+        await vm.GerarCommand.ExecuteAsync(null);
         Assert.True(File.Exists(Em("Downloads", "Relatório Fotográfico (2).xlsx")));
+        Assert.True(File.Exists(Em("Downloads", "Relatório Fotográfico (2).pdf")));
+        Assert.Empty(Exportador.Chamadas);
+
+        vm.FormatoDeSaida = FormatoRelatorio.SoPdf;
+        Assert.Equal(FormatoRelatorio.SoPdf, NovoRelatorio().FormatoDeSaida); // lembrado para o proximo
+    }
+
+    [Fact]
+    public async Task Tirar_uma_ou_as_marcadas_com_desfazer_cada_uma_volta_ao_seu_lugar()
+    {
+        var vm = NovoRelatorio();
+        vm.TempoDoDesfazer = TimeSpan.FromMinutes(5);
+        vm.Adicionar(CriarFotos(6));
+        await vm.Miniaturas;
+        var antes = vm.Fotos.ToList();
+        antes[1].Legenda = "segunda";
+
+        // o X de uma foto: tira na hora, sem perguntar, com Desfazer
+        vm.RemoverCommand.Execute(antes[1]);
+        Assert.Equal(5, vm.Fotos.Count);
+        Assert.Equal("Foto tirada do relatório", vm.TextoDesfazer);
+        Assert.True(vm.TemDesfazer);
+        vm.DesfazerCommand.Execute(null);
+        Assert.Equal(antes, vm.Fotos);
+        Assert.Equal("segunda", vm.Fotos[1].Legenda);
+        Assert.False(vm.TemDesfazer);
+
+        // as marcadas: pergunta antes; "Manter" nao tira nada
+        antes[0].Selecionada = antes[3].Selecionada = antes[5].Selecionada = true;
+        Assert.Equal("3 fotos marcadas", vm.TextoMarcadas);
+        Assert.Equal("Tirar as 3 marcadas do relatório", vm.TextoTirarMarcadas);
+        Dialogos.Confirmacoes.Enqueue(false);
+        vm.TirarMarcadasCommand.Execute(null);
+        Assert.Equal(6, vm.Fotos.Count);
+        Dialogos.Confirmacoes.Enqueue(true);
+        vm.TirarMarcadasCommand.Execute(null);
+        Assert.Equal([antes[1], antes[2], antes[4]], vm.Fotos);
+        Assert.Equal("3 fotos tiradas do relatório", vm.TextoDesfazer);
+        Assert.False(vm.TemMarcadas);
+        vm.DesfazerCommand.Execute(null);
+        Assert.Equal(antes, vm.Fotos);
+
+        // o tempo acaba: o Desfazer some e as fotos ficam fora (os arquivos continuam no disco)
+        vm.TempoDoDesfazer = TimeSpan.FromMilliseconds(50);
+        vm.RemoverCommand.Execute(antes[2]);
+        await Task.Delay(400);
+        Assert.False(vm.TemDesfazer);
+        Assert.Equal(5, vm.Fotos.Count);
+        Assert.True(File.Exists(antes[2].Caminho));
+    }
+
+    [Fact]
+    public async Task Mesmo_texto_em_varias_e_modo_com_descricao_sem_perder_o_que_foi_escrito()
+    {
+        var vm = NovoRelatorio();
+        vm.Adicionar(CriarFotos(4));
+        await vm.Miniaturas;
+        vm.Fotos[1].Legenda = "Já tinha";
+
+        // sem marcadas: so as fotos com o campo em branco; o botao diz quantas antes
+        vm.LegendaEmLote = "Vista geral";
+        Assert.Equal("Aplicar às 3 fotos sem legenda", vm.TextoBotaoLote);
+        vm.AplicarTextoEmLoteCommand.Execute(null);
+        Assert.Equal(["Vista geral", "Já tinha", "Vista geral", "Vista geral"], vm.Fotos.Select(f => f.Legenda));
+
+        // modo com descricao: a barra aplica legenda e descricao; campo vazio nao apaga
+        vm.Modo = ModoLegenda.DescricaoServico;
+        Assert.Equal([1, 2, 4], vm.OpcoesDeCapacidade.Where(o => o.Habilitada).Select(o => o.Numero));
+        Assert.Equal(4, vm.OpcoesDeCapacidade.Single(o => o.Marcada).Numero); // 6 vira 4
+        vm.Fotos[0].Selecionada = vm.Fotos[2].Selecionada = true;
+        vm.LegendaEmLote = "";
+        vm.DescricaoEmLote = "Pintura das paredes com tinta acrílica.";
+        Assert.Equal("Aplicar às 2 marcadas", vm.TextoBotaoLote);
+        vm.AplicarTextoEmLoteCommand.Execute(null);
+        Assert.Equal(["Pintura das paredes com tinta acrílica.", "", "Pintura das paredes com tinta acrílica.", ""], vm.Fotos.Select(f => f.Descricao));
+        Assert.Equal("Vista geral", vm.Fotos[0].Legenda);
+        Assert.Contains(vm.Avisos, a => a.Texto == "2 fotos estão sem descrição do serviço: 02 e 04.");
+
+        // volta para so legenda: as descricoes ficam guardadas e o app avisa
+        vm.Modo = ModoLegenda.LegendaCurta;
+        Assert.Equal(2, vm.DescricoesGuardadas);
+        Assert.StartsWith("2 fotos têm descrição guardada.", vm.AvisoDescricoesGuardadas);
+        Assert.Equal(6, vm.OpcoesDeCapacidade.Single(o => o.Marcada).Numero); // as 6 de antes voltam
+        vm.EscolherCapacidadeCommand.Execute(vm.OpcoesDeCapacidade.Single(o => o.Numero == 8));
+        Assert.Equal(8, vm.FotosPorPagina);
+        vm.Modo = ModoLegenda.DescricaoServico;
+        vm.EscolherCapacidadeCommand.Execute(vm.OpcoesDeCapacidade.Single(o => o.Numero == 6)); // apagada: nada muda
+        Assert.Equal(8, vm.FotosPorPagina);
+        Assert.Equal("Pintura das paredes com tinta acrílica.", vm.Fotos[0].Descricao);
+        Assert.Equal(100, FotoVm.MaximoDaLegenda);
+        vm.Fotos[3].Legenda = new string('x', 95);
+        Assert.True(vm.Fotos[3].LegendaPertoDoLimite);
+        Assert.Equal("95 de 100", vm.Fotos[3].ContadorLegenda);
     }
 
     [Fact]

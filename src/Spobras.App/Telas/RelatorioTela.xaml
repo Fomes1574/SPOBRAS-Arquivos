@@ -83,7 +83,7 @@
                     </Style>
                 </Button.Style>
             </Button>
-            <Button Content="2  Fotos e legendas" Command="{Binding IrParaCommand}" CommandParameter="1">
+            <Button Content="2  Fotos e textos" Command="{Binding IrParaCommand}" CommandParameter="1">
                 <Button.Style>
                     <Style TargetType="Button" BasedOn="{StaticResource Etapa}">
                         <Style.Triggers>
@@ -269,96 +269,267 @@
             </ScrollViewer>
         </Border>
 
-        <!-- ============ Etapa 2: Fotos e legendas ============ -->
-        <Border Grid.Row="2" Style="{StaticResource Painel}" Margin="0,16,0,0" Visibility="{Binding EtapaFotos, Converter={StaticResource Visivel}}">
-            <DockPanel>
-                <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
-                    <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar fotos" Margin="0,0,8,8" Command="{Binding AdicionarFotosCommand}" />
-                    <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar uma pasta" Margin="0,0,24,8" Command="{Binding AdicionarPastaCommand}" />
-                    <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pelo nome" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorNomeCommand}"
-                            Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
-                    <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pela data da foto" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorDataCommand}"
-                            ToolTip="Usa a data em que a foto foi tirada; fotos sem essa data vão para o fim"
-                            Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
-                </WrapPanel>
-
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}">
-                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Marcar / desmarcar todas" MinHeight="44" Margin="8,0,0,0" Command="{Binding SelecionarTodasCommand}" />
-                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Aplicar às marcadas (ou às sem legenda)" MinHeight="44" Margin="8,0,0,0" Command="{Binding AplicarLegendaEmLoteCommand}" />
-                    <TextBlock DockPanel.Dock="Left" Text="Mesma legenda para várias:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold" />
-                    <TextBox Text="{Binding LegendaEmLote, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" AutomationProperties.Name="Legenda para várias fotos" />
-                </DockPanel>
-
-                <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Problemas}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
-
-                <Grid>
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding TemFotos, Converter={StaticResource VisivelSeNao}}">
-                        <TextBlock Text="Arraste as fotos ou uma pasta para cá" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                        <TextBlock Text="ou use os botões acima. Aceita JPG, PNG, BMP, WEBP e GIF." Style="{StaticResource Texto2}" HorizontalAlignment="Center" Margin="0,4,0,0" />
-                    </StackPanel>
-                    <ListBox x:Name="ListaFotos" ItemsSource="{Binding Fotos}" Style="{StaticResource ListaSimples}"
-                             PreviewMouseLeftButtonDown="IniciarArrasteFoto" PreviewMouseMove="ArrastarFoto"
-                             DragOver="MarcarDestinoFoto" Drop="SoltarFoto" DragLeave="SairArrasteFoto">
-                        <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="BorderBrush" Value="Transparent" />
-                                <Setter Property="BorderThickness" Value="0,2,0,2" />
-                            </Style>
-                        </ListBox.ItemContainerStyle>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="32" />
-                                        <ColumnDefinition Width="132" />
-                                        <ColumnDefinition Width="190" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <CheckBox IsChecked="{Binding Selecionada}" VerticalAlignment="Center" AutomationProperties.Name="Marcar esta foto" />
-                                    <Border Grid.Column="1" Width="120" Height="90" Background="{StaticResource Fundo}" BorderBrush="{StaticResource Borda}" BorderThickness="1" HorizontalAlignment="Left">
-                                        <Image Source="{Binding Miniatura, Converter={StaticResource Imagem}, ConverterParameter=240}" Stretch="Uniform" />
+        <!-- ============ Etapa 2: Fotos e textos ============ -->
+        <DockPanel Grid.Row="2" Margin="0,16,0,0" Visibility="{Binding EtapaFotos, Converter={StaticResource Visivel}}">
+            <!-- O que vai embaixo de cada foto: escolhido antes de escrever -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="O que vai escrito embaixo de cada foto" Style="{StaticResource TituloPainel}" />
+                    <TextBlock Text="Escolha antes de escrever: muda os campos de cada foto e quantas fotos cabem por página. Pode trocar depois sem perder nada do que escreveu."
+                               Style="{StaticResource Texto2}" TextWrapping="Wrap" Margin="0,2,0,10" />
+                    <UniformGrid Columns="2">
+                        <RadioButton x:Name="ModoLegenda" Style="{StaticResource CartaoOpcao}" Margin="0,0,6,0" GroupName="ModoTexto"
+                                     AutomationProperties.Name="Só legenda, até 6 fotos por página"
+                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=LegendaCurta}">
+                            <DockPanel>
+                                <Viewbox DockPanel.Dock="Left" Width="34" Height="44" Margin="0,0,12,0" VerticalAlignment="Top">
+                                    <Canvas Width="34" Height="44">
+                                        <Rectangle Width="34" Height="44" Fill="White" Stroke="#8F8F8A" StrokeThickness="1" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="4" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="6" Canvas.Top="11.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="4" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="20" Canvas.Top="11.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="16.5" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="6" Canvas.Top="24" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="16.5" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="20" Canvas.Top="24" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="29" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="6" Canvas.Top="36.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="29" Width="12" Height="6.5" Fill="#9FB3C2" /><Rectangle Canvas.Left="20" Canvas.Top="36.5" Width="8" Height="1.6" Fill="#231F20" />
+                                    </Canvas>
+                                </Viewbox>
+                                <StackPanel>
+                                    <TextBlock Text="Só legenda" FontWeight="Bold" />
+                                    <Border Background="#EDEDEA" CornerRadius="5" Padding="8,2" Margin="0,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="até 6 fotos por página" FontSize="13" FontWeight="SemiBold" Foreground="#3D3D42" />
                                     </Border>
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBlock Text="{Binding Rotulo}" FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Nome}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Caminho}" />
-                                        <TextBlock x:Name="Detalhe" Text="{Binding Detalhe}" Style="{StaticResource Texto2}" FontSize="13" />
-                                        <Button Style="{StaticResource BotaoLinha}" Content="Localizar…" HorizontalAlignment="Left" Margin="0,4,0,0"
-                                                Command="{Binding DataContext.LocalizarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
-                                                Visibility="{Binding Faltando, Converter={StaticResource Visivel}}" />
+                                    <TextBlock Text="Uma frase curta em negrito embaixo da foto. Ex.: “Concretagem do bloco B1”." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                        </RadioButton>
+                        <RadioButton x:Name="ModoDescricao" Style="{StaticResource CartaoOpcao}" Margin="6,0,0,0" GroupName="ModoTexto"
+                                     AutomationProperties.Name="Legenda e descrição do serviço, até 4 fotos por página"
+                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=DescricaoServico}">
+                            <DockPanel>
+                                <Viewbox DockPanel.Dock="Left" Width="34" Height="44" Margin="0,0,12,0" VerticalAlignment="Top">
+                                    <Canvas Width="34" Height="44">
+                                        <Rectangle Width="34" Height="44" Fill="White" Stroke="#8F8F8A" StrokeThickness="1" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="4" Width="12" Height="8" Fill="#9FB3C2" /><Rectangle Canvas.Left="6" Canvas.Top="13.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="16.5" Width="12" Height="1" Fill="#8F8F8A" /><Rectangle Canvas.Left="4" Canvas.Top="18.6" Width="12" Height="1" Fill="#8F8F8A" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="4" Width="12" Height="8" Fill="#9FB3C2" /><Rectangle Canvas.Left="20" Canvas.Top="13.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="16.5" Width="12" Height="1" Fill="#8F8F8A" /><Rectangle Canvas.Left="18" Canvas.Top="18.6" Width="12" Height="1" Fill="#8F8F8A" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="23" Width="12" Height="8" Fill="#9FB3C2" /><Rectangle Canvas.Left="6" Canvas.Top="32.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="4" Canvas.Top="35.5" Width="12" Height="1" Fill="#8F8F8A" /><Rectangle Canvas.Left="4" Canvas.Top="37.6" Width="12" Height="1" Fill="#8F8F8A" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="23" Width="12" Height="8" Fill="#9FB3C2" /><Rectangle Canvas.Left="20" Canvas.Top="32.5" Width="8" Height="1.6" Fill="#231F20" />
+                                        <Rectangle Canvas.Left="18" Canvas.Top="35.5" Width="12" Height="1" Fill="#8F8F8A" /><Rectangle Canvas.Left="18" Canvas.Top="37.6" Width="12" Height="1" Fill="#8F8F8A" />
+                                    </Canvas>
+                                </Viewbox>
+                                <StackPanel>
+                                    <TextBlock Text="Legenda e descrição do serviço" FontWeight="Bold" />
+                                    <Border Background="#231F20" CornerRadius="5" Padding="8,2" Margin="0,4" HorizontalAlignment="Left">
+                                        <TextBlock Text="até 4 fotos por página" FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                                    </Border>
+                                    <TextBlock Text="A legenda em negrito e, embaixo, um texto mais detalhado do serviço feito. Precisa de mais espaço, por isso cabem menos fotos."
+                                               Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                        </RadioButton>
+                    </UniformGrid>
+                    <Border Background="{StaticResource LaranjaClaro}" CornerRadius="8" Padding="12,8" Margin="0,10,0,0"
+                            Visibility="{Binding AvisoDescricoesGuardadas, Converter={StaticResource VisivelSe}}">
+                        <TextBlock Text="{Binding AvisoDescricoesGuardadas}" TextWrapping="Wrap" Foreground="#5E2E00" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Painel}">
+                <DockPanel>
+                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                        <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar fotos" Margin="0,0,8,8" Command="{Binding AdicionarFotosCommand}" />
+                        <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar uma pasta" Margin="0,0,24,8" Command="{Binding AdicionarPastaCommand}" />
+                        <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pelo nome" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorNomeCommand}"
+                                Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
+                        <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pela data da foto" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorDataCommand}"
+                                ToolTip="Usa a data em que a foto foi tirada; fotos sem essa data vão para o fim"
+                                Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
+                    </WrapPanel>
+
+                    <!-- Marcadas e mesmo texto para varias fotos -->
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,12" Margin="0,0,0,10"
+                            Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}">
+                        <StackPanel>
+                            <DockPanel Margin="0,0,0,10">
+                                <Button x:Name="TirarMarcadas" DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" MinHeight="40" Padding="14,0"
+                                        Content="{Binding TextoTirarMarcadas}" Command="{Binding TirarMarcadasCommand}" BorderBrush="{StaticResource VermelhoEscuro}"
+                                        Foreground="{StaticResource VermelhoEscuro}" Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}"
+                                        ToolTip="As fotos não são apagadas do computador; dá para desfazer logo depois" />
+                                <Border x:Name="SeloMarcadas" CornerRadius="6" Padding="10,4" Margin="0,0,8,0" VerticalAlignment="Center">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="#E2E2DF" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding TemMarcadas}" Value="True"><Setter Property="Background" Value="{StaticResource Azul}" /></DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="{Binding TextoMarcadas}" FontWeight="Bold" FontSize="13">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="#3D3D42" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding TemMarcadas}" Value="True"><Setter Property="Foreground" Value="White" /></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Border>
+                                <Button Style="{StaticResource BotaoLinha}" Content="Marcar todas" MinHeight="40" Margin="0,0,8,0" Command="{Binding SelecionarTodasCommand}" />
+                                <Button Style="{StaticResource BotaoLinha}" Content="Desmarcar todas" MinHeight="40" Margin="0,0,8,0" Command="{Binding DesmarcarTodasCommand}"
+                                        Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}" />
+                                <TextBlock Text="Marque na caixinha de cada foto para escolher quais recebem o texto." Style="{StaticResource Texto2}" FontSize="13"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Visibility="{Binding TemMarcadas, Converter={StaticResource VisivelSeNao}}" />
+                            </DockPanel>
+                            <TextBlock Text="Mesmo texto para várias fotos" FontWeight="Bold" Margin="0,0,0,6" />
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Width="420" Margin="0,0,10,0" Visibility="{Binding ModoDescricao, Converter={StaticResource Visivel}}">
+                                        <DockPanel Margin="0,0,0,4">
+                                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Texto2}" FontSize="13"
+                                                       Text="{Binding Text.Length, ElementName=DescricaoLote, StringFormat={}{0} de 300}" />
+                                            <TextBlock Text="Descrição do serviço" FontWeight="SemiBold" />
+                                        </DockPanel>
+                                        <TextBox x:Name="DescricaoLote" Text="{Binding DescricaoEmLote, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" TextWrapping="Wrap"
+                                                 MaxHeight="64" VerticalScrollBarVisibility="Auto" SpellCheck.IsEnabled="True" Language="pt-BR"
+                                                 AutomationProperties.Name="Descrição do serviço para várias fotos" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="0,0,12,0">
-                                        <TextBox Text="{Binding Legenda, UpdateSourceTrigger=LostFocus}" MaxLength="300" AutomationProperties.Name="Legenda da foto" ToolTip="Legenda (aparece depois do número da foto)" />
-                                        <TextBox Text="{Binding Descricao, UpdateSourceTrigger=LostFocus}" AutomationProperties.Name="Descrição do serviço" Margin="0,6,0,0"
-                                                 ToolTip="Descrição do serviço (aparece quando o relatório é do tipo com descrição)"
-                                                 Visibility="{Binding DataContext.ModoDescricao, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visivel}}" />
+                                    <StackPanel Margin="0,0,10,0">
+                                        <DockPanel Margin="0,0,0,4">
+                                            <TextBlock DockPanel.Dock="Right" Style="{StaticResource Texto2}" FontSize="13"
+                                                       Text="{Binding Text.Length, ElementName=LegendaLote, StringFormat={}{0} de 100}" />
+                                            <TextBlock Text="Legenda" FontWeight="SemiBold" />
+                                        </DockPanel>
+                                        <TextBox x:Name="LegendaLote" Text="{Binding LegendaEmLote, UpdateSourceTrigger=PropertyChanged}" MaxLength="100"
+                                                 SpellCheck.IsEnabled="True" Language="pt-BR" AutomationProperties.Name="Legenda para várias fotos" />
                                     </StackPanel>
-                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource BotaoLinha}" Content="⟲" ToolTip="Girar para a esquerda" AutomationProperties.Name="Girar para a esquerda" Margin="0,0,4,0"
-                                                Command="{Binding DataContext.GirarEsquerdaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <Button Style="{StaticResource BotaoLinha}" Content="⟳" ToolTip="Girar para a direita" AutomationProperties.Name="Girar para a direita" Margin="0,0,4,0"
-                                                Command="{Binding DataContext.GirarDireitaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <Button Style="{StaticResource BotaoLinha}" Content="↑" ToolTip="Subir na ordem" AutomationProperties.Name="Subir na ordem" Margin="0,0,4,0"
-                                                Command="{Binding DataContext.SubirCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <Button Style="{StaticResource BotaoLinha}" Content="↓" ToolTip="Descer na ordem" AutomationProperties.Name="Descer na ordem" Margin="0,0,4,0"
-                                                Command="{Binding DataContext.DescerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                        <Button Style="{StaticResource BotaoLinha}" Content="✕" ToolTip="Tirar do relatório (a foto não é apagada)" AutomationProperties.Name="Tirar do relatório"
-                                                Command="{Binding DataContext.RemoverCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
-                                    </StackPanel>
-                                </Grid>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding Faltando}" Value="True">
-                                        <Setter TargetName="Detalhe" Property="Foreground" Value="{StaticResource Vermelho}" />
-                                        <Setter TargetName="Detalhe" Property="FontWeight" Value="SemiBold" />
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </DockPanel>
-        </Border>
+                                </DockPanel>
+                                <Button Grid.Column="1" Style="{StaticResource BotaoPrimario}" VerticalAlignment="Top" Margin="0,22,0,0" MinHeight="40"
+                                        Content="{Binding TextoBotaoLote}" Command="{Binding AplicarTextoEmLoteCommand}" />
+                            </Grid>
+                            <TextBlock Text="{Binding NotaDoLote}" Style="{StaticResource Texto2}" FontSize="13" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Problemas}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+
+                    <Grid>
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding TemFotos, Converter={StaticResource VisivelSeNao}}">
+                            <TextBlock Text="Arraste as fotos ou uma pasta para cá" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                            <TextBlock Text="ou use os botões acima. Aceita JPG, PNG, BMP, WEBP e GIF." Style="{StaticResource Texto2}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <ListBox x:Name="ListaFotos" ItemsSource="{Binding Fotos}" Style="{StaticResource ListaSimples}"
+                                 PreviewMouseLeftButtonDown="IniciarArrasteFoto" PreviewMouseMove="ArrastarFoto"
+                                 DragOver="MarcarDestinoFoto" Drop="SoltarFoto" DragLeave="SairArrasteFoto">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="BorderBrush" Value="Transparent" />
+                                    <Setter Property="BorderThickness" Value="0,2,0,2" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Selecionada}" Value="True">
+                                            <Setter Property="Background" Value="{StaticResource AzulClaro}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="32" />
+                                            <ColumnDefinition Width="164" />
+                                            <ColumnDefinition Width="170" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox IsChecked="{Binding Selecionada}" VerticalAlignment="Top" Margin="0,4,0,0" AutomationProperties.Name="Marcar esta foto" />
+                                        <Border Grid.Column="1" Width="150" Height="112" Background="{StaticResource Fundo}" BorderBrush="{StaticResource Borda}" BorderThickness="1"
+                                                HorizontalAlignment="Left" VerticalAlignment="Top">
+                                            <Image Source="{Binding Miniatura, Converter={StaticResource Imagem}, ConverterParameter=300}" Stretch="Uniform" />
+                                        </Border>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Rotulo}" FontWeight="Bold" FontSize="15" />
+                                            <TextBlock Text="{Binding Nome}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Caminho}" Style="{StaticResource Texto2}" FontSize="13" />
+                                            <TextBlock x:Name="Detalhe" Text="{Binding Detalhe}" Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" />
+                                            <Button Style="{StaticResource BotaoLinha}" Content="Localizar…" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                    Command="{Binding DataContext.LocalizarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                    Visibility="{Binding Faltando, Converter={StaticResource Visivel}}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" VerticalAlignment="Top" Margin="0,0,12,0">
+                                            <DockPanel Margin="0,0,0,4">
+                                                <TextBlock x:Name="ContaLegenda" DockPanel.Dock="Right" Text="{Binding ContadorLegenda}" Style="{StaticResource Texto2}" FontSize="13" />
+                                                <TextBlock><Run Text="Legenda" FontWeight="SemiBold" /><Run Text="  em negrito, embaixo da foto" Foreground="{StaticResource Secundario}" FontSize="13" /></TextBlock>
+                                            </DockPanel>
+                                            <TextBox Text="{Binding Legenda, UpdateSourceTrigger=PropertyChanged, Delay=400}" MaxLength="100" SpellCheck.IsEnabled="True" Language="pt-BR"
+                                                     AutomationProperties.Name="Legenda da foto" />
+                                            <StackPanel Visibility="{Binding DataContext.ModoDescricao, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource Visivel}}">
+                                                <DockPanel Margin="0,10,0,4">
+                                                    <TextBlock x:Name="ContaDescricao" DockPanel.Dock="Right" Text="{Binding ContadorDescricao}" Style="{StaticResource Texto2}" FontSize="13" />
+                                                    <TextBlock><Run Text="Descrição do serviço" FontWeight="SemiBold" /><Run Text="  texto detalhado, embaixo da legenda" Foreground="{StaticResource Secundario}" FontSize="13" /></TextBlock>
+                                                </DockPanel>
+                                                <TextBox Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged, Delay=400}" MaxLength="300" TextWrapping="Wrap" AcceptsReturn="True"
+                                                         MinHeight="64" MaxHeight="120" VerticalScrollBarVisibility="Auto" SpellCheck.IsEnabled="True" Language="pt-BR"
+                                                         AutomationProperties.Name="Descrição do serviço da foto" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <UniformGrid Grid.Column="4" Columns="3" VerticalAlignment="Top">
+                                            <Button Style="{StaticResource BotaoLinha}" Content="⟲" ToolTip="Girar para a esquerda" AutomationProperties.Name="Girar para a esquerda" Margin="0,0,4,4" MinHeight="38" MinWidth="38"
+                                                    Command="{Binding DataContext.GirarEsquerdaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BotaoLinha}" Content="⟳" ToolTip="Girar para a direita" AutomationProperties.Name="Girar para a direita" Margin="0,0,4,4" MinHeight="38" MinWidth="38"
+                                                    Command="{Binding DataContext.GirarDireitaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BotaoLinha}" Content="✕" ToolTip="Tirar do relatório (a foto não é apagada; dá para desfazer)" AutomationProperties.Name="Tirar do relatório" Margin="0,0,0,4" MinHeight="38" MinWidth="38"
+                                                    Command="{Binding DataContext.RemoverCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BotaoLinha}" Content="↑" ToolTip="Subir na ordem" AutomationProperties.Name="Subir na ordem" Margin="0,0,4,0" MinHeight="38" MinWidth="38"
+                                                    Command="{Binding DataContext.SubirCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                            <Button Style="{StaticResource BotaoLinha}" Content="↓" ToolTip="Descer na ordem" AutomationProperties.Name="Descer na ordem" Margin="0,0,4,0" MinHeight="38" MinWidth="38"
+                                                    Command="{Binding DataContext.DescerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                        </UniformGrid>
+                                    </Grid>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Faltando}" Value="True">
+                                            <Setter TargetName="Detalhe" Property="Foreground" Value="{StaticResource Vermelho}" />
+                                            <Setter TargetName="Detalhe" Property="FontWeight" Value="SemiBold" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding LegendaPertoDoLimite}" Value="True">
+                                            <Setter TargetName="ContaLegenda" Property="Foreground" Value="{StaticResource Laranja}" />
+                                            <Setter TargetName="ContaLegenda" Property="FontWeight" Value="Bold" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding DescricaoPertoDoLimite}" Value="True">
+                                            <Setter TargetName="ContaDescricao" Property="Foreground" Value="{StaticResource Laranja}" />
+                                            <Setter TargetName="ContaDescricao" Property="FontWeight" Value="Bold" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Desfazer: 5 segundos, com a faixa vermelha do tempo -->
+                        <Border x:Name="BarraDesfazer" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,12" MinWidth="460" Background="#231F20"
+                                CornerRadius="10" Padding="18,0,8,0" Height="52" Visibility="{Binding TemDesfazer, Converter={StaticResource Visivel}}">
+                            <Border.Effect><DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.3" /></Border.Effect>
+                            <Grid>
+                                <DockPanel VerticalAlignment="Center">
+                                    <Button DockPanel.Dock="Right" Content="Desfazer" Command="{Binding DesfazerCommand}" Style="{StaticResource BotaoLinha}" MinHeight="38"
+                                            Background="Transparent" Foreground="White" BorderBrush="White" FontWeight="Bold" Padding="14,0" Margin="18,0,0,0" />
+                                    <TextBlock Text="{Binding TextoDesfazer}" Foreground="White" FontSize="15" VerticalAlignment="Center" />
+                                </DockPanel>
+                                <Rectangle x:Name="TempoDesfazer" Height="4" VerticalAlignment="Bottom" Margin="-18,0,-8,0" Fill="{StaticResource Vermelho}" RenderTransformOrigin="0,0.5">
+                                    <Rectangle.RenderTransform><ScaleTransform ScaleX="1" /></Rectangle.RenderTransform>
+                                </Rectangle>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </DockPanel>
+            </Border>
+        </DockPanel>
 
         <!-- ============ Etapa 3: Conferencia e geracao ============ -->
         <Grid Grid.Row="2" Margin="0,16,0,0" Visibility="{Binding EtapaConferencia, Converter={StaticResource Visivel}}">
@@ -374,16 +545,34 @@
                         <TextBlock Text="Como fica a página" Style="{StaticResource TituloPainel}" Margin="0,0,0,10" />
 
                         <TextBlock Text="Fotos por página" Style="{StaticResource Rotulo}" />
-                        <ComboBox ItemsSource="{Binding Capacidades}" SelectedItem="{Binding FotosPorPagina}" Width="120" HorizontalAlignment="Left"
-                                  AutomationProperties.Name="Fotos por página" />
+                        <ItemsControl ItemsSource="{Binding OpcoesDeCapacidade}" Focusable="False">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button x:Name="Opcao" Content="{Binding Texto}" MinWidth="44" MinHeight="40" Margin="0,0,8,8" ToolTip="{Binding Dica}"
+                                            AutomationProperties.Name="{Binding Dica}" IsEnabled="{Binding Habilitada}" Style="{StaticResource BotaoLinha}" FontWeight="SemiBold"
+                                            Command="{Binding DataContext.EscolherCapacidadeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Marcada}" Value="True">
+                                            <Setter TargetName="Opcao" Property="Background" Value="{StaticResource Preto}" />
+                                            <Setter TargetName="Opcao" Property="Foreground" Value="White" />
+                                            <Setter TargetName="Opcao" Property="BorderBrush" Value="{StaticResource Preto}" />
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Border Background="{StaticResource Fundo}" CornerRadius="8" Padding="12,8" Margin="0,2,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{Binding TextoDoModoNaConferencia}" TextWrapping="Wrap" FontSize="13.5" />
+                                <Button Style="{StaticResource BotaoLink}" Content="Mudar no passo 2" HorizontalAlignment="Left" Margin="0,4,0,0" Command="{Binding IrParaFotosCommand}" />
+                            </StackPanel>
+                        </Border>
 
-                        <TextBlock Text="Texto de cada foto" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
-                        <RadioButton GroupName="ModoLegenda" Content="Só a legenda curta"
-                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=LegendaCurta}" />
-                        <RadioButton GroupName="ModoLegenda" Content="Legenda e descrição do serviço"
-                                     IsChecked="{Binding Modo, Converter={StaticResource EnumIgual}, ConverterParameter=DescricaoServico}" />
-
-                        <CheckBox Content="Espaço para assinaturas no fim" IsChecked="{Binding Assinaturas}" Margin="0,14,0,0" />
+                        <TextBlock Text="Assinaturas" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
+                        <CheckBox Content="Espaço para assinaturas no fim" IsChecked="{Binding Assinaturas}" />
+                        <TextBlock Text="A assinatura fica sempre na mesma página da última foto, nunca sozinha numa página." Style="{StaticResource Texto2}" FontSize="13"
+                                   TextWrapping="Wrap" Margin="0,4,0,0" Visibility="{Binding Assinaturas, Converter={StaticResource Visivel}}" />
                         <StackPanel Visibility="{Binding Assinaturas, Converter={StaticResource Visivel}}" Margin="0,6,0,0">
                             <TextBlock Text="Nome sob “Fiscalização SPOBRAS” (opcional)" Style="{StaticResource Rotulo}" />
                             <TextBox Text="{Binding AssinaturaFiscal, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Nome do fiscal" />
@@ -400,7 +589,11 @@
                                      IsChecked="{Binding Qualidade, Converter={StaticResource EnumIgual}, ConverterParameter=Leve}" />
                         <TextBlock Text="As fotos originais nunca são alteradas: o relatório usa cópias." Style="{StaticResource Texto2}" FontSize="13" Margin="0,4,0,0" />
 
-                        <CheckBox Content="Gerar também em PDF (feito pelo Excel)" IsChecked="{Binding GerarPdf}" Margin="0,14,0,0" />
+                        <TextBlock Text="Gerar" Style="{StaticResource Rotulo}" Margin="0,14,0,6" />
+                        <RadioButton GroupName="FormatoRel" Content="Excel e PDF" IsChecked="{Binding FormatoDeSaida, Converter={StaticResource EnumIgual}, ConverterParameter=ExcelEPdf}" />
+                        <RadioButton GroupName="FormatoRel" Content="Só PDF" IsChecked="{Binding FormatoDeSaida, Converter={StaticResource EnumIgual}, ConverterParameter=SoPdf}" />
+                        <RadioButton GroupName="FormatoRel" Content="Só Excel" IsChecked="{Binding FormatoDeSaida, Converter={StaticResource EnumIgual}, ConverterParameter=SoExcel}" />
+                        <TextBlock Text="O PDF é montado pelo próprio app, sempre em A4, sem precisar do Excel." Style="{StaticResource Texto2}" FontSize="13" TextWrapping="Wrap" Margin="0,4,0,0" />
                         <TextBlock Text="Sem logo cadastrado: o relatório sai sem logo. Para incluir, escolha a imagem em Configurações."
                                    Style="{StaticResource Texto2}" FontSize="13" Margin="0,10,0,0" Visibility="{Binding TemLogo, Converter={StaticResource VisivelSeNao}}" />
                     </StackPanel>
