@@ -1,5 +1,73 @@
 # Progresso
 
+## Relatório fotográfico novo, tela 2 e proposta A em 17/11/2026
+
+Implementado o que o usuário aprovou nos modelos `modelo-relatorio.pdf` e `modelo-tela2-e-assinatura.pdf`, no computador e no celular.
+
+**Página do relatório (PDF e Excel):**
+- Medidas em pontos da A4 (`GradeRelatorio`): margens de 12 mm dos lados, 11 mm em cima e 9 mm embaixo.
+- Cabeçalho em faixa: logo, título com a data por extenso e SPOBRAS. Abaixo, os campos em grade dois a dois; campo vazio não aparece. Da página 2 em diante, um cabeçalho reduzido com a escola e o contrato.
+- Rodapé com a escola, a data e "Página X de Y".
+- Todas as fotos no mesmo quadro, inteiras e centralizadas.
+- Legenda colada no quadro, com espaço de pelo menos 2 linhas; a descrição do serviço vem embaixo.
+- Um desenho único (`DesenhoRelatorio`) é usado pelo PDF e pelas prévias do PC (WPF) e do celular (SVG): a tela mostra exatamente o papel.
+- A fonte Carlito vai embutida no app (licença OFL, `Fontes/OFL.txt`) e tem as medidas da Calibri do Excel. A quebra de linha é calculada com as larguras da própria fonte (`TextoMedido`) e sai igual no PDF.
+
+**Limites e textos:**
+- Legenda até 100 caracteres, descrição do serviço até 300 e descrição geral até 300, com contador. Acima disso, o relatório não é gerado e a mensagem diz qual foto encurtar.
+- Quebras de linha viram espaço, para o texto sempre caber.
+- Emoji e letras de outros alfabetos saem do texto com aviso, em vez de virar quadradinho no PDF.
+- Foto sem legenda ou sem descrição: aviso, sem impedir a geração.
+
+**Assinatura:**
+- Fica sempre na página da última foto, nunca sozinha.
+- Página única cheia: os quadros diminuem só o necessário, até 75%.
+- Mais de uma página: o cabeçalho reduzido deixa espaço. Se ainda faltar, a última linha de fotos desce junto com a assinatura.
+
+**PDF montado pelo app no PC** (antes era pelo Excel): sempre A4, com as opções Excel e PDF, Só PDF ou Só Excel, lembradas para os próximos relatórios. Excel e PDF saem com o mesmo nome e o mesmo número.
+
+**Excel:**
+- Mesmo layout do PDF. As linhas da planilha seguem o plano, com alturas em pixels inteiros para a soma não passar da página.
+- Os quadros cinza são desenhos.
+- "Ajustar todas as colunas em uma página", com quebra manual no fim de cada página.
+- Conferido no LibreOffice. **Falta conferir no Excel do PC do trabalho.**
+
+**Tela 2 "Fotos e textos":**
+- O modo ("Só legenda, até 6 por página" ou "Legenda e descrição do serviço, até 4") saiu da conferência e fica no topo.
+- Cada campo diz o que é e onde sai, com contador.
+- Mesmo texto para várias fotos (legenda e descrição): vai para as marcadas ou, sem marcadas, só para os campos em branco; campo vazio não apaga nada.
+- Tirar as marcadas com confirmação e Desfazer de 5 s; o ✕ tira na hora, também com Desfazer.
+- Trocar de modo guarda as descrições e avisa.
+- Na conferência, 6 e 8 por página ficam apagados no modo com descrição.
+- PC: corretor ortográfico pt-BR nos campos; arrastar para reordenar continua; em janela baixa a etapa rola.
+- Celular: a descrição do serviço passou a existir, a grade marca "Sem legenda" e "Falta descrição", e a conferência ganhou as assinaturas.
+
+**Base (proposta A):**
+- PDF "Resumo da obra" e "Resumo do contrato" com:
+  - composição (original + aditado com o percentual sobre o original = contratado);
+  - execução em pizza, com o percentual ao lado do nome e o valor embaixo;
+  - saldo a pagar em destaque;
+  - sem medido nem saldo a medir.
+- Medições em trâmite com "Medido" e "Protocolo".
+- A data de protocolo é importada da tabela de medições (coluna opcional) e guardada no banco (versão 8). Sem ela, aparece "sem protocolo" (análise fiscal). A ficha do PC e a do celular têm a coluna Protocolo.
+- Corrigido: valores na casa dos milhões se sobrepunham na tabela das escolas do contrato.
+
+**Testes:**
+- Pior caso dos limites em todas as capacidades, com e sem assinatura.
+- 1.500 relatórios aleatórios (nada sai da folha, nenhuma letra se perde).
+- Cada palavra do PDF conferida dentro do espaço planejado, com a fonte embutida.
+- Excel válido, com a altura de cada página dentro da folha.
+- Tirar e Desfazer, mesmo texto, formatos.
+- Teste visual do celular em 360 e 412 px com o modo com descrição.
+- Telas reais do Windows no CI.
+
+**Beta tester:** além do que os testes acima pegaram, encontrei e corrigi:
+- Descrição cheia de Enter travava a geração com mensagem errada.
+- Emoji e outros alfabetos saíam como quadradinho ou sumiam sem aviso.
+- O Desfazer de uma foto tirada podia devolvê-la para um "Novo relatório".
+- Valores milionários se sobrepunham no resumo do contrato.
+- Corrida só de teste entre miniaturas e prévia.
+
 ## Resumo por contrato em 16/11/2026
 
 Implementação de `docs/codex/RESUMO-POR-CONTRATO.md` com dados sintéticos. O filtro Contrato pesquisa por número, lote ou modalidade. Cada contrato selecionado tem resumo e tabela próprios. As consultas antigas com Lote são convertidas para os contratos daquele lote e, quando não há correspondência, o lote vai para a pesquisa. O cronograma do Windows inclui as escolas de um contrato e guarda a origem no rascunho para sugerir as demais escolas daquele contrato.
@@ -260,6 +328,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
 
 ## Pendências com o usuário
+
+- **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 
 - **Resumo por contrato:** confirmar o nome sugerido para vários contratos, `Resumo dos contratos - AAAA-MM-DD.pdf`.
 - **Resumo por contrato:** confirmar o texto do selo quando há data da OS, mas falta o término. Neste caso aparece “Sem término informado”.

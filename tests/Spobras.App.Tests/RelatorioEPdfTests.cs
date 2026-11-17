@@ -50,6 +50,7 @@ public class RelatorioVmTests : ComApp
         Assert.Empty(vm.Problemas);
         Assert.Equal("Sem data de captura no arquivo", vm.Fotos[0].Detalhe);
         vm.Fotos[0].Legenda = "Fachada";
+        await vm.Miniaturas; // miniaturas em segundo plano (no app, a previa e redesenhada na tela quando ficam prontas)
 
         // Etapa 3: conferencia
         vm.AvancarCommand.Execute(null);
@@ -60,7 +61,6 @@ public class RelatorioVmTests : ComApp
         Assert.DoesNotContain(vm.Paginas[0].Elementos, e => e.Texto?.StartsWith("Foto ") == true);
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "EMEF Exemplo");
         Assert.Contains(vm.Paginas[0].Elementos, e => e.Texto == "10 de novembro de 2026");
-        await vm.Miniaturas; // miniaturas em segundo plano
         Assert.All(vm.Fotos, f => Assert.NotNull(f.Miniatura));
 
         Assert.Equal(FormatoRelatorio.ExcelEPdf, vm.FormatoDeSaida); // padrao
@@ -311,9 +311,18 @@ public class RelatorioVmTests : ComApp
         vm.DesfazerCommand.Execute(null);
         Assert.Equal(antes, vm.Fotos);
 
+        // Novo relatorio com o Desfazer aberto: a foto do relatorio anterior nao volta para o novo
+        vm.RemoverCommand.Execute(antes[4]);
+        Dialogos.Confirmacoes.Enqueue(true);
+        vm.NovoRelatorioCommand.Execute(null);
+        Assert.False(vm.TemDesfazer);
+        vm.DesfazerCommand.Execute(null);
+        Assert.Empty(vm.Fotos);
+        vm.Adicionar([.. antes.Select(f => f.Caminho)]);
+
         // o tempo acaba: o Desfazer some e as fotos ficam fora (os arquivos continuam no disco)
         vm.TempoDoDesfazer = TimeSpan.FromMilliseconds(50);
-        vm.RemoverCommand.Execute(antes[2]);
+        vm.RemoverCommand.Execute(vm.Fotos[2]);
         await Task.Delay(400);
         Assert.False(vm.TemDesfazer);
         Assert.Equal(5, vm.Fotos.Count);

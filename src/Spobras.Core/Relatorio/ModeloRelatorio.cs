@@ -96,8 +96,9 @@ public sealed record FotoNaPagina(
     int Colunas,
     int Faixa)
 {
-    public string Titulo => Foto.Legenda.Trim();
-    public string TextoDaDescricao => string.Join(" ", LinhasDaDescricao);
+    /// <summary>A legenda e a descricao como saem no papel (um paragrafo, so com simbolos que a fonte tem).</summary>
+    public string Titulo => TextoMedido.Limpar(Foto.Legenda);
+    public string TextoDaDescricao => LinhasDaDescricao.Count == 0 ? "" : TextoMedido.Limpar(Foto.Descricao);
 }
 
 /// <summary>Bloco das assinaturas, no pe da ultima pagina (nunca sozinho numa pagina).</summary>

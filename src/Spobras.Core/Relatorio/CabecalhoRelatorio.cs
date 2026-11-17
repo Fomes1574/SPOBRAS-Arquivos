@@ -90,7 +90,7 @@ public static class CabecalhoRelatorio
     public static IReadOnlyList<CampoCabecalho> Campos(DadosRelatorio d)
     {
         var campos = new List<CampoCabecalho>();
-        static string Limpo(string? v) => (v ?? "").Trim();
+        static string Limpo(string? v) => TextoMedido.Limpar(v);
         if (Limpo(d.Unidade) is { Length: > 0 } unidade)
         {
             campos.Add(Larga("UNIDADE EDUCACIONAL", unidade));
@@ -163,7 +163,12 @@ public static class CabecalhoRelatorio
         return texto;
     }
 
-    public static CabecalhoMontado Montar(DadosRelatorio d) => new(Campos(d), Subtitulo(d), PorExtenso(d.Data), Rodape(d));
+    public static CabecalhoMontado Montar(DadosRelatorio d)
+    {
+        // O subtitulo e o rodape tambem saem com a fonte do relatorio: so o que ela desenha.
+        var limpo = d with { Unidade = TextoMedido.Limpar(d.Unidade), Contrato = TextoMedido.Limpar(d.Contrato) };
+        return new(Campos(d), Subtitulo(limpo), PorExtenso(d.Data), Rodape(limpo));
+    }
 
     /// <summary>Parte da escola no nome sugerido: com o resto, o nome fica com no maximo 120 caracteres.</summary>
     public const int MaximoDaUnidadeNoNome = 80;

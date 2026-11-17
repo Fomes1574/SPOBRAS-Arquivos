@@ -69,9 +69,22 @@ public static class PaginadorRelatorio
         int faixasPorPagina = capacidade / colunas;
         double largura = GradeRelatorio.LarguraDoQuadro(colunas);
 
-        var textos = fotos.Select(f => new Textos(
-            f.Legenda.Trim().Length == 0 ? [] : TextoMedido.Quebrar(f.Legenda.Trim(), largura, GradeRelatorio.LetraDaLegenda, negrito: true),
-            !comDescricao || f.Descricao.Trim().Length == 0 ? [] : TextoMedido.Quebrar(f.Descricao.Trim(), largura, GradeRelatorio.LetraDaDescricao, negrito: false))).ToList();
+        // Texto como sai no papel: um paragrafo so por campo e sem simbolos que a fonte nao tem (avisados abaixo).
+        var semDesenho = new List<(int Foto, string Simbolos)>();
+        var textos = fotos.Select((f, i) =>
+        {
+            var tirados = new List<string>();
+            string legenda = TextoMedido.Limpar(f.Legenda, tirados);
+            string descricao = comDescricao ? TextoMedido.Limpar(f.Descricao, tirados) : "";
+            if (tirados.Count > 0)
+            {
+                semDesenho.Add((i + 1, string.Join(" ", tirados.Distinct())));
+            }
+
+            return new Textos(
+                legenda.Length == 0 ? [] : TextoMedido.Quebrar(legenda, largura, GradeRelatorio.LetraDaLegenda, negrito: true),
+                descricao.Length == 0 ? [] : TextoMedido.Quebrar(descricao, largura, GradeRelatorio.LetraDaDescricao, negrito: false));
+        }).ToList();
 
         // Altura do texto de cada faixa (o maior das fotos lado a lado) e a maior de todas.
         var alturaDoTexto = new List<double>();
@@ -126,6 +139,16 @@ public static class PaginadorRelatorio
         }
 
         avisos.AddRange(FaltaTexto(fotos, comDescricao));
+        foreach (var (foto, simbolos) in semDesenho.Take(5))
+        {
+            avisos.Add(Aviso.Conferir($"{Rotulo(foto, fotos.Count)}: {simbolos} não existe(m) na fonte do relatório e foi(ram) tirado(s) do texto (emoji ou letra de outro alfabeto)."));
+        }
+
+        if (semDesenho.Count > 5)
+        {
+            avisos.Add(Aviso.Conferir($"Mais {semDesenho.Count - 5} fotos tinham símbolos que a fonte do relatório não tem; eles foram tirados do texto."));
+        }
+
         return new PlanoRelatorio(paginas, avisos, opcoes, dados, cabecalho);
     }
 

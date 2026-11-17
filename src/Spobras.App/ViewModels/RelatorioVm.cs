@@ -751,6 +751,13 @@ public sealed partial class RelatorioVm : TelaVm
         }
     }
 
+    private void EsquecerDesfazer()
+    {
+        _removidas = [];
+        _rodadaDoDesfazer++;
+        TextoDesfazer = "";
+    }
+
     [RelayCommand]
     private void Desfazer()
     {
@@ -1022,6 +1029,8 @@ public sealed partial class RelatorioVm : TelaVm
         _restaurando = true;
         Unidade = Contratada = Contrato = Lote = Portaria = ProcessoSei = Objeto = Responsavel = Descricao = DataTexto = DataOsTexto = "";
         Fotos.Clear();
+        EsquecerDesfazer(); // as fotos tiradas do relatorio anterior nao podem voltar para o novo
+        LegendaEmLote = DescricaoEmLote = "";
         Problemas.Clear();
         _nomeEditado = false;
         Etapa = 0;

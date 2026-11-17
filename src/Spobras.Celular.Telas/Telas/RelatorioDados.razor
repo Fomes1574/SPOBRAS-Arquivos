@@ -49,7 +49,7 @@
     </div>
     <CampoTexto PermiteApagar="true" Rotulo="Processo SEI" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
     <CampoTexto PermiteApagar="true" Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
-    <CampoTexto PermiteApagar="true" Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
+    <CampoTexto PermiteApagar="true" Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Maximo="Spobras.Core.Relatorio.OpcoesRelatorio.MaximoDaDescricaoGeral" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
     <button class="btn linha" style="margin-bottom:10px" @onclick="Atualizar" disabled="@(!App.Base.TemDados)">Atualizar dados pela base</button>
     <a class="btn primario" href="relatorio/fotos">Continuar para as fotos</a>
     @if (!App.Rascunho.Vazio)

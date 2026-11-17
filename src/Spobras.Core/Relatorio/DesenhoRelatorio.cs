@@ -143,6 +143,7 @@ public static class DesenhoRelatorio
             double yLinha = a.Base - aNome - aCargo - 1.4 * GradeRelatorio.Mm;
             void Assinatura(double x, string nome, string cargo)
             {
+                nome = TextoMedido.Limpar(nome);
                 e.Add(new LinhaDesenho(x, yLinha, x + meia, yLinha, Preto, 0.8));
                 double y = yLinha + 1.4 * GradeRelatorio.Mm;
                 if (nome.Trim().Length > 0)

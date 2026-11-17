@@ -36,6 +36,50 @@ public static class TextoMedido
         906,258,258,436,436,712,499,507,875,843,473,399,479,398,520,499
     ];
 
+    /// <summary>A fonte do relatorio tem desenho para este caractere (letras do portugues, numeros, pontuacao e sinais comuns).</summary>
+    public static bool TemDesenho(char c) => c is >= ' ' and <= '~' or >= '\u00A0' and <= '\u00FF' || Extras.Contains(c);
+
+    /// <summary>
+    /// Texto pronto para o relatorio: quebras de linha, tabulacoes e espacos repetidos viram um espaco so (o texto
+    /// sempre cabe no espaco reservado), caracteres invisiveis saem, e simbolos que a fonte nao tem (emoji, outros
+    /// alfabetos) saem e sao devolvidos em <paramref name="removidos"/>, para o app avisar em vez de imprimir um quadrado.
+    /// </summary>
+    public static string Limpar(string? texto, ICollection<string>? removidos = null)
+    {
+        var limpo = new System.Text.StringBuilder((texto ?? "").Length);
+        bool espaco = false;
+        foreach (var r in (texto ?? "").EnumerateRunes())
+        {
+            if (System.Text.Rune.IsWhiteSpace(r) || r.Value == 0xA0)
+            {
+                espaco = limpo.Length > 0;
+                continue;
+            }
+
+            var categoria = System.Text.Rune.GetUnicodeCategory(r);
+            if (categoria is System.Globalization.UnicodeCategory.Control or System.Globalization.UnicodeCategory.Format)
+            {
+                continue; // invisiveis: nao aparecem mesmo
+            }
+
+            if (!r.IsBmp || !TemDesenho((char)r.Value))
+            {
+                removidos?.Add(r.ToString());
+                continue;
+            }
+
+            if (espaco)
+            {
+                limpo.Append(' ');
+                espaco = false;
+            }
+
+            limpo.Append((char)r.Value);
+        }
+
+        return limpo.ToString();
+    }
+
     /// <summary>Largura de um caractere em milesimos de em (caractere fora da tabela conta como o mais largo, por seguranca).</summary>
     public static int Milesimos(char c, bool negrito)
     {

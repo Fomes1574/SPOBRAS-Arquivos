@@ -210,7 +210,7 @@ public class RelatorioTests
         var f = plano.Paginas[0].Fotos[0];
         Assert.Equal(f.Titulo.Replace(" ", ""), string.Concat(f.LinhasDaLegenda).Replace(" ", "")); // a palavra enorme e partida, nada some
         Assert.Equal(desc.Replace("\n", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries), f.LinhasDaDescricao.SelectMany(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)));
-        Assert.True(f.LinhasDaDescricao.Count >= 2); // a quebra de linha do usuario fica
+        Assert.DoesNotContain(f.LinhasDaDescricao, l => l.Contains('\n')); // a quebra de linha vira espaco: o texto sempre cabe
         ConferirPlano(plano);
     }
 
@@ -296,6 +296,27 @@ public class RelatorioTests
         Assert.Equal(["A foto 01 está sem legenda."], uma.Avisos.Select(a => a.Mensagem));
         var muitas = PaginadorRelatorio.Paginar([.. Enumerable.Range(1, 9).Select(n => Horizontal(n))], new OpcoesRelatorio());
         Assert.Equal(["9 fotos estão sem legenda: 01, 02, 03, 04, 05, 06 e mais 3."], muitas.Avisos.Select(a => a.Mensagem));
+    }
+
+    [Fact]
+    public void Enter_emoji_e_outros_alfabetos_nao_quebram_o_layout_e_sao_avisados()
+    {
+        // 150 Enters numa descricao de 300 caracteres: antes virava 150 linhas e travava a geracao
+        var enters = PaginadorRelatorio.Paginar([Horizontal(1, "linha\num\n\n\n\ndois", string.Concat(Enumerable.Repeat("a\n", 150)))],
+            new OpcoesRelatorio { Modo = ModoLegenda.DescricaoServico, FotosPorPagina = 4 });
+        Assert.True(enters.PodeGerar);
+        Assert.Equal(["linha um dois"], enters.Paginas[0].Fotos[0].LinhasDaLegenda);
+
+        var simbolos = PaginadorRelatorio.Paginar([Horizontal(1, "Fachada 👍 pronta ✅"), Horizontal(2, "Pátio — “aspas” … ½ ° º ª"), Horizontal(3, "中文 ok\u200b\u0007")], new OpcoesRelatorio());
+        var fotos = simbolos.Paginas[0].Fotos;
+        Assert.Equal("Fachada pronta", fotos[0].Titulo);
+        Assert.Equal("Pátio — “aspas” … ½ ° º ª", fotos[1].Titulo); // sinais do portugues ficam
+        Assert.Equal("ok", fotos[2].Titulo);
+        Assert.Contains(simbolos.Avisos, a => a.Mensagem.StartsWith("Foto 01: 👍 ✅ não existe(m) na fonte"));
+        Assert.Contains(simbolos.Avisos, a => a.Mensagem.StartsWith("Foto 03: 中 文"));
+        Assert.DoesNotContain(simbolos.Avisos, a => a.Mensagem.StartsWith("Foto 02"));
+        Assert.All(fotos.SelectMany(f => f.LinhasDaLegenda).SelectMany(l => l), c => Assert.True(TextoMedido.TemDesenho(c)));
+        Assert.Equal("EMEF", CabecalhoRelatorio.Campos(new DadosRelatorio { Unidade = "EMEF 🏫" })[0].Valor);
     }
 
     [Fact]

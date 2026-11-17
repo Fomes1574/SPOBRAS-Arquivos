@@ -259,7 +259,7 @@
 
                     <TextBlock Text="Descrição geral" Style="{StaticResource Rotulo}" Margin="0,12,0,6" />
                     <Grid>
-                        <TextBox Padding="8,6,34,6" x:Name="CampoDescricao" Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Descrição geral"
+                        <TextBox Padding="8,6,34,6" x:Name="CampoDescricao" Text="{Binding Descricao, UpdateSourceTrigger=PropertyChanged}" MaxLength="300" SpellCheck.IsEnabled="True" Language="pt-BR" AutomationProperties.Name="Descrição geral"
                              AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" VerticalContentAlignment="Top" />
                         <Button Style="{StaticResource BorrachaRelatorio}" Tag="{Binding ElementName=CampoDescricao}" AutomationProperties.Name="Apagar Descrição geral" Click="ApagarCampo" />
                     </Grid>

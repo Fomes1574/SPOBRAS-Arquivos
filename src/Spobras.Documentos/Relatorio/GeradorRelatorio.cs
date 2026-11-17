@@ -263,7 +263,7 @@ public static class GeradorRelatorio
 
                     if (lDescricao is { } ld && f.LinhasDaDescricao.Count > 0)
                     {
-                        Caixa(ld, C(primeiraCol), ld, C(ultimaCol), EDescricao, Texto(f.Foto.Descricao.Trim()));
+                        Caixa(ld, C(primeiraCol), ld, C(ultimaCol), EDescricao, Texto(f.TextoDaDescricao));
                     }
                 }
             }
@@ -287,7 +287,7 @@ public static class GeradorRelatorio
                 {
                     if (comNome)
                     {
-                        Caixa(lNome, col1, lNome, col2, ENome, Texto(nome.Trim()));
+                        Caixa(lNome, col1, lNome, col2, ENome, Texto(TextoMedido.Limpar(nome)));
                         Caixa(lCargo, col1, lCargo, col2, ECargo, Texto(cargo));
                     }
                     else
