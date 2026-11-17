@@ -269,6 +269,14 @@ public class BaseTests : IDisposable
         // Reajuste ("VALOR REJUSTE") e status do contrato de cada medicao entram na base.
         var gec = _base.Medicoes("004/EX/2025").Single(m => m.Numero == "00002");
         Assert.Equal((80m, 5.5m, "VIGENTE", "ANÁLISE GEC"), (gec.ValorConsiderado, gec.ValorReajuste, gec.StatusContrato, gec.Status));
+
+        // Data de protocolo: entra quando existe; sem ela (analise fiscal), a medicao aparece como "sem protocolo".
+        Assert.Equal(new DateOnly(2026, 4, 2), gec.Protocolo);
+        var fiscal = _base.Medicoes("004/EX/2025").Single(m => m.Numero == "00003");
+        Assert.Null(fiscal.Protocolo);
+        var tramite = Spobras.Core.Base.MedicoesEmTramite.DaObra(_base.Buscar(new FiltroObras()).Obras.First(o => o.Contrato == "004/EX/2025"), _base.Medicoes("004/EX/2025"));
+        Assert.Contains(tramite, m => m.TextoProtocolo == "02/04/2026");
+        Assert.Contains(tramite, m => m.TextoProtocolo == "sem protocolo");
     }
 
     // ---- Portarias e dotacoes ----

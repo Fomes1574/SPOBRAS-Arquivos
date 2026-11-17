@@ -49,16 +49,16 @@ else
         {
             <div class="painel">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">Medições em trâmite</h2><span class="mini">@(_tramite.Count == 0 ? "nenhuma" : Formato.Plural(_tramite.Count, "a pagar", "a pagar"))</span></div>
-                <p class="mini" style="margin:4px 0 6px">Desta escola neste contrato, ainda sem pagamento. Valor considerado + reajuste.</p>
+                <p class="mini" style="margin:4px 0 6px">Desta escola neste contrato, ainda sem pagamento. Valor medido + reajuste.</p>
                 @if (_tramite.Count > 0)
                 {
                     <table class="tabela">
-                        <tr><th>Nº</th><th>Status</th><th style="text-align:right">Valor</th></tr>
+                        <tr><th>Nº</th><th>Status</th><th>Protocolo</th><th style="text-align:right">Valor</th></tr>
                         @foreach (var m in _tramite)
                         {
-                            <tr><td>@m.Numero</td><td><span class="selo @(m.Status.Contains("AN", StringComparison.OrdinalIgnoreCase) && m.Status.Contains("LISE", StringComparison.OrdinalIgnoreCase) || m.Status.Contains("DEVOLU", StringComparison.OrdinalIgnoreCase) ? "atencao" : "andamento")">@SelosObra.StatusCurto(m.Status)</span></td><td class="n">@Formato.Reais(m.Valor)</td></tr>
+                            <tr><td>@m.Numero</td><td><span class="selo @(m.Status.Contains("AN", StringComparison.OrdinalIgnoreCase) && m.Status.Contains("LISE", StringComparison.OrdinalIgnoreCase) || m.Status.Contains("DEVOLU", StringComparison.OrdinalIgnoreCase) ? "atencao" : "andamento")">@SelosObra.StatusCurto(m.Status)</span></td><td class="@(m.Protocolo is null ? "mini" : "")">@m.TextoProtocolo</td><td class="n">@Formato.Reais(m.Valor)</td></tr>
                         }
-                        <tr><td colspan="2"><b>Total em trâmite</b></td><td class="n"><b>@Formato.Reais(_totalTramite)</b></td></tr>
+                        <tr><td colspan="3"><b>Total em trâmite</b></td><td class="n"><b>@Formato.Reais(_totalTramite)</b></td></tr>
                     </table>
                 }
             </div>

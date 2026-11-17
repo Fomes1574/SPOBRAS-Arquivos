@@ -184,6 +184,11 @@ public sealed class BancoApp
         alter table Medicao add column status_contrato text null;
         create index Medicao_contrato_emp on Medicao(contrato, empreendimento);
         """,
+
+        // 8: data de protocolo da medicao (coluna "Protocolo" das medicoes em tramite; vazia na analise fiscal)
+        """
+        alter table Medicao add column protocolo text null;
+        """,
     ];
 
     private const string SufixoRestaurar = ".restaurar";

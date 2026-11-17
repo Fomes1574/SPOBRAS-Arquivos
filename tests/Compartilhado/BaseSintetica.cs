@@ -45,6 +45,7 @@ public static class BaseSintetica
     [
         "NR. DO CONTRATO", "NR. DA MEDIÇÃO", "EMPREENDIMENTO", "DATA DE INÍCIO", "DATA FIM", "VALOR PROTOCOLADO", "VALOR LIBERADO",
         "VALOR CONSIDERADO", "VALOR PAGO", "STATUS DA MEDIÇÃO", "CONTRATO RECEITA", "DATA DE PAGAMENTO", "VALOR REJUSTE", "STATUS DO CONTRATO",
+        "DATA DE PROTOCOLO",
     ];
 
     public static readonly string[] ColunasEmpenhos =
@@ -63,11 +64,15 @@ public static class BaseSintetica
     ];
 
     public static object?[] Medicao(string contrato, string numero, decimal pago, string? receita, string escola = "EMEF Alfa") =>
-        [contrato, numero, escola, new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), pago, pago, pago, pago, "PAGAMENTO EFETUADO", receita, new DateTime(2026, 2, 20), null, "VIGENTE"];
+        [contrato, numero, escola, new DateTime(2026, 1, 1), new DateTime(2026, 1, 31), pago, pago, pago, pago, "PAGAMENTO EFETUADO", receita, new DateTime(2026, 2, 20), null, "VIGENTE", new DateTime(2026, 2, 5)];
 
-    /// <summary>Medicao ainda nao paga (em tramite): valor considerado, reajuste e o status do contrato que ela traz.</summary>
+    /// <summary>
+    /// Medicao ainda nao paga (em tramite): valor considerado, reajuste e o status do contrato que ela traz. A data de
+    /// protocolo existe na analise GEC e no liberado para pagamento; na analise fiscal (e na devolucao) fica vazia.
+    /// </summary>
     public static object?[] MedicaoPendente(string contrato, string numero, string status, decimal considerado, decimal? reajuste, string escola, string statusContrato = "VIGENTE") =>
-        [contrato, numero, escola, new DateTime(2026, 3, 1), new DateTime(2026, 3, 31), considerado, considerado, considerado, 0m, status, "015/EX/2025", null, reajuste, statusContrato];
+        [contrato, numero, escola, new DateTime(2026, 3, 1), new DateTime(2026, 3, 31), considerado, considerado, considerado, 0m, status, "015/EX/2025", null, reajuste, statusContrato,
+            status.Contains("FISCAL", StringComparison.OrdinalIgnoreCase) ? null : new DateTime(2026, 4, 2)];
 
     public static object?[] Empenho(string contrato, string numero, decimal total) =>
         [contrato, numero, new DateTime(2026, 1, 15), 2026m, "7910.2026/0000002-0", total, total, 0m, 0m, 0m, 0m, "Credor Exemplo", "GERENCIAMENTO PORTARIA 03 (2021)", total];

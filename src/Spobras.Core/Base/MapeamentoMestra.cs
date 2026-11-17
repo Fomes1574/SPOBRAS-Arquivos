@@ -48,7 +48,7 @@ public static class CamposMestra
 
         M("NR. DO CONTRATO", "Contrato"), M("NR. DA MEDIÇÃO", "Número da medição"), M("EMPREENDIMENTO", "Escola"),
         M("STATUS DA MEDIÇÃO", "Status da medição"), M("VALOR CONSIDERADO", "Valor considerado"), M("VALOR REJUSTE", "Reajuste", false),
-        M("STATUS DO CONTRATO", "Status do contrato", false), M("DATA DE INÍCIO", "Início"), M("DATA FIM", "Fim"),
+        M("STATUS DO CONTRATO", "Status do contrato", false), M("DATA DE PROTOCOLO", "Data de protocolo", false), M("DATA DE INÍCIO", "Início"), M("DATA FIM", "Fim"),
         M("VALOR PROTOCOLADO", "Protocolado"), M("VALOR LIBERADO", "Liberado"), M("VALOR PAGO", "Pago"),
         M("CONTRATO RECEITA", "Contrato de receita"), M("DATA DE PAGAMENTO", "Data de pagamento"),
 

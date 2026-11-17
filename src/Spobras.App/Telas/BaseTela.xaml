@@ -338,17 +338,19 @@
                                     Visibility="{Binding TemMedicoesEmTramite, Converter={StaticResource Visivel}}">
                                 <StackPanel>
                                     <TextBlock FontWeight="Bold" FontSize="14" TextWrapping="Wrap">
-                                        <Run Text="Medições em trâmite" /><Run Text="  ·  valor considerado + reajuste" FontWeight="Normal" FontSize="13" Foreground="{StaticResource Secundario}" />
+                                        <Run Text="Medições em trâmite" /><Run Text="  ·  valor medido + reajuste" FontWeight="Normal" FontSize="13" Foreground="{StaticResource Secundario}" />
                                     </TextBlock>
                                     <Grid Margin="0,8,0,4">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="44" />
                                             <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="104" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="Nº" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
                                         <TextBlock Grid.Column="1" Text="Status da medição" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
-                                        <TextBlock Grid.Column="2" Text="Valor" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
+                                        <TextBlock Grid.Column="2" Text="Protocolo" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Column="3" Text="Valor" Style="{StaticResource Texto2}" FontSize="13" FontWeight="SemiBold" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding MedicoesEmTramiteDaObra}" Focusable="False">
                                         <ItemsControl.ItemTemplate>
@@ -358,11 +360,13 @@
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="44" />
                                                             <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="104" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Text="{Binding Numero}" />
                                                         <TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" Margin="0,0,12,0" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding Valor}" FontWeight="SemiBold" TextAlignment="Right"
+                                                        <TextBlock Grid.Column="2" Text="{Binding Protocolo}" Margin="0,0,12,0" />
+                                                        <TextBlock Grid.Column="3" Text="{Binding Valor}" FontWeight="SemiBold" TextAlignment="Right"
                                                                    ToolTip="{Binding Reajuste, StringFormat=Reajuste: {0}}" />
                                                     </Grid>
                                                 </Border>

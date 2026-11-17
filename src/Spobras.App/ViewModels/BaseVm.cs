@@ -145,11 +145,12 @@ public sealed class ObraVm(ObraLida obra)
     };
 }
 
-/// <summary>Uma medicao em tramite na ficha: numero, status e valor (considerado + reajuste).</summary>
+/// <summary>Uma medicao em tramite na ficha: numero, status, data de protocolo e valor (medido + reajuste).</summary>
 public sealed record MedicaoTramiteVm(MedicaoEmTramite Medicao)
 {
     public string Numero => Medicao.Numero;
     public string Status => Medicao.Status;
+    public string Protocolo => Medicao.TextoProtocolo;
     public string ValorConsiderado => FormatoBase.Reais(Medicao.ValorConsiderado);
     public string Reajuste => Medicao.Reajuste == 0 ? "—" : FormatoBase.Reais(Medicao.Reajuste);
     public string Valor => FormatoBase.Reais(Medicao.Valor);

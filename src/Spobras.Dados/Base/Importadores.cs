@@ -160,7 +160,8 @@ public static class ImportadorMestra
         // Opcionais: sem elas a importacao continua, so sem reajuste e sem o status do contrato na medicao.
         // "VALOR REJUSTE" e o nome como esta na planilha (sem o "a").
         int reajuste = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "VALOR REJUSTE"))),
-            statusContrato = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "STATUS DO CONTRATO")));
+            statusContrato = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "STATUS DO CONTRATO"))),
+            protocolo = t.Indice(mapa.Coluna(CamposMestra.Campo(TabelaMestra.Medicoes, "DATA DE PROTOCOLO")));
 
         var lista = new List<MedicaoLida>(t.Linhas.Count);
         foreach (var l in t.Linhas)
@@ -169,7 +170,8 @@ public static class ImportadorMestra
             {
                 lista.Add(new MedicaoLida(ct, Texto(l[numero]), Texto(l[emp]), Data(l[inicio]), Data(l[fim]), Reais(l[protocolado]),
                     Reais(l[liberado]), Reais(l[considerado]), Reais(l[pago]), Texto(l[status]), Texto(l[receita]), Data(l[pagamento]),
-                    reajuste >= 0 ? Reais(l[reajuste]) : null, statusContrato >= 0 ? Texto(l[statusContrato]) : null));
+                    reajuste >= 0 ? Reais(l[reajuste]) : null, statusContrato >= 0 ? Texto(l[statusContrato]) : null,
+                    protocolo >= 0 ? Data(l[protocolo]) : null));
             }
         }
 

@@ -16,8 +16,11 @@ public enum SituacaoContrato
 }
 
 /// <summary>Uma medicao ainda nao paga de uma obra em andamento.</summary>
-public sealed record MedicaoEmTramite(string Numero, string Status, decimal ValorConsiderado, decimal Reajuste, DateOnly? Inicio)
+public sealed record MedicaoEmTramite(string Numero, string Status, decimal ValorConsiderado, decimal Reajuste, DateOnly? Inicio, DateOnly? Protocolo = null)
 {
+    /// <summary>Data de protocolo (dd/mm/aaaa) ou "sem protocolo" (medicao ainda em analise fiscal, sem data na planilha).</summary>
+    public string TextoProtocolo => Protocolo?.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture) ?? "sem protocolo";
+
     /// <summary>Valor considerado mais o reajuste, como estao na linha da planilha (sem remuneracao).</summary>
     public decimal Valor => ValorConsiderado + Reajuste;
 }
@@ -115,7 +118,7 @@ public static class MedicoesEmTramite
             .Where(m => MesmaObra(m, obra)
                         && Chave(m.Status) != PagamentoEfetuado
                         && Classificar(m.StatusContrato) != SituacaoContrato.Ignorado)
-            .Select(m => new MedicaoEmTramite(m.Numero ?? "", m.Status ?? "Sem status", m.ValorConsiderado ?? 0m, m.ValorReajuste ?? 0m, m.Inicio))
+            .Select(m => new MedicaoEmTramite(m.Numero ?? "", m.Status ?? "Sem status", m.ValorConsiderado ?? 0m, m.ValorReajuste ?? 0m, m.Inicio, m.Protocolo))
             .OrderByDescending(m => int.TryParse(m.Numero, out int n) ? n : -1)
             .ThenByDescending(m => m.Inicio)];
     }

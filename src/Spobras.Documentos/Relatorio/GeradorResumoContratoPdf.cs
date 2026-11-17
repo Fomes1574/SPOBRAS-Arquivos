@@ -189,40 +189,85 @@ public static class GeradorResumoContratoPdf
             }
         }
 
+        /// <summary>
+        /// Situacao financeira na proposta A aprovada em 17/11/2026: composicao (original + aditado, com o percentual
+        /// sobre o original, = contratado), execucao em pizza com o percentual ao lado do nome e o valor embaixo, e o
+        /// saldo a pagar em destaque. Medido e saldo a medir nao entram.
+        /// </summary>
         private void Financeira(ValoresResumo v)
         {
             Secao("Situação financeira");
-            var itens = new[] { ("Contratado c/ aditamento", v.Contratado), ("Pago", v.Pago), ($"Em trâmite ({v.Medicoes} medições)", v.Tramite), ("Saldo a pagar", v.SaldoAPagar) };
-            for (int i = 0; i < itens.Length; i++)
+            Texto("Composição do contrato", Margem, _y, Largura, 9.5, true);
+            _y += 15;
+            var laranja = Rgb(0x8A4300);
+            var cinza = Rgb(0x5A5A5F);
+            void Caixa(double x, double largura, string rotulo, decimal valor, string? nota, bool destaque)
             {
-                double x = Margem + i * 135;
-                G.DrawRectangle(Pincel(i == 3 ? Escuro : Claro), x, _y, 130, 38);
-                var cor = i == 3 ? XColors.White : Escuro;
-                Texto(itens[i].Item1, x + 6, _y + 5, 120, 9, false, cor);
-                Texto(Reais(itens[i].Item2), x + 6, _y + 18, 120, 12, true, cor);
+                if (destaque) G.DrawRectangle(new XPen(Escuro, 1.1), Pincel(Claro), x, _y, largura, 42);
+                else G.DrawRectangle(new XPen(Rgb(0xCBCBC8), .6), x, _y, largura, 42);
+                Texto(rotulo, x + 7, _y + 5, largura - 14, 9, false, cinza);
+                Texto(Reais(valor), x + 7, _y + 17, largura - 14, 12.5, true);
+                if (nota is not null) Texto(nota, x + 7, _y + 31, largura - 14, 8, true, laranja);
             }
-            _y += 46;
-            if (!v.TemPizza) { Fluxo(SemPizza, 10); return; }
-            var fatias = new[] { ("Pago", v.Pago, 0x1E7B34), ("Em trâmite", v.Tramite, 0xE3A23B),
-                ("A pagar, sem medição em trâmite", v.SemMedicao, 0xD9D9D5) };
+
+            double l = 152;
+            decimal? pctAditado = v.Original == 0 ? null : v.Aditado / v.Original * 100;
+            Caixa(Margem, l, "Valor original", v.Original, null, false);
+            Texto("+", Margem + l + 4, _y + 14, 14, 13, true, cinza);
+            Caixa(Margem + l + 22, l, "Aditado", v.Aditado, pctAditado is { } pct ? $"{(pct >= 0 ? "+" : "")}{Percentual(pct)} do original" : null, false);
+            Texto("=", Margem + 2 * l + 26, _y + 14, 14, 13, true, cinza);
+            Caixa(Margem + 2 * l + 44, Largura - (2 * l + 44), "Contratado com aditamento", v.Contratado, null, true);
+            _y += 52;
+
+            Texto("Execução do contrato", Margem, _y, 150, 9.5, true);
+            double depois = G.MeasureString("Execução do contrato", Fonte(9.5, true)).Width + 5;
+            Texto("(percentuais do contratado com aditamento)", Margem + depois, _y + 0.5, 300, 8.5, false, cinza);
+            _y += 15;
+            double topo = _y;
+
+            // Saldo a pagar em destaque, a direita
+            double xs = Margem + Largura - 170;
+            G.DrawRectangle(Pincel(Escuro), xs, topo + 8, 170, 54);
+            Texto("Saldo a pagar", xs + 10, topo + 15, 150, 9, false, XColors.White);
+            Texto(Reais(v.SaldoAPagar), xs + 10, topo + 27, 150, 15, true, XColors.White);
+            Texto($"{Percentual(v.Percentual(v.SaldoAPagar))} do contratado", xs + 10, topo + 46, 150, 8, true, Rgb(0xF2B866));
+
+            if (!v.TemPizza)
+            {
+                foreach (string linha in Quebrar(SemPizza, Largura - 190, 10, false))
+                {
+                    Texto(linha, Margem, _y + 10, Largura - 190, 10);
+                    _y += 13;
+                }
+
+                _y = Math.Max(_y + 10, topo + 70);
+                return;
+            }
+
+            var fatias = new[] { ("Pago", v.Pago, 0x1E7B34, (string?)null), ("Em trâmite", v.Tramite, 0xE3A23B, v.Medicoes == 1 ? "1 medição" : $"{v.Medicoes} medições"),
+                ("A pagar, sem medição em trâmite", v.SemMedicao, 0xD9D9D5, null) };
             decimal soma = fatias.Sum(f => Math.Max(0, f.Item2));
             double angulo = -90;
-            Texto($"Do valor contratado com aditamento ({Reais(v.Contratado)})", 115, _y, 450, 10, true);
             for (int i = 0; i < fatias.Length; i++)
             {
-                var (nome, valor, cor) = fatias[i];
+                var (nome, valor, cor, extra) = fatias[i];
                 var corX = Rgb(cor);
                 double parte = soma > 0 ? (double)(Math.Max(0, valor) / soma * 360) : 0;
-                if (parte >= 359.999) G.DrawEllipse(Pincel(corX), Margem + 5, _y + 4, 65, 65);
-                else if (parte > 0) G.DrawPie(Pincel(corX), Margem + 5, _y + 4, 65, 65, angulo, parte);
+                if (parte >= 359.999) G.DrawEllipse(Pincel(corX), Margem + 2, topo + 2, 66, 66);
+                else if (parte > 0) G.DrawPie(new XPen(XColors.White, 1), Pincel(corX), Margem + 2, topo + 2, 66, 66, angulo, parte);
                 angulo += parte;
-                double y = _y + 17 + i * 16;
-                G.DrawRectangle(Pincel(corX), 115, y + 2, 9, 9);
-                Texto(nome, 130, y, 280, 10);
-                Texto(Percentual(v.Percentual(valor)), 405, y, 55, 10, true, direita: true);
-                Texto(Reais(valor), 462, y, 103, 10, direita: true);
+
+                // Legenda: nome e percentual lado a lado, o valor embaixo.
+                double x = Margem + 84, y = topo + 1 + i * 23;
+                G.DrawRectangle(Pincel(corX), x, y + 2, 8, 8);
+                var fonte = Fonte(9.5, true);
+                double lNome = G.MeasureString(nome, fonte).Width;
+                Texto(nome, x + 13, y, 200, 9.5, true);
+                Texto(Percentual(v.Percentual(valor)), x + 13 + lNome + 6, y, 60, 9.5, true);
+                Texto(Reais(valor) + (extra is null ? "" : " · " + extra), x + 13, y + 11.5, 200, 8.5, false, cinza);
             }
-            _y += 73;
+
+            _y = topo + 72;
         }
 
         public void Contrato(ResumoContrato contrato)
@@ -234,7 +279,7 @@ public static class GeradorResumoContratoPdf
             Fluxo($"{obra.Modalidade} · {contrato.Escolas.Count} {(contrato.Escolas.Count == 1 ? "escola" : "escolas")} · Situação em {Data(Hoje)}", 10);
             Contratual(obra);
             Financeira(contrato.Valores);
-            double[] larguras = [155, 82, 76, 76, 82, 64];
+            double[] larguras = [131, 92, 88, 86, 92, 46];
             string[] colunas = ["Escola", "Contratado c/ adit.", "Pago", "Em trâmite", "Saldo a pagar", "% pago"];
             Secao("Escolas do contrato");
             Linha(colunas, larguras, true, 23);
@@ -242,8 +287,8 @@ public static class GeradorResumoContratoPdf
             foreach (var escola in contrato.Escolas)
             {
                 var v = escola.Valores;
-                string[] linhas = Quebrar(escola.Obra.Empreendimento, 153, 10, true).ToArray();
-                var tipos = Quebrar(escola.Obra.TipoDeObra ?? escola.Obra.Tipo, 153, 9, false);
+                string[] linhas = Quebrar(escola.Obra.Empreendimento, 125, 10, true).ToArray();
+                var tipos = Quebrar(escola.Obra.TipoDeObra ?? escola.Obra.Tipo, 125, 9, false);
                 double altura = Math.Max(33, linhas.Length * 12 + tipos.Count * 11 + 7);
                 if (nestaPagina == 8 || _y + altura + 50 > 801)
                 {
@@ -255,8 +300,8 @@ public static class GeradorResumoContratoPdf
                 }
                 Linha(["", Reais(v.Contratado), Reais(v.Pago), Reais(v.Tramite), Reais(v.SaldoAPagar), Percentual(v.Percentual(v.Pago), 0)], larguras, false, altura);
                 double y = _y - altura + 4;
-                foreach (string nome in linhas) { Texto(nome, 34, y, 153, 10, true); y += 12; }
-                foreach (string tipo in tipos) { Texto(tipo, 34, y, 153, 9); y += 11; }
+                foreach (string nome in linhas) { Texto(nome, 34, y, 125, 10, true); y += 12; }
+                foreach (string tipo in tipos) { Texto(tipo, 34, y, 125, 9); y += 11; }
                 nestaPagina++;
             }
             var total = contrato.Valores;
@@ -272,7 +317,14 @@ public static class GeradorResumoContratoPdf
             double x = Margem;
             for (int i = 0; i < campos.Length; i++)
             {
-                Texto(campos[i], x + 4, _y + 5, larguras[i] - 8, 9, forte, direita: i > 0);
+                // Valor que nao cabe na coluna (R$ 99.999.999,99, nome do total) diminui um pouco, nunca invade a vizinha.
+                double tamanho = 9;
+                while (tamanho > 6.5 && G.MeasureString(campos[i] ?? "", Fonte(tamanho, forte)).Width > larguras[i] - 8)
+                {
+                    tamanho -= 0.25;
+                }
+
+                Texto(campos[i], x + 4, _y + 5 + (9 - tamanho) / 2, larguras[i] - 8, tamanho, forte, direita: i > 0);
                 x += larguras[i];
             }
             _y += altura;
@@ -288,11 +340,8 @@ public static class GeradorResumoContratoPdf
             Fluxo($"{obra.TipoDeObra ?? obra.Tipo} · Situação em {Data(Hoje)}", 10);
             Contratual(obra);
             Financeira(v);
-            Secao("Valores");
-            Grade([("Valor original", Reais(v.Original)), ("Aditado", Reais(v.Aditado)), ("Contratado com aditamento", Reais(v.Contratado)),
-                ("Medido", Reais(v.Medido)), ("Saldo a medir", Reais(v.SaldoAMedir)), ("Pago", Reais(v.Pago))]);
             if (escola.Medicoes.Count == 0) return;
-            string[] colunas = ["Medição", "Situação", "Início", "Considerado", "Reajuste", "Total"];
+            string[] colunas = ["Medição", "Situação", "Protocolo", "Medido", "Reajuste", "Total"];
             double[] larguras = [78, 145, 69, 80, 77, 86];
             Secao("Medições em trâmite");
             Linha(colunas, larguras, true, 23);
@@ -305,7 +354,7 @@ public static class GeradorResumoContratoPdf
                     Secao("Medições em trâmite");
                     Linha(colunas, larguras, true, 23);
                 }
-                Linha([m.Numero, m.Status, Data(m.Inicio), Reais(m.ValorConsiderado), Reais(m.Reajuste), Reais(m.Valor)], larguras, false, 20);
+                Linha([m.Numero, m.Status, m.TextoProtocolo, Reais(m.ValorConsiderado), Reais(m.Reajuste), Reais(m.Valor)], larguras, false, 20);
             }
             Linha(["Total em trâmite", "", "", "", "", Reais(v.Tramite)], larguras, true, 23);
         }
