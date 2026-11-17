@@ -109,7 +109,7 @@ public sealed class FotosPreparadasTests : IDisposable
 
         app.Rascunho.PrepararEmSegundoPlano = false;
         await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromSeconds(60));
-        foreach (var f in Directory.GetFiles(app.Rascunho.PastaDasPreparadas)) File.Delete(f);
+        foreach (var f in Directory.Exists(app.Rascunho.PastaDasPreparadas) ? Directory.GetFiles(app.Rascunho.PastaDasPreparadas) : []) File.Delete(f);
         var sem = await app.Rascunho.GerarAsync(p, app.Config);
 
         app.Rascunho.PrepararEmSegundoPlano = true;

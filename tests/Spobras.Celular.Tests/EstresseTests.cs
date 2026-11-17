@@ -159,12 +159,12 @@ public sealed class EstresseTests : IDisposable
         reaberto.PrepararEmSegundoPlano = false;
         await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
         await reaberto.MiniaturasProntasAsync(TimeSpan.FromMinutes(10));
-        foreach (var f in Directory.GetFiles(app.Rascunho.PastaDasPreparadas)) File.Delete(f);
+        foreach (var f in Directory.Exists(app.Rascunho.PastaDasPreparadas) ? Directory.GetFiles(app.Rascunho.PastaDasPreparadas) : []) File.Delete(f);
         foreach (var (formato, nome) in new[] { (FormatoGerado.Excel, "Excel"), (FormatoGerado.Pdf, "PDF"), (FormatoGerado.ExcelEPdf, "Excel e PDF") })
         {
             if (formato == FormatoGerado.ExcelEPdf)
             {
-                foreach (var f in Directory.GetFiles(app.Rascunho.PastaDasPreparadas)) File.Delete(f);
+                foreach (var f in Directory.Exists(app.Rascunho.PastaDasPreparadas) ? Directory.GetFiles(app.Rascunho.PastaDasPreparadas) : []) File.Delete(f);
             }
 
             RelatorioPronto? pronto = null;
