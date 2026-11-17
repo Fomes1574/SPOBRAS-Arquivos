@@ -29,6 +29,7 @@ public sealed class PlataformaDeTeste : IPlataforma
     public string Mestra => Path.Combine(Entrada, "Escolas_Contratos_Com_Relatorio.xlsx");
 
     public bool SemConexao { get; set; }
+    public Func<Task>? AntesDeSalvar { get; set; }
     public bool CameraPermitida { get; set; } = true;
     public List<string> Compartilhados { get; } = [];
     public List<string> NaGaleria { get; } = [];
@@ -105,8 +106,9 @@ public sealed class PlataformaDeTeste : IPlataforma
 
     public Task<Escolhido?> EscolherPastaAsync() => Task.FromResult<Escolhido?>(new Escolhido("pasta:" + Saida, "Relatórios"));
 
-    public Task<Salvo> SalvarAsync(string pastaId, string? subpasta, string arquivo)
+    public async Task<Salvo> SalvarAsync(string pastaId, string? subpasta, string arquivo)
     {
+        if (AntesDeSalvar is not null) await AntesDeSalvar();
         string pasta = pastaId.StartsWith("pasta:", StringComparison.Ordinal) ? pastaId[6..] : pastaId;
         if (subpasta is not null)
         {
@@ -117,7 +119,7 @@ public sealed class PlataformaDeTeste : IPlataforma
         string nome = NomeArquivo.Livre(Path.GetFileName(arquivo), n => File.Exists(Path.Combine(pasta, n)));
         string destino = Path.Combine(pasta, nome);
         File.Copy(arquivo, destino);
-        return Task.FromResult(new Salvo("arquivo:" + destino, nome, "Relatórios" + (subpasta is null ? "" : " › " + subpasta), new FileInfo(destino).Length));
+        return new Salvo("arquivo:" + destino, nome, "Relatórios" + (subpasta is null ? "" : " › " + subpasta), new FileInfo(destino).Length);
     }
 
     public Task GuardarNaGaleriaAsync(string foto)

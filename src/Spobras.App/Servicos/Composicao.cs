@@ -91,7 +91,8 @@ public sealed class Composicao : IDisposable
         relatorio.BuscarSugestoesContrato = texto => Spobras.Dados.Base.ProcuraObras.SugestoesDeContrato(Base, texto);
         var cronograma = (CronogramaVm)telas[CronogramaVm.Modulo];
         cronograma.ObrasDaEscola = ObrasDaEscola;
-        cronograma.ObrasDoLote = ObrasDoLote;
+        cronograma.ObrasDoContrato = ObrasDoContrato;
+        cronograma.BuscarContratos = texto => Spobras.Dados.Base.ProcuraObras.ContratosComDetalhes(Base, texto);
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
         {
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.

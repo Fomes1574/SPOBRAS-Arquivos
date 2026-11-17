@@ -17,6 +17,19 @@ public class RelatorioFotograficoTests : IDisposable
 
     private string Em(string nome) => Path.Combine(_pasta, nome);
 
+    [Fact]
+    public void Preparo_de_fotos_preserva_a_copia_que_esta_sendo_lida()
+    {
+        string cache = Em("cache.jpg");
+        PreparoDeFotos.Gravar(cache, [1, 2, 3]);
+        using var leitura = File.Open(cache, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        PreparoDeFotos.Gravar(cache, [4, 5, 6]);
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(cache));
+        Assert.Equal(cache, Assert.Single(Directory.GetFiles(_pasta)));
+    }
+
     /// <summary>Foto de teste: metade esquerda vermelha, metade direita azul (da para conferir a orientacao).</summary>
     private string CriarFoto(string nome, int largura, int altura, int orientacaoExif = 1, DateTime? capturada = null, SKEncodedImageFormat formato = SKEncodedImageFormat.Jpeg)
     {

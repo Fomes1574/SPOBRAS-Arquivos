@@ -176,7 +176,7 @@ public class ComposicaoProtótipoTests : IDisposable
     }
 
     [Fact]
-    public async Task Cronograma_busca_pelo_nome_mostra_os_contratos_e_sugere_escolas_do_mesmo_lote()
+    public async Task Cronograma_busca_pelo_nome_mostra_os_contratos_e_sugere_escolas_do_mesmo_contrato()
     {
         using var app = await AppComBase();
         app.Principal.Navegar(CronogramaVm.Modulo);
@@ -196,13 +196,16 @@ public class ComposicaoProtótipoTests : IDisposable
         Assert.False(linha.TemSugestoes);
         Assert.Equal(("EMEF Alfa", "07", "Nº 03 (2025)", "100000"), (linha.Nome, linha.Lote, linha.Portaria, linha.Valor)); // o valor digitado fica
 
-        // O lote 07 so tem a EMEF Alfa: nada a sugerir. No lote 01 estao as outras escolas.
-        Assert.False(cronograma.TemSugestoesDoLote);
+        // Trocar o texto do lote nao troca o contrato de origem.
+        Assert.False(cronograma.TemSugestoesDoContrato);
         linha.Lote = "01";
-        Assert.True(cronograma.TemSugestoesDoLote);
-        Assert.DoesNotContain(cronograma.SugestoesDoLote, o => o.Obra.Empreendimento == "EMEF Alfa"); // ja esta no cronograma
-        var sugerida = cronograma.SugestoesDoLote[0];
-        cronograma.AdicionarDoLoteCommand.Execute(sugerida);
+        Assert.False(cronograma.TemSugestoesDoContrato);
+        cronograma.RemoverLinhaCommand.Execute(linha);
+        cronograma.AdicionarDaBase(app.Base.Buscar(new Spobras.Core.Base.FiltroObras { Contrato = ["001/EX/2024"], Escola = ["EMEF Alfa"] }).Obras.Single());
+        Assert.True(cronograma.TemSugestoesDoContrato);
+        Assert.DoesNotContain(cronograma.SugestoesDoContrato, o => o.Obra.Empreendimento == "EMEF Alfa"); // ja esta no cronograma
+        var sugerida = cronograma.SugestoesDoContrato[0];
+        cronograma.AdicionarDoContratoCommand.Execute(sugerida);
         Assert.Equal(2, cronograma.Linhas.Count);
         Assert.Equal(sugerida.Obra.Empreendimento, cronograma.Linhas[1].Nome);
     }

@@ -8,11 +8,10 @@
 }
 else
 {
-    var (classe, texto) = SelosObra.Selo(o);
     <Barra Titulo="@o.Empreendimento" Sub="@string.Join(" · ", new[] { o.Contrato, SelosObra.Lote(o.Lote) }.Where(x => x.Length > 0))" Voltar="base" />
     <div class="conteudo">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-            <span class="selo @classe">@texto</span>
+            <SelosContrato Obra="o" Hoje="@DateOnly.FromDateTime(Spobras.Core.HoraDeBrasilia.De(App.Agora()).DateTime)" />
             <span class="mini">@string.Join(" · ", new[] { o.Portaria, o.Contratada }.Where(x => !string.IsNullOrWhiteSpace(x)))</span>
         </div>
         @if (_situacao == SituacaoContrato.Desconhecido)
@@ -21,32 +20,10 @@ else
         }
         <button class="btn primario" style="margin-bottom:12px" @onclick="UsarNoRelatorio">Relatório fotográfico</button>
 
-        <div class="painel">
-            <h2>Valores</h2>
-            <div class="kv">
-                <div><span>Valor original</span><b>@Formato.Reais(o.ValorEmpreendimento)</b></div>
-                <div><span>Aditado</span><b style="color:var(--laranja)">+ @Formato.Reais(o.ValorAditado)@if (MedicoesEmTramite.PercentualAditado(o) is { } pct)
-                        {
-                            <span style="font-weight:600;font-size:12px;display:inline"> (@pct.ToString("0.0", Formato.PtBr)%)</span>
-                        }</b></div>
-                <div class="largo" style="background:var(--fundo);border-radius:10px;padding:8px 10px"><span>Contratado com aditamento</span><b style="font-size:17px">@Formato.Reais(o.ValorContratadoComAditamento)</b></div>
-                <div><span>Pago</span><b style="color:var(--verde)">@Formato.Reais(o.ValorPago)</b></div>
-                <div><span>Saldo a pagar</span><b>@Formato.Reais(o.SaldoAPagar)</b></div>
-            </div>
-            @if (o.ValorContratadoComAditamento is > 0 and var total)
-            {
-                decimal pago = Math.Clamp((o.ValorPago ?? 0) / total * 100, 0, 100);
-                decimal tram = Math.Clamp(_totalTramite / total * 100, 0, 100 - pago);
-                <div class="barra-prog" style="margin-top:10px;display:flex"><i style="width:@Pct(pago);background:var(--verde);border-radius:0"></i><i style="width:@Pct(tram);background:var(--laranja);border-radius:0"></i></div>
-                <div class="mini" style="display:flex;gap:12px;flex-wrap:wrap">
-                    <span><b style="color:var(--verde)">■</b> Pago @pago.ToString("0", Formato.PtBr)%</span>
-                    @if (_tramite.Count > 0)
-                    {
-                        <span><b style="color:var(--laranja)">■</b> Em trâmite @tram.ToString("0", Formato.PtBr)%</span>
-                    }
-                    <span>Saldo a pagar @((100 - pago).ToString("0", Formato.PtBr))%</span>
-                </div>
-            }
+        @if (Erro is not null) { <Aviso Tipo="erro">@Erro</Aviso> }
+        <button class="btn linha resumo-acao" style="margin-bottom:12px" disabled="@(Trabalhando is not null)" @onclick="ExportarPdf">Exportar PDF desta escola</button>
+        <div class="painel contrato-resumo"><h2>Valores</h2>
+            <FinanceiroResumo Valores="@(new EscolaResumo(o, _tramite).Valores)" Pizza="true" />
         </div>
 
         <div class="painel">
@@ -120,7 +97,7 @@ else
 
         @if (!string.IsNullOrWhiteSpace(o.Lote))
         {
-            <button class="btn linha" @onclick="VerLote">Ver as obras do @SelosObra.Lote(o.Lote).ToLowerInvariant()</button>
+            <button class="btn linha" @onclick="VerContrato">Ver as escolas do contrato</button>
         }
     </div>
 
@@ -132,6 +109,29 @@ else
 }
 
 @code {
+    private readonly CancellationTokenSource _exportacao = new();
+
+    private Task ExportarPdf()
+    {
+        if (_obra is not { } obra) return Task.CompletedTask;
+        var token = _exportacao.Token;
+        return Executar("Gerando PDF…", async () =>
+        {
+            var salvo = await App.ResumoPdf.SalvarAsync([], new EscolaResumo(obra, _tramite), token);
+            if (salvo is null) return;
+            if (token.IsCancellationRequested) { salvo.Limpar(); return; }
+            App.UltimoResumoPdf = salvo;
+            Ir("base/resumo-pdf");
+        });
+    }
+
+    public override void Dispose()
+    {
+        _exportacao.Cancel();
+        _exportacao.Dispose();
+        base.Dispose();
+    }
+
     [Parameter] public long Id { get; set; }
 
     private ObraLida? _obra;
@@ -204,9 +204,9 @@ else
         Ir("relatorio");
     }
 
-    private void VerLote()
+    private void VerContrato()
     {
-        App.FiltroBase = new FiltroObras { Lote = _obra!.Lote is { } lote ? [lote] : [] };
+        App.FiltroBase = new FiltroObras { Contrato = [_obra!.Contrato.Trim()] };
         Ir("base");
     }
 }

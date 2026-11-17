@@ -12,7 +12,23 @@ public static class Cenarios
     {
         if (!File.Exists(p.Mestra))
         {
-            AmostraCelular.GravarMestra(p.Mestra);
+            var mestra = AmostraCelular.Mestra();
+            if (cenario == "pronto")
+            {
+                var obras = mestra.TabelasPorNome["contratos_VW_ESCOLAS_CONTRATOS_MEDIDOS_PAGOS"];
+                var secoes = obras.Colunas.ToList();
+                var dados = obras.Linhas.Select(l => l.ToArray()).ToArray();
+                var vencida = dados.Single(l => Equals(l[secoes.IndexOf("CONTRATO")], "052/EX/2026"));
+                vencida[secoes.IndexOf("CONTRATADA")] = "Engenharia Fictícia de Obras, Manutenção e Desenvolvimento de Infraestrutura Escolar";
+                vencida[secoes.IndexOf("EMPREENDIMENTO")] = "EMEF Escola Fictícia do Jardim das Flores e do Parque Municipal da Vila Nova";
+                vencida[secoes.IndexOf("VALOR EMPREENDIMENTO")] = 99_999_999.99m;
+                vencida[secoes.IndexOf("SALDO A PAGAR")] = 99_999_999.99m;
+                vencida[secoes.IndexOf("TÉRMINO EXECUÇÃO")] = new DateTime(2026, 9, 1);
+                vencida[secoes.IndexOf("STATUS CONTRATO")] = "VENCIDO";
+                mestra.Tabela(obras.Nome, [.. obras.Colunas], dados);
+            }
+
+            XlsxSintetico.Gravar(mestra, p.Mestra);
             int[][] tamanhos = [[1600, 1200], [1600, 900], [1200, 1600], [1600, 1200], [1200, 1200], [1600, 1200], [1600, 900], [1200, 1600]];
             for (int i = 0; i < tamanhos.Length; i++)
             {

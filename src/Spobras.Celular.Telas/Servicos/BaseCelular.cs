@@ -252,6 +252,8 @@ public sealed class BaseCelular
     private IReadOnlyList<string> Ocultos() =>
         [.. Repositorio.StatusDoContrato().Where(s => s.Status.Length > 0 && MedicoesEmTramite.Classificar(s.Status) == SituacaoContrato.Ignorado).Select(s => s.Status)];
 
+    public IReadOnlyList<ResumoContrato> ResumosDosContratos(IReadOnlyList<string> contratos) => Repositorio.ResumosDosContratos(contratos, Ocultos());
+
     private FiltroObras Visivel(FiltroObras filtro) => filtro with { OcultarStatusContrato = Ocultos() };
 
     /// <summary>Obras do filtro, sem as que nao aparecem no app. O banco ja devolve so a pagina pedida.</summary>

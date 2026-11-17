@@ -141,6 +141,7 @@ public sealed record OpcoesFiltro(
     /// <summary>Lotes que combinam com os outros filtros ("LOTE 216"), em ordem de numero.</summary>
     public IReadOnlyList<string> Lotes { get; init; } = [];
     public IReadOnlyList<string> Empresas { get; init; } = [];
+    public IReadOnlyList<OpcaoContratoResumo> ContratosDetalhados { get; init; } = [];
 }
 
 public sealed record MedicaoLida(

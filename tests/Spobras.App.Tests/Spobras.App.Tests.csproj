@@ -13,6 +13,7 @@
   <ItemGroup>
     <Compile Include="../Compartilhado/**/*.cs" LinkBase="Compartilhado" />
     <Compile Include="../CompartilhadoXlsx/**/*.cs" LinkBase="CompartilhadoXlsx" />
+    <Compile Include="../CompartilhadoCelular/PlataformaDeTeste.cs" LinkBase="CompartilhadoCelular" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
@@ -20,6 +21,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <ProjectReference Include="../../src/Spobras.Core/Spobras.Core.csproj" />
+    <ProjectReference Include="../../src/Spobras.Celular.Telas/Spobras.Celular.Telas.csproj" />
     <ProjectReference Include="../../src/Spobras.Dados/Spobras.Dados.csproj" />
     <ProjectReference Include="../../src/Spobras.Documentos/Spobras.Documentos.csproj" />
   </ItemGroup>

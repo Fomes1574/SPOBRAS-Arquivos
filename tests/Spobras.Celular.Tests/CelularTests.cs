@@ -42,6 +42,32 @@ public sealed class CelularTests : IDisposable
         return app;
     }
 
+    [Fact]
+    public async Task Beta_duplo_toque_e_saida_durante_exportacao_nao_duplicam_nem_deixam_copia_privada()
+    {
+        var app = await AppComBase();
+        var contratos = app.Base.Repositorio.ResumosDosContratos(["044/EX/2026"]);
+        var entrou = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var continuar = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _p.AntesDeSalvar = () =>
+        {
+            entrou.SetResult();
+            return continuar.Task;
+        };
+
+        using var cancelar = new CancellationTokenSource();
+        var primeiro = app.ResumoPdf.SalvarAsync(contratos, cancelar: cancelar.Token);
+        await entrou.Task.WaitAsync(TimeSpan.FromSeconds(15));
+        Assert.Null(await app.ResumoPdf.SalvarAsync(contratos));
+        cancelar.Cancel();
+        continuar.SetResult();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => primeiro);
+        Assert.Single(Directory.GetFiles(_p.Saida, "*.pdf"));
+        Assert.Single(app.Config.UltimosGerados);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(Path.Combine(_p.PastaDoApp, "resumos")));
+    }
+
     // ---- Base ----
 
     [Fact]

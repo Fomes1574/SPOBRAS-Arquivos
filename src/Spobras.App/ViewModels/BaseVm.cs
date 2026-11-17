@@ -245,6 +245,63 @@ public sealed partial class BaseVm : TelaVm
     /// <summary>Logo cadastrado (vai no topo das planilhas exportadas). Definido pela composicao do app.</summary>
     public Func<string?>? Logo { get; set; }
 
+    public ObservableCollection<ResumoContratoVm> ResumosContratos { get; } = [];
+    public IReadOnlyList<OpcaoContratoResumo> ContratosDetalhados { get; private set; } = [];
+    private IReadOnlyList<ResumoContrato> _resumos = [];
+    public bool TemResumoContrato => _resumos.Count > 0;
+
+    [RelayCommand]
+    private void AbrirEscolaResumo(ObraLida? obra)
+    {
+        if (obra is not null)
+            Selecionada = Obras.FirstOrDefault(o => o.Obra.Id == obra.Id) ?? new ObraVm(obra);
+    }
+
+    [RelayCommand]
+    private Task ExportarContratosPdf() => ExportarResumoPdf(null);
+
+    [RelayCommand]
+    private Task ExportarEscolaPdf() => Selecionada is { } s ? ExportarResumoPdf(s.Obra) : Task.CompletedTask;
+
+    private async Task ExportarResumoPdf(ObraLida? obra)
+    {
+        if (_apoio is null || (obra is null && _resumos.Count == 0)) return;
+        if (Ocupado) return;
+        var hora = _apoio.Relogio.Agora;
+        var leitura = _fontes.Fontes().First(f => f.Id == Fontes.Mestra).UltimaLeitura;
+        var escola = obra is null ? null : _base.ResumoDaEscola(obra);
+        string nome = escola is null
+            ? Documentos.Relatorio.GeradorResumoContratoPdf.Nome(_resumos, hora)
+            : Documentos.Relatorio.GeradorResumoContratoPdf.Nome(escola, hora);
+        string pasta = _apoio.Preferencias.DestinoDe(Modulo);
+        var resumos = _resumos;
+        string? logo = Logo?.Invoke();
+        Ocupado = true;
+        try
+        {
+            string caminho = await Task.Run(() =>
+            {
+                Directory.CreateDirectory(pasta);
+                string saida = Path.Combine(pasta, Core.Nomes.NomeArquivo.Livre(nome, n => File.Exists(Path.Combine(pasta, n))));
+                if (escola is null) Documentos.Relatorio.GeradorResumoContratoPdf.Gerar(saida, resumos, hora, leitura, logo);
+                else Documentos.Relatorio.GeradorResumoContratoPdf.Gerar(saida, escola, hora, leitura, logo);
+                return saida;
+            });
+            _ultimaExportacao = caminho;
+            PodeAbrirExportacao = true;
+            _apoio.Operacoes.RegistrarCriados($"Exportou {Path.GetFileName(caminho)}", [caminho]);
+            Resultado = $"“{Path.GetFileName(caminho)}” salvo em {pasta}.";
+            ResultadoComFalha = false;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Resultado = "Não foi possível exportar o PDF: " + ex.Message;
+            ResultadoComFalha = true;
+        }
+        finally { Ocupado = false; }
+    }
+
+
     /// <summary>Abre a busca dentro dos arquivos com um termo (contrato ou escola da obra escolhida).</summary>
     public Action<string>? AoBuscarNosArquivos { get; set; }
 
@@ -660,12 +717,28 @@ public sealed partial class BaseVm : TelaVm
         Portaria = c.Portaria;
         Contrato = c.Contrato;
         Escola = c.Escola;
-        Lote = c.Lote;
+        Lote = [];
         Empresa = c.Empresa;
         ContratoReceita = c.ContratoReceita;
         Dotacao = c.Dotacao;
         Status = c.Status;
         Texto = c.Texto;
+        if (c.Lote.Count > 0)
+        {
+            var contratos = _base.Buscar(new FiltroObras { Lote = c.Lote, Portaria = c.Portaria, Contrato = c.Contrato }, int.MaxValue)
+                .Obras.Select(o => o.Contrato.Trim()).Where(o => o.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            if (contratos.Length > 0)
+            {
+                Contrato = contratos;
+                Resultado = "O filtro Lote foi trocado pelos contratos do lote.";
+            }
+            else
+            {
+                Texto = string.Join(" ", new[] { c.Texto, string.Join(" ", c.Lote) }.Where(t => t.Length > 0));
+                Resultado = "O filtro Lote foi colocado na pesquisa.";
+            }
+            ResultadoComFalha = false;
+        }
         ValorFiltrado = CamposDeValor.First(v => v.Campo == c.CampoValor);
         ValorDe = c.ValorDe;
         ValorAte = c.ValorAte;
@@ -958,6 +1031,10 @@ public sealed partial class BaseVm : TelaVm
         // Trocar a lista faz a tela soltar a selecao; o valor escolhido e reposto logo depois.
         Trocar(Portarias, opcoes.Portarias, Portaria, "Portaria");
         Trocar(Contratos, opcoes.Contratos, Contrato, "Contrato");
+        ContratosDetalhados = opcoes.ContratosDetalhados
+            .Concat(_base.OpcoesGerais().ContratosDetalhados.Where(o => Contrato.Contains(o.Contrato, StringComparer.OrdinalIgnoreCase)))
+            .DistinctBy(o => o.Contrato, StringComparer.OrdinalIgnoreCase).ToArray();
+        OnPropertyChanged(nameof(ContratosDetalhados));
         Trocar(Escolas, opcoes.Escolas, Escola, "Escola");
         Trocar(Lotes, opcoes.Lotes, Lote, "Lote");
         Trocar(Empresas, opcoes.Empresas, Empresa, "Empresa");
@@ -992,6 +1069,11 @@ public sealed partial class BaseVm : TelaVm
         AtualizarMedicoes();
         AtualizarPendencias();
         AtualizarLote(filtro);
+        _resumos = _base.ResumosDosContratos(Contrato);
+        ResumosContratos.Clear();
+        var hoje = DateOnly.FromDateTime(HoraDeBrasilia.De(_apoio?.Relogio.Agora ?? DateTimeOffset.Now).DateTime);
+        foreach (var resumo in _resumos) ResumosContratos.Add(new ResumoContratoVm(resumo, hoje));
+        OnPropertyChanged(nameof(TemResumoContrato));
     }
 
     /// <summary>

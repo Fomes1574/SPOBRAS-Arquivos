@@ -5,7 +5,7 @@
     <button class="acao" aria-label="Reler agora" @onclick="Reler">↻</button>
     <a class="acao engrenagem" href="base/configuracoes" aria-label="Configurações da base" style="text-decoration:none"><Icone Nome="config" /></a>
 </Barra>
-<div class="conteudo">
+<div class="conteudo base-contratos">
     @if (App.Base.Estado is EstadoBase.SemConexao or EstadoBase.Inacessivel or EstadoBase.Invalida or EstadoBase.SemPlanilha or EstadoBase.Lendo)
     {
         <SituacaoBase />
@@ -19,36 +19,32 @@
         {
             var valores = f.Valor(App.FiltroBase);
             <div class="grupo-chip @(valores.Count > 0 ? "on" : "")">
-                <button class="chip" @onclick="() => Abrir(f.Id)">@ResumoFiltro(f, valores) ▾</button>
+                <button class="chip resumo-acao" @onclick="() => Abrir(f.Id)">@ResumoFiltro(f, valores) ▾</button>
                 @if (valores.Count > 0)
                 {
-                    <button class="chip limpar-chip" aria-label="@($"Limpar {f.Nome}")" @onclick="() => Limpar(f.Id)">✕</button>
+                    <button class="chip limpar-chip resumo-acao" aria-label="@($"Limpar {f.Nome}")" @onclick="() => Limpar(f.Id)">✕</button>
                 }
             </div>
         }
     </div>
 
-    @if (_totais is { } t)
+    @if (Erro is not null) { <Aviso Tipo="erro">@Erro</Aviso> }
+    @foreach (var resumo in _resumos)
     {
-        <div class="painel">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><h2 style="margin:0">@(App.FiltroBase.Lote.Count > 1 ? t.Lote : $"Totais do {SelosObra.Lote(t.Lote).ToLowerInvariant()}")</h2><span class="mini">@Formato.Plural(t.Escolas, "escola", "escolas")</span></div>
-            <div class="totais" style="margin-top:10px">
-                <div><span>Valor original</span><b>@Formato.Reais(t.Original)</b></div>
-                <div><span>Aditado</span><b>+ @Formato.Reais(t.Aditado)</b></div>
-                <div style="grid-column:1/-1"><span>Contratado com aditamento</span><b>@Formato.Reais(t.Contratado)</b></div>
-                <div><span>Pago</span><b>@Formato.Reais(t.Pago)</b></div>
-                <div><span>Saldo a pagar</span><b>@Formato.Reais(t.SaldoAPagar)</b></div>
-                <div style="grid-column:1/-1"><span>Medições em trâmite (@t.MedicoesEmTramite)</span><b>@Formato.Reais(t.EmTramite)</b></div>
-            </div>
-            <p class="mini" style="margin:8px 0 0">Soma das obras dos lotes selecionados. Pago + saldo a pagar = contratado com aditamento.</p>
-        </div>
+        <CartaoResumoContrato @key="resumo.Identificacao.Contrato" Resumo="resumo" Hoje="Hoje"
+                              Exportar="@(_resumos.Count == 1 ? EventCallback.Factory.Create(this, ExportarPdf) : default)"
+                              Ocupado="@(Trabalhando is not null)" />
+    }
+    @if (_resumos.Count > 1)
+    {
+        <button class="btn primario resumo-acao" disabled="@(Trabalhando is not null)" @onclick="ExportarPdf">Exportar PDF dos @_resumos.Count contratos</button>
     }
 
     @if (!App.Base.TemDados)
     {
         <div class="vazio-lista">Ainda não há dados. Escolha a planilha mestra para começar.</div>
     }
-    else
+    else if (_resumos.Count == 0)
     {
         <div class="mini" style="margin:0 2px 8px;display:flex;justify-content:space-between"><span>@Formato.Plural(_total, "obra", "obras")</span><span>Saldo a pagar</span></div>
         @foreach (var o in _obras)
@@ -75,6 +71,7 @@
 <Folha Aberta="_aberto is not null" Titulo="@_aberto?.Nome" AoFechar="FecharFiltro">
     @if (_aberto is { } filtro)
     {
+        <div class="folha-resumo">
         <div class="busca"><input type="search" aria-label="Pesquisar opções" placeholder="Pesquisar opções" value="@_pesquisa" @oninput="Pesquisar" /></div>
         <div class="opcoes-filtro">
             @{ var visiveis = OpcoesVisiveis(); }
@@ -82,7 +79,13 @@
             {
                 bool marcado = filtro.Valor(App.FiltroBase).Contains(op, StringComparer.OrdinalIgnoreCase);
                 <label class="opcao opcao-filtro">
-                    <span>@(filtro.Id == "lote" ? SelosObra.Lote(op) : op)</span>
+                    <span>
+                        @if (_detalhes.TryGetValue(op, out var detalhe))
+                        {
+                            <b>@detalhe.Titulo</b><small>@detalhe.Detalhe</small>
+                        }
+                        else { @op }
+                    </span>
                     <input type="checkbox" checked="@marcado" @onchange="() => Escolher(filtro, op)" />
                 </label>
             }
@@ -95,30 +98,51 @@
         {
             <p class="mini" style="margin:-4px 2px 10px">Nenhuma opção com esse texto.</p>
         }
-        <button class="btn primario" @onclick="FecharFiltro">Pronto</button>
+        <button class="btn primario resumo-acao" @onclick="FecharFiltro">Pronto</button>
+        </div>
     }
 </Folha>
 
 @code {
-    private sealed record FiltroChip(string Id, string Nome, string Plural, Func<FiltroObras, IReadOnlyList<string>> Valor, Func<OpcoesFiltro, IReadOnlyList<string>> Opcoes, Func<FiltroObras, IReadOnlyList<string>, FiltroObras> Definir);
+    private sealed record FiltroChip(string Id, string Nome, Func<FiltroObras, IReadOnlyList<string>> Valor, Func<OpcoesFiltro, IReadOnlyList<string>> Opcoes, Func<FiltroObras, IReadOnlyList<string>, FiltroObras> Definir);
 
     private static readonly FiltroChip[] Filtros =
     [
-        new("lote", "Lote", "lotes", f => f.Lote, o => o.Lotes, (f, v) => f with { Lote = v }),
-        new("portaria", "Portaria", "portarias", f => f.Portaria, o => o.Portarias, (f, v) => f with { Portaria = v }),
-        new("empresa", "Empresa", "empresas", f => f.Empresa, o => o.Empresas, (f, v) => f with { Empresa = v }),
-        new("status", "Status", "status", f => f.Status, o => o.Status, (f, v) => f with { Status = v }),
-        new("contrato", "Contrato", "contratos", f => f.Contrato, o => o.Contratos, (f, v) => f with { Contrato = v }),
-        new("escola", "Escola", "escolas", f => f.Escola, o => o.Escolas, (f, v) => f with { Escola = v }),
-        new("receita", "Contrato de receita", "contratos de receita", f => f.ContratoReceita, o => o.ContratosReceita, (f, v) => f with { ContratoReceita = v }),
-        new("dotacao", "Dotação", "dotações", f => f.Dotacao, o => o.Dotacoes, (f, v) => f with { Dotacao = v }),
+        new("contrato", "Contrato", f => f.Contrato, o => o.Contratos, (f, v) => f with { Contrato = v }),
+        new("portaria", "Portaria", f => f.Portaria, o => o.Portarias, (f, v) => f with { Portaria = v }),
+        new("empresa", "Empresa", f => f.Empresa, o => o.Empresas, (f, v) => f with { Empresa = v }),
+        new("status", "Status", f => f.Status, o => o.Status, (f, v) => f with { Status = v }),
     ];
 
     private const int Pagina = 40;
     private int _limite = Pagina;
     private IReadOnlyList<ObraLida> _obras = [];
     private int _total;
-    private TotaisLote? _totais;
+    private IReadOnlyList<ResumoContrato> _resumos = [];
+    private Dictionary<string, OpcaoContratoResumo> _detalhes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _exportacao = new();
+    private DateOnly Hoje => DateOnly.FromDateTime(Spobras.Core.HoraDeBrasilia.De(App.Agora()).DateTime);
+
+    private Task ExportarPdf()
+    {
+        var token = _exportacao.Token;
+        return Executar("Gerando PDF…", async () =>
+        {
+            var salvo = await App.ResumoPdf.SalvarAsync(_resumos, cancelar: token);
+            if (salvo is null) return;
+            if (token.IsCancellationRequested) { salvo.Limpar(); return; }
+            App.UltimoResumoPdf = salvo;
+            Ir("base/resumo-pdf");
+        });
+    }
+
+    public override void Dispose()
+    {
+        _exportacao.Cancel();
+        _exportacao.Dispose();
+        _digitando?.Cancel();
+        base.Dispose();
+    }
     private FiltroChip? _aberto;
     private string _pesquisa = "";
     private readonly Dictionary<string, string> _pesquisas = [];
@@ -138,12 +162,12 @@
     {
         if (!App.Base.TemDados)
         {
-            (_obras, _total, _totais) = ([], 0, null);
+            (_obras, _total, _resumos) = ([], 0, []);
             return;
         }
 
         (_obras, _total) = App.Base.Buscar(App.FiltroBase, _limite);
-        _totais = App.FiltroBase.Lote.Count == 0 ? null : App.Base.Totais(App.FiltroBase);
+        _resumos = App.Base.ResumosDosContratos(App.FiltroBase.Contrato);
     }
 
     private async Task Digitou(ChangeEventArgs e)
@@ -168,8 +192,8 @@
     private static string ResumoFiltro(FiltroChip filtro, IReadOnlyList<string> valores) => valores.Count switch
     {
         0 => filtro.Nome,
-        1 => filtro.Id == "lote" ? SelosObra.Lote(valores[0]) : valores[0],
-        _ => $"{valores.Count} {filtro.Plural}",
+        1 => valores[0],
+        _ => $"{valores[0]} + {valores.Count - 1}",
     };
 
     private void Abrir(string id)
@@ -188,9 +212,14 @@
     // As marcadas ficam no topo (sempre visiveis); o texto para pesquisar e preparado uma vez so.
     private void RecarregarOpcoes(FiltroChip filtro)
     {
-        var marcadas = filtro.Valor(App.FiltroBase);
-        _opcoes = [.. marcadas.Concat(filtro.Opcoes(App.Base.Opcoes(App.FiltroBase)).Except(marcadas, StringComparer.OrdinalIgnoreCase))
-            .Select(o => (o, Normalizacao.Busca(o)))];
+        var opcoes = App.Base.Opcoes(App.FiltroBase);
+        _detalhes = filtro.Id == "contrato"
+            ? opcoes.ContratosDetalhados.Concat(App.Base.Repositorio.OpcoesGerais().ContratosDetalhados
+                .Where(o => filtro.Valor(App.FiltroBase).Contains(o.Contrato, StringComparer.OrdinalIgnoreCase)))
+                .DistinctBy(o => o.Contrato, StringComparer.OrdinalIgnoreCase).ToDictionary(o => o.Contrato, StringComparer.OrdinalIgnoreCase)
+            : new(StringComparer.OrdinalIgnoreCase);
+        _opcoes = filtro.Opcoes(opcoes).Union(filtro.Valor(App.FiltroBase), StringComparer.OrdinalIgnoreCase)
+            .Select(o => (o, Normalizacao.Busca(_detalhes.TryGetValue(o, out var d) ? d.Titulo + " " + d.Detalhe : o))).ToList();
     }
 
     private void Pesquisar(ChangeEventArgs e) => _pesquisa = e.Value?.ToString() ?? "";

@@ -17,7 +17,7 @@ namespace Spobras.App.ViewModels;
 
 public sealed record LinhaRascunho(
     string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs,
-    int Distribuicao = 0);
+    int Distribuicao = 0, string? ContratoOrigem = null);
 
 public sealed record AjusteRascunho(string Mes, bool EmReais, string Quantia, int Para);
 
@@ -178,6 +178,7 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
 
     public OrigemInicio Origem { get; set; }
     public DateOnly? DataOsDaBase { get; set; }
+    public string? ContratoOrigem { get; set; }
 
     protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -186,6 +187,7 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
         {
             if (e.PropertyName == nameof(Nome))
             {
+                ContratoOrigem = null;
                 AoDigitarNome?.Invoke(this);
             }
 
@@ -287,18 +289,42 @@ public sealed partial class CronogramaVm : TelaVm
     /// <summary>Meses do cronograma ("out/26"), para escolher o mes de um ajuste sem digitar.</summary>
     public ObservableCollection<string> MesesDoCronograma { get; } = [];
 
-    /// <summary>Escolas do mesmo lote das obras ja incluidas, que ainda nao estao no cronograma.</summary>
-    public ObservableCollection<OpcaoDeContrato> SugestoesDoLote { get; } = [];
+    /// <summary>Escolas do mesmo contrato das obras ja incluidas, que ainda nao estao no cronograma.</summary>
+    public ObservableCollection<OpcaoDeContrato> SugestoesDoContrato { get; } = [];
 
-    public bool TemSugestoesDoLote => SugestoesDoLote.Count > 0;
+    public bool TemSugestoesDoContrato => SugestoesDoContrato.Count > 0;
 
     /// <summary>Obras da base pelo nome da escola (varios contratos possiveis).</summary>
     public Func<string, IReadOnlyList<ObraLida>>? ObrasDaEscola { get; set; }
 
-    /// <summary>Obras da base de um lote ("216" ou "LOTE 216").</summary>
-    public Func<string, IReadOnlyList<ObraLida>>? ObrasDoLote { get; set; }
+    /// <summary>Obras da base de um contrato.</summary>
+    public Func<string, IReadOnlyList<ObraLida>>? ObrasDoContrato { get; set; }
 
-    private readonly Dictionary<string, IReadOnlyList<ObraLida>> _lotes = new(StringComparer.OrdinalIgnoreCase);
+    public Func<string, IReadOnlyList<OpcaoContratoResumo>>? BuscarContratos { get; set; }
+
+    [ObservableProperty]
+    private string _pesquisaContrato = "";
+
+    public ObservableCollection<OpcaoContratoResumo> ContratosEncontrados { get; } = [];
+
+    partial void OnPesquisaContratoChanged(string value)
+    {
+        ContratosEncontrados.Clear();
+        if (value.Trim().Length < 2 || BuscarContratos is null) return;
+        foreach (var contrato in BuscarContratos(value)) ContratosEncontrados.Add(contrato);
+    }
+
+    [RelayCommand]
+    private void AdicionarEscolasDoContrato(OpcaoContratoResumo opcao)
+    {
+        var nomes = Linhas.Select(l => Normalizacao.Busca(l.Nome.Trim())).ToHashSet();
+        foreach (var obra in ObrasDoContrato?.Invoke(opcao.Contrato) ?? [])
+        {
+            if (nomes.Add(Normalizacao.Busca(obra.Empreendimento.Trim())))
+                AdicionarDaBase(obra);
+        }
+        PesquisaContrato = "";
+    }
 
     /// <summary>0 = linear; 1 = curva S. Vale para todas as obras, menos as que escolheram outra na linha.</summary>
     [ObservableProperty]
@@ -384,6 +410,7 @@ public sealed partial class CronogramaVm : TelaVm
         var o = DaBase(opcao.Obra);
         string valor = linha.Valor, fim = linha.Fim;
         Carregar(linha, o);
+        linha.ContratoOrigem = opcao.Obra.Contrato.Trim();
         linha.Carregar(() =>
         {
             linha.Valor = valor; // o valor e o fim que o usuario ja tinha digitado ficam
@@ -394,9 +421,9 @@ public sealed partial class CronogramaVm : TelaVm
         Orientar($"{opcao.Obra.Empreendimento} ({opcao.Obra.Contrato}) entrou com portaria, lote e dotação da base. Confira o valor e o fim.");
     }
 
-    /// <summary>Escola do mesmo lote sugerida: entra como uma obra nova.</summary>
+    /// <summary>Escola do mesmo contrato sugerida: entra como uma obra nova.</summary>
     [RelayCommand]
-    private void AdicionarDoLote(OpcaoDeContrato opcao) => AdicionarDaBase(opcao.Obra);
+    private void AdicionarDoContrato(OpcaoDeContrato opcao) => AdicionarDaBase(opcao.Obra);
 
     [RelayCommand]
     private void RemoverLinha(LinhaCronogramaVm linha)
@@ -513,7 +540,7 @@ public sealed partial class CronogramaVm : TelaVm
     /// </summary>
     public void AdicionarDaBase(ObraLida obra)
     {
-        Adicionar(DaBase(obra));
+        Adicionar(DaBase(obra), obra.Contrato.Trim());
         Conferir();
         Orientar($"{obra.Empreendimento} entrou no cronograma" + (obra.DataOs is null ? " sem Data da OS: informe o início previsto." : " com o início no mês da Data da OS.") + " Informe o valor e o fim.");
     }
@@ -632,9 +659,10 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
-    private void Adicionar(ObraCronograma o)
+    private void Adicionar(ObraCronograma o, string? contratoOrigem = null)
     {
         var linha = CriarLinha();
+        linha.ContratoOrigem = contratoOrigem;
         Carregar(linha, o);
         Linhas.Add(linha);
     }
@@ -681,7 +709,7 @@ public sealed partial class CronogramaVm : TelaVm
         _calculo = CalculoCronograma.Calcular(obras, PercentualRemuneracao ?? CalculoCronograma.PadraoRemuneracao, ajustes,
             o => CalculoCronograma.Resolver(o, vinculos), Distribuicao == 1 ? Core.Cronograma.Distribuicao.CurvaS : Core.Cronograma.Distribuicao.Linear);
         AtualizarMeses();
-        AtualizarSugestoesDoLote();
+        AtualizarSugestoesDoContrato();
 
         int k = 0;
         for (int i = 0; i < Linhas.Count; i++)
@@ -734,7 +762,7 @@ public sealed partial class CronogramaVm : TelaVm
         MostrarCalculo(ajustes);
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
-            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase, l.Distribuicao))],
+            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase, l.Distribuicao, l.ContratoOrigem))],
             true, GerarPdf, NomeCronograma, Remuneracao,
             [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))], Distribuicao), _relogio.Agora);
     }
@@ -803,36 +831,33 @@ public sealed partial class CronogramaVm : TelaVm
         }
     }
 
-    /// <summary>Escolas da base nos lotes das obras ja incluidas que ainda nao estao no cronograma.</summary>
-    private void AtualizarSugestoesDoLote()
+    /// <summary>Escolas da base nos contratos das obras ja incluidas que ainda nao estao no cronograma.</summary>
+    private void AtualizarSugestoesDoContrato()
     {
         var novas = new List<OpcaoDeContrato>();
-        if (ObrasDoLote is not null)
+        if (ObrasDoContrato is not null)
         {
             var nomes = Linhas.Select(l => Normalizacao.Busca(l.Nome.Trim())).Where(n => n.Length > 0).ToHashSet();
-            foreach (string lote in Linhas.Select(l => l.Lote.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (string contrato in Linhas.Select(l => l.ContratoOrigem).OfType<string>()
+                         .Where(c => c.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (!_lotes.TryGetValue(lote, out var obras))
-                {
-                    obras = _lotes[lote] = ObrasDoLote(lote);
-                }
-
+                var obras = ObrasDoContrato(contrato);
                 novas.AddRange(obras.Where(o => !nomes.Contains(Normalizacao.Busca(o.Empreendimento.Trim()))).Select(o => new OpcaoDeContrato(o)));
             }
         }
 
-        if (novas.Select(n => n.Obra.Id).SequenceEqual(SugestoesDoLote.Select(n => n.Obra.Id)))
+        if (novas.Select(n => n.Obra.Id).SequenceEqual(SugestoesDoContrato.Select(n => n.Obra.Id)))
         {
             return;
         }
 
-        SugestoesDoLote.Clear();
+        SugestoesDoContrato.Clear();
         foreach (var o in novas.Take(20))
         {
-            SugestoesDoLote.Add(o);
+            SugestoesDoContrato.Add(o);
         }
 
-        OnPropertyChanged(nameof(TemSugestoesDoLote));
+        OnPropertyChanged(nameof(TemSugestoesDoContrato));
     }
 
     /// <summary>Refaz a lista "Todas as obras, 1 - Escola..." so quando ela muda, e devolve a escolha de cada ajuste.</summary>
@@ -874,6 +899,7 @@ public sealed partial class CronogramaVm : TelaVm
             var linha = CriarLinha();
             linha.Origem = l.Origem;
             linha.DataOsDaBase = l.DataOs;
+            linha.ContratoOrigem = l.ContratoOrigem;
             linha.Carregar(() =>
             {
                 linha.Distribuicao = l.Distribuicao;

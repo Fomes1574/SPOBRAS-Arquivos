@@ -47,6 +47,55 @@ async function conferir(page, nome, tamanho) {
       const no = document.elementFromPoint(t.left + 5, t.top + 8);
       if (no && !titulo.contains(no) && !no.closest('.veu') && !no.closest('.folha') && !no.closest('.ocupado')) out.push('titulo coberto por ' + (no.className || no.tagName));
     }
+    const alvosResumo = '.resumo-acao, .folha-resumo label.opcao, .escola-resumo > a';
+    document.querySelectorAll(alvosResumo).forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      if (r.width < 43.5 || r.height < 43.5) out.push('toque do resumo menor que 44 px: ' + el.textContent.trim());
+      if (r.top < 0 || r.bottom > innerHeight || r.left < 0 || r.right > innerWidth || el.closest('.base-contratos') && document.querySelector('.folha')) return;
+      const topo = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const area = el.closest('.conteudo');
+      const janela = area?.getBoundingClientRect();
+      if (topo && !el.contains(topo) && !topo.contains(el) && (!janela || r.top >= janela.top && r.bottom <= janela.bottom))
+        out.push('alvo do resumo coberto: ' + el.textContent.trim());
+    });
+    const luminancia = cor => {
+      const [r, g, b] = (cor.match(/[\d.]+/g) || []).map(Number).map(v => (v /= 255) <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+      return .2126 * r + .7152 * g + .0722 * b;
+    };
+    const fundo = el => {
+      for (let atual = el; atual; atual = atual.parentElement) {
+        const cor = getComputedStyle(atual).backgroundColor;
+        if (cor !== 'transparent' && cor !== 'rgba(0, 0, 0, 0)') return cor;
+      }
+      return 'rgb(255, 255, 255)';
+    };
+    const contraste = (cor, fundo) => {
+      const l = luminancia(cor), f = luminancia(fundo);
+      return (Math.max(l, f) + .05) / (Math.min(l, f) + .05);
+    };
+    document.querySelectorAll('.base-contratos input[placeholder], .folha-resumo input[placeholder]').forEach(el => {
+      const estilo = getComputedStyle(el, '::placeholder');
+      if (parseFloat(estilo.fontSize) < 12 || contraste(estilo.color, fundo(el)) < 4.5)
+        out.push('placeholder do resumo sem tamanho ou contraste: ' + el.placeholder);
+    });
+    document.querySelectorAll('.contrato-resumo *, .escolas-resumo *, .folha-resumo *, .resumo-salvo *, .resumo-acao, .selos-contrato *, .valores-resumo *, .pizza-resumo *').forEach(el => {
+      if (!el.getClientRects().length) return;
+      const nos = [...el.childNodes].filter(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+      if (!nos.length) return;
+      const estilo = getComputedStyle(el);
+      if (parseFloat(estilo.fontSize) < 12) out.push('letra do resumo menor que 12 px: ' + el.textContent.trim());
+      if (contraste(estilo.color, fundo(el)) < 4.5)
+        out.push('contraste do resumo abaixo de 4,5: ' + el.textContent.trim());
+      if (el.matches('.resumo-acao, .selo-contrato, .valores-resumo > div > b, .datas-resumo > div > b')) {
+        const tops = new Set(nos.flatMap(no => {
+          const range = document.createRange();
+          range.selectNodeContents(no);
+          return [...range.getClientRects()].map(r => Math.round(r.top));
+        }));
+        if (tops.size > 1) out.push('texto do resumo quebrou linha: ' + el.textContent.trim());
+      }
+    });
     if (document.body.innerText.includes('An unhandled error') || document.querySelector('#blazor-error-ui[style*="block"]')) out.push('erro do Blazor na tela');
     return out;
   });
@@ -95,25 +144,53 @@ async function texto(page, seletor, contem) {
     const page = await abrir(browser, urlPronto, w, h);
     await foto(page, '03-inicio', w, h, salvar);
     await ir(page, urlPronto, 'base'); await foto(page, '04-base', w, h, salvar);
-    await texto(page, '.chip', 'Lote'); await foto(page, '05-base-filtro', w, h, salvar);
-    const pesquisaLote = page.getByRole('searchbox', { name: 'Pesquisar opções' });
-    await pesquisaLote.fill('LOTE');
-    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).check();
-    await page.getByRole('checkbox', { name: 'Lote 239', exact: true }).check();
-    await pesquisaLote.fill('239');
-    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).waitFor({ state: 'detached' });
-    await pesquisaLote.fill('lote');
-    await page.getByRole('checkbox', { name: 'Lote 216', exact: true }).waitFor();
-    if (await page.locator('.opcao-filtro input:checked').count() !== 2) problemas.push('pesquisa perdeu lotes marcados');
-    await foto(page, '05b-base-dois-lotes', w, h, salvar);
-    await page.getByRole('button', { name: 'Pronto', exact: true }).click();
-    await foto(page, '06-base-lote', w, h, salvar);
-    await texto(page, 'a.obra', 'EMEI Exemplo Alfa'); await foto(page, '07-ficha', w, h, salvar);
-    await page.locator('.conteudo').evaluate(e => e.scrollTop = e.scrollHeight); await page.waitForTimeout(200);
-    await foto(page, '08-ficha-2', w, h, salvar);
-    await texto(page, 'a.obra', '007/EX/2022'); await foto(page, '09-ficha-concluida', w, h, salvar);
-    // limpa o filtro de lote para os proximos
-    await ir(page, urlPronto, 'base'); await page.getByRole('button', { name: 'Limpar Lote', exact: true }).click();
+    const contratoChip = page.locator('.chips .chip:not(.limpar-chip)').first();
+    const pesquisaContrato = page.getByRole('searchbox', { name: 'Pesquisar opções' });
+    const fecharFiltro = () => page.getByRole('button', { name: 'Pronto', exact: true }).click();
+    const limparContrato = () => page.getByRole('button', { name: 'Limpar Contrato', exact: true }).click();
+    const marcarContrato = codigo => page.locator('.opcao-filtro', { hasText: codigo }).locator('input').check();
+
+    await contratoChip.click();
+    await pesquisaContrato.fill('216');
+    await page.waitForFunction(() => document.querySelectorAll('.folha-resumo .opcao-filtro').length === 3);
+    await foto(page, `resumo-1-filtro-${w}`, w, h, true);
+    await marcarContrato('044/EX/2026');
+    await fecharFiltro();
+    await page.locator('.contrato-resumo h2', { hasText: '044/EX/2026' }).waitFor();
+    await foto(page, `resumo-2-contrato-${w}`, w, h, true);
+    await page.locator('.escolas-resumo h2').scrollIntoViewIfNeeded();
+    await foto(page, `resumo-3-escolas-${w}`, w, h, true);
+    await contratoChip.click();
+    await pesquisaContrato.fill('239');
+    await marcarContrato('060/EX/2026');
+    await fecharFiltro();
+    const exportarDois = page.getByRole('button', { name: 'Exportar PDF dos 2 contratos' });
+    await exportarDois.waitFor();
+    await foto(page, `resumo-4-dois-${w}`, w, h, true);
+    await exportarDois.scrollIntoViewIfNeeded();
+    await foto(page, `resumo-4b-exportar-dois-${w}`, w, h, true);
+    await page.locator('.sem-pizza').scrollIntoViewIfNeeded();
+    await foto(page, `resumo-6-nao-iniciado-${w}`, w, h, true);
+    await limparContrato();
+    await contratoChip.click();
+    await pesquisaContrato.fill('007');
+    await marcarContrato('007/EX/2022');
+    await pesquisaContrato.fill('052/EX');
+    await marcarContrato('052/EX/2026');
+    await fecharFiltro();
+    await page.locator('.selo-contrato', { hasText: 'Venceu há' }).waitFor();
+    await page.getByText('R$ 99.999.999,99', { exact: true }).first().scrollIntoViewIfNeeded();
+    await foto(page, `resumo-5b-beta-valor-e-nomes-${w}`, w, h, true);
+    await page.locator('.selo-contrato', { hasText: 'Encerrado em' }).scrollIntoViewIfNeeded();
+    await foto(page, `resumo-5-encerrado-${w}`, w, h, true);
+    await limparContrato();
+    await texto(page, 'a.obra', 'EMEI Exemplo Alfa');
+    await foto(page, `resumo-7-ficha-${w}`, w, h, true);
+    const exportarEscola = page.getByRole('button', { name: 'Exportar PDF desta escola' });
+    await exportarEscola.evaluate(botao => { botao.click(); botao.click(); });
+    await page.getByText('PDF salvo', { exact: true }).waitFor();
+    await foto(page, `resumo-8-salvo-${w}`, w, h, true);
+    await page.getByRole('link', { name: 'Voltar à Base', exact: true }).click();
     if (await page.locator('a.obra', { hasText: 'Zeta' }).count() > 0) problemas.push('obra sob gestao da SIURB aparece na lista');
 
     await ir(page, urlPronto, 'relatorio'); await foto(page, '10-rel-dados', w, h, salvar);
@@ -349,16 +426,16 @@ async function texto(page, seletor, contem) {
       if (ms > limite) problemas.push(`uso intenso: ${nome} levou ${ms} ms (máximo ${limite})`);
     };
     await medir('abrir a Base com 2.000 obras', 3000, async () => { await ir(p, urlGrande, 'base'); await p.waitForSelector('a.obra'); });
-    await medir('abrir o filtro Escola (2.000 opções)', 2000, async () => { await p.locator('.chip', { hasText: 'Escola' }).click(); await p.waitForSelector('.opcao-filtro'); });
+    await medir('abrir o filtro Contrato (2.000 obras)', 2000, async () => { await p.locator('.chip', { hasText: 'Contrato' }).click(); await p.waitForSelector('.opcao-filtro'); });
     if (await p.locator('.opcao-filtro').count() > 100) problemas.push('uso intenso: o filtro desenhou mais de 100 opções');
     for (let k = 0; k < 3; k++) {
       const antes = await p.locator('.mini').first().textContent();
-      await medir(`marcar a escola ${k + 1}`, 1500, async () => {
+      await medir(`marcar o contrato ${k + 1}`, 1500, async () => {
         await p.locator('.opcao-filtro input').nth(k).click();
         await p.waitForFunction(k => document.querySelectorAll('.opcao-filtro input:checked').length === k + 1, k);
       });
     }
-    await medir('pesquisar no filtro', 1500, async () => { await p.getByLabel('Pesquisar opções').fill('exemplo 19'); await p.waitForFunction(() => document.querySelectorAll('.opcao-filtro').length < 100); });
+    await medir('pesquisar no filtro', 1500, async () => { await p.getByLabel('Pesquisar opções').fill('LOTE 19'); await p.waitForFunction(() => document.querySelectorAll('.opcao-filtro').length < 100); });
     await p.getByRole('button', { name: 'Pronto' }).click();
     await medir('abrir as fotos (60) até todas as miniaturas', 30000, async () => {
       await ir(p, urlGrande, 'relatorio/fotos');
