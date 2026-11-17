@@ -364,6 +364,12 @@ async function texto(page, seletor, contem) {
     await page.locator('.aviso', { hasText: 'descrição guardada' }).waitFor();
     await ir(page, urlPronto, 'relatorio/conferir'); await page.waitForTimeout(600);
     await foto(page, '16-rel-conferir', w, h, salvar);
+    // assinaturas: liga, escreve os nomes e confere que a previa mostra a assinatura na pagina da ultima foto
+    await page.getByRole('button', { name: /Espaço para assinaturas no fim/ }).click();
+    await page.getByLabel('Nome sob “Fiscalização SPOBRAS” (opcional)').fill(`Fiscal ${w}`);
+    await page.getByLabel('Nome sob “Fiscalização SPOBRAS” (opcional)').blur(); await page.waitForTimeout(400);
+    await foto(page, '16c-rel-conferir-assinaturas', w, h, salvar);
+    await page.getByRole('button', { name: /Espaço para assinaturas no fim/ }).click(); await page.waitForTimeout(300);
     // dois toques rapidos em Gerar: um relatorio so, sem erro
     await page.evaluate(() => { const b = [...document.querySelectorAll('.btn.primario')].find(x => x.textContent.includes('Gerar relatório')); b.click(); b.click(); });
     await page.waitForSelector('text=Pronto!', { timeout: 60000 }).catch(() => problemas.push(`${w}x${h} dois toques em Gerar: nao chegou ao Pronto`));
@@ -531,6 +537,8 @@ async function texto(page, seletor, contem) {
     const campo = p.locator('.folha input[type=text]').first();
     await campo.fill('x'.repeat(110));
     if ((await campo.inputValue()).length !== 100) problemas.push('legenda: passou de 100 caracteres');
+    // o contador ja aparece antes de digitar: espera ele refletir o que foi digitado
+    await p.waitForFunction(() => (document.querySelector('.folha .contador')?.textContent || '').includes('100 de 100'), null, { timeout: 5000 }).catch(() => {});
     const contador = await p.locator('.folha .contador').first().textContent().catch(() => '');
     if (!contador.includes('100 de 100')) problemas.push(`legenda: contador errado (${contador})`);
     await foto(p, '42-legenda-limite', 412, 915, true);
