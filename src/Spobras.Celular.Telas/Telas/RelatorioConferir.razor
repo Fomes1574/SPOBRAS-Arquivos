@@ -13,12 +13,25 @@
     {
         <Aviso Tipo="erro">@Erro</Aviso>
     }
+    @foreach (var a in _conferir)
+    {
+        <Aviso Tipo="atencao">@a</Aviso>
+    }
+    <div class="titulo-modo">Fotos por página</div>
     <div class="chips" role="radiogroup" aria-label="Fotos por página">
+        @{
+            var opcoes = App.Rascunho.Opcoes();
+            var validas = OpcoesRelatorio.CapacidadesDoModo(opcoes.Modo);
+        }
         @foreach (int n in OpcoesRelatorio.Capacidades)
         {
-            <button class="chip @(App.Rascunho.Dados.FotosPorPagina == n ? "on" : "")" role="radio" aria-checked="@(App.Rascunho.Dados.FotosPorPagina == n ? "true" : "false")" @onclick="() => PorPagina(n)">@(n == 1 ? "1 por página" : n == App.Rascunho.Dados.FotosPorPagina ? $"{n} por página" : n.ToString())</button>
+            bool marcada = opcoes.Capacidade == n, pode = validas.Contains(n);
+            <button class="chip @(marcada ? "on" : "") @(pode ? "" : "apagado")" role="radio" aria-checked="@(marcada ? "true" : "false")" aria-disabled="@(pode ? null : "true")"
+                    @onclick="() => PorPagina(n)">@(marcada ? $"{n} por página" : n.ToString())</button>
         }
     </div>
+    <div class="resumo-modo">@(opcoes.Modo == ModoLegenda.DescricaoServico ? "Com legenda e descrição do serviço, cabem no máximo 4 por página." : "Só a legenda: até 6 por página (ou 8, menores).")
+        <a href="relatorio/fotos">Mudar no passo 2</a></div>
     @if (_plano is { } plano && plano.Paginas.Count > 0)
     {
         int i = Math.Clamp(_pagina, 0, plano.Paginas.Count - 1);
@@ -29,6 +42,17 @@
             <button class="link" disabled="@(i >= plano.Paginas.Count - 1)" @onclick="() => _pagina = i + 1">Próxima ›</button>
         </div>
     }
+    <div class="painel">
+        <h2>Assinaturas</h2>
+        <button class="opcao @(App.Rascunho.Dados.Assinaturas ? "on" : "")" style="border-bottom:0" @onclick="TrocarAssinaturas"><span>Espaço para assinaturas no fim<small>Fica sempre na página da última foto, nunca sozinha numa página</small></span><span class="marca"></span></button>
+        @if (App.Rascunho.Dados.Assinaturas)
+        {
+            <CampoTexto Rotulo="Nome sob “Fiscalização SPOBRAS” (opcional)" Valor="@App.Rascunho.Dados.AssinaturaFiscal" GravarAoDigitar="true"
+                        AoMudar="v => Assinar(d => d with { AssinaturaFiscal = v })" />
+            <CampoTexto Rotulo="Nome sob “Contratada” (opcional)" Valor="@App.Rascunho.Dados.AssinaturaContratada" GravarAoDigitar="true"
+                        AoMudar="v => Assinar(d => d with { AssinaturaContratada = v })" />
+        }
+    </div>
     <div class="painel">
         <h2>Gerar</h2>
         @foreach (var (f, nome, explica) in Formatos)
@@ -85,6 +109,8 @@
             {
                 // Pendencia do proprio plano (ex.: cabecalho grande demais) tambem impede gerar, com o motivo na tela.
                 _problemas = [.. _problemas, .. _plano.Avisos.Where(a => a.Gravidade == Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem)];
+                // O que nao impede, mas vale conferir (foto sem legenda, fotos menores para a assinatura caber).
+                _conferir = [.. _plano.Avisos.Where(a => a.Gravidade != Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem)];
             }
         }
         catch (Spobras.Documentos.Imagens.FotoInvalidaException ex)
@@ -100,8 +126,27 @@
         return r is null ? "" : App.Rascunho.Miniatura(r) is { Length: > 0 } pronta ? pronta : App.Rascunho.MiniaturaAgora(r);
     }
 
+    private IReadOnlyList<string> _conferir = [];
+
+    private void TrocarAssinaturas()
+    {
+        App.Rascunho.Alterar(d => d with { Assinaturas = !d.Assinaturas });
+        Planejar();
+    }
+
+    private void Assinar(Func<DadosRascunho, DadosRascunho> mudanca)
+    {
+        App.Rascunho.Alterar(mudanca);
+        Planejar();
+    }
+
     private void PorPagina(int n)
     {
+        if (!OpcoesRelatorio.CapacidadesDoModo(App.Rascunho.Dados.Modo).Contains(n))
+        {
+            return; // com descricao, 6 e 8 nao cabem
+        }
+
         App.Rascunho.Alterar(d => d with { FotosPorPagina = n });
         _pagina = 0;
         Planejar();

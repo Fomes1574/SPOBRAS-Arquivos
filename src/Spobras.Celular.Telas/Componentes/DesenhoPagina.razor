@@ -1,0 +1,30 @@
+@* Desenho pequeno da pagina: 6 fotos so com legenda ou 4 fotos com legenda e descricao. *@
+<svg width="34" height="44" viewBox="0 0 34 44" aria-hidden="true" class="desenho-pagina">
+    <rect x="0.5" y="0.5" width="33" height="43" rx="2" fill="#fff" stroke="#8f8f8a" />
+    @{
+        int linhas = Fotos == 6 ? 3 : 2;
+        double alto = 38.0 / linhas;
+    }
+    @for (int r = 0; r < linhas; r++)
+    {
+        for (int c = 0; c < 2; c++)
+        {
+            double x = 4 + c * 14, y = 4 + r * alto, foto = alto * (Fotos == 6 ? 0.5 : 0.42);
+            <rect x="@Num(x)" y="@Num(y)" width="12" height="@Num(foto)" fill="#9fb3c2" />
+            <rect x="@Num(x + 2)" y="@Num(y + foto + 1.5)" width="8" height="1.8" fill="#231F20" />
+            if (Fotos == 4)
+            {
+                for (int k = 0; k < 3; k++)
+                {
+                    <rect x="@Num(x)" y="@Num(y + foto + 4.5 + k * 2.4)" width="12" height="1.1" fill="#8f8f8a" />
+                }
+            }
+        }
+    }
+</svg>
+
+@code {
+    [Parameter] public int Fotos { get; set; } = 6;
+
+    private static string Num(double v) => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}

@@ -2,7 +2,18 @@
    tambem grava: nada do que foi digitado se perde. *@
 @implements IDisposable
 <div class="campo" style="@Estilo">
-    <label for="@_id">@Rotulo</label>
+    @if (Maximo > 0)
+    {
+        <div class="rotulo-campo"><label for="@_id">@Rotulo</label><span class="contador @(_tamanho >= Maximo * 9 / 10 ? "perto" : "")" aria-live="polite">@_tamanho de @Maximo</span></div>
+    }
+    else
+    {
+        <label for="@_id">@Rotulo</label>
+    }
+    @if (Ajuda is not null)
+    {
+        <div class="ajuda-campo">@Ajuda</div>
+    }
     <div class="entrada-campo @(PermiteApagar ? "com-borracha" : "")">
         @if (Linhas > 1)
         {
@@ -26,10 +37,6 @@
     {
         <div class="ajuda erro">Data inválida. Use dd/mm/aaaa.</div>
     }
-    @if (Maximo > 0 && _tamanho > 0)
-    {
-        <div class="ajuda contador @(_tamanho >= Maximo ? "cheio" : "")" aria-live="polite">@_tamanho de @Maximo caracteres</div>
-    }
 </div>
 
 @code {
@@ -38,6 +45,9 @@
     [Parameter, EditorRequired] public string Rotulo { get; set; } = "";
     [Parameter] public string Valor { get; set; } = "";
     [Parameter] public string? Dica { get; set; }
+
+    /// <summary>Explicacao curta embaixo do nome do campo (ex.: onde o texto sai no relatorio).</summary>
+    [Parameter] public string? Ajuda { get; set; }
     [Parameter] public int Linhas { get; set; } = 1;
     [Parameter] public bool Data { get; set; }
     [Parameter] public string? Estilo { get; set; }

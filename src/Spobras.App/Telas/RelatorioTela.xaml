@@ -270,9 +270,11 @@
         </Border>
 
         <!-- ============ Etapa 2: Fotos e textos ============ -->
-        <DockPanel Grid.Row="2" Margin="0,16,0,0" Visibility="{Binding EtapaFotos, Converter={StaticResource Visivel}}">
+        <ScrollViewer x:Name="RolagemFotos" Grid.Row="2" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+                      Visibility="{Binding EtapaFotos, Converter={StaticResource Visivel}}">
+        <StackPanel>
             <!-- O que vai embaixo de cada foto: escolhido antes de escrever -->
-            <Border DockPanel.Dock="Top" Style="{StaticResource Painel}" Margin="0,0,0,12">
+            <Border x:Name="TopoModo" Style="{StaticResource Painel}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="O que vai escrito embaixo de cada foto" Style="{StaticResource TituloPainel}" />
                     <TextBlock Text="Escolha antes de escrever: muda os campos de cada foto e quantas fotos cabem por página. Pode trocar depois sem perder nada do que escreveu."
@@ -339,7 +341,8 @@
 
             <Border Style="{StaticResource Painel}">
                 <DockPanel>
-                    <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,4">
+                    <StackPanel x:Name="TopoLista" DockPanel.Dock="Top">
+                    <WrapPanel Margin="0,0,0,4">
                         <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar fotos" Margin="0,0,8,8" Command="{Binding AdicionarFotosCommand}" />
                         <Button Style="{StaticResource BotaoSecundario}" Content="Adicionar uma pasta" Margin="0,0,24,8" Command="{Binding AdicionarPastaCommand}" />
                         <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pelo nome" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorNomeCommand}"
@@ -350,7 +353,7 @@
                     </WrapPanel>
 
                     <!-- Marcadas e mesmo texto para varias fotos -->
-                    <Border DockPanel.Dock="Top" Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,12" Margin="0,0,0,10"
+                    <Border Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,12" Margin="0,0,0,10"
                             Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,10">
@@ -418,9 +421,19 @@
                         </StackPanel>
                     </Border>
 
-                    <ItemsControl DockPanel.Dock="Bottom" ItemsSource="{Binding Problemas}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
+                    <ItemsControl ItemsSource="{Binding Problemas}" ItemTemplate="{StaticResource AvisoModelo}" Focusable="False" />
+                    </StackPanel>
 
+                    <!-- A lista ocupa o que sobra da janela (no minimo 340); em janela baixa a pagina rola -->
                     <Grid>
+                        <Grid.Height>
+                            <MultiBinding Converter="{StaticResource AlturaQueSobra}" ConverterParameter="340">
+                                <Binding ElementName="RolagemFotos" Path="ViewportHeight" />
+                                <Binding ElementName="TopoModo" Path="ActualHeight" />
+                                <Binding ElementName="TopoLista" Path="ActualHeight" />
+                                <Binding Source="56" />
+                            </MultiBinding>
+                        </Grid.Height>
                         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="{Binding TemFotos, Converter={StaticResource VisivelSeNao}}">
                             <TextBlock Text="Arraste as fotos ou uma pasta para cá" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
                             <TextBlock Text="ou use os botões acima. Aceita JPG, PNG, BMP, WEBP e GIF." Style="{StaticResource Texto2}" HorizontalAlignment="Center" Margin="0,4,0,0" />
@@ -529,7 +542,8 @@
                     </Grid>
                 </DockPanel>
             </Border>
-        </DockPanel>
+        </StackPanel>
+        </ScrollViewer>
 
         <!-- ============ Etapa 3: Conferencia e geracao ============ -->
         <Grid Grid.Row="2" Margin="0,16,0,0" Visibility="{Binding EtapaConferencia, Converter={StaticResource Visivel}}">
@@ -637,7 +651,7 @@
                                                     </ItemsControl.ItemContainerStyle>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Border Background="{Binding Fundo}" BorderBrush="{Binding Borda}" BorderThickness="{Binding Espessura}">
+                                                            <Border Background="{Binding Fundo, TargetNullValue=Transparent}" BorderBrush="{Binding Borda, TargetNullValue=Transparent}" BorderThickness="{Binding Espessura}">
                                                                 <Grid>
                                                                     <Image x:Name="Img" Source="{Binding Imagem, Converter={StaticResource Imagem}, ConverterParameter=360}" Stretch="Uniform" Visibility="Collapsed" />
                                                                     <TextBlock x:Name="Txt" Text="{Binding Texto}" FontSize="{Binding Fonte}" Foreground="{Binding Cor}" TextWrapping="NoWrap"

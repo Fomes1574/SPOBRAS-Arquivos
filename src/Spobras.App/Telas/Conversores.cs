@@ -107,3 +107,25 @@ public sealed class SoNome : IValueConverter
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
 }
+
+/// <summary>
+/// Altura que sobra para a lista: a area visivel menos o que vem antes dela, nunca menos que o parametro.
+/// Em janela baixa a lista fica com o minimo e a pagina inteira rola; em janela alta, nada rola alem da lista.
+/// </summary>
+public sealed class AlturaQueSobra : IMultiValueConverter
+{
+    public object Convert(object?[] values, Type targetType, object? parameter, CultureInfo culture)
+    {
+        double minimo = double.Parse(parameter?.ToString() ?? "300", CultureInfo.InvariantCulture);
+        static double Valor(object? v) => v switch
+        {
+            double d when double.IsFinite(d) => d,
+            string t when double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) => d,
+            _ => 0,
+        };
+        double sobra = values.Length == 0 || values[0] is not double total ? minimo : total - values.Skip(1).Sum(Valor);
+        return Math.Max(minimo, double.IsFinite(sobra) ? sobra : minimo);
+    }
+
+    public object[] ConvertBack(object? value, Type[] targetTypes, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+}

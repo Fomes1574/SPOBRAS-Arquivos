@@ -321,3 +321,24 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .escola-resumo > a { color:#214e8a; font-weight:700; min-height:44px; display:flex; align-items:center; }
 .escola-resumo .barra-prog { display:flex; overflow:hidden; height:5px; }
 .resumo-salvo .resumo-acao { margin:0 0 8px; }
+
+/* Tela 2 "Fotos e textos": modo no topo, campos com nome e contador, marcas do que falta */
+.secao-modo { margin-bottom: 10px; }
+.titulo-modo { font-weight: 700; font-size: 15px; margin: 2px 2px 8px; }
+.modo { display: flex; gap: 12px; align-items: center; width: 100%; text-align: left; background: var(--branco); border: 1.5px solid var(--borda); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; min-height: 64px; font: inherit; color: var(--preto); cursor: pointer; }
+.modo.on { border-color: var(--vermelho); box-shadow: 0 0 0 1px var(--vermelho); background: #FFF7F8; }
+.modo .radio { width: 22px; height: 22px; border: 2px solid #777; border-radius: 50%; flex: none; display: grid; place-items: center; }
+.modo.on .radio { border-color: var(--vermelho); }
+.modo.on .radio::after { content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--vermelho); }
+.modo .desenho-pagina { flex: none; }
+.modo .txt b { display: block; font-size: 15px; }
+.modo .txt span { font-size: 13px; color: var(--sec); }
+.rotulo-campo { display: flex; align-items: baseline; gap: 8px; }
+.rotulo-campo label { flex: 1; }
+.rotulo-campo .contador { font-size: 12.5px; color: var(--sec); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rotulo-campo .contador.perto { color: var(--laranja); font-weight: 700; }
+.ajuda-campo { font-size: 12.5px; color: var(--sec); margin: -2px 0 6px; }
+.foto .falta { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,.94); color: #5e2e00; font-size: 12px; font-weight: 700; padding: 3px 6px; text-align: left; }
+.chip.apagado { color: #6b6b70; background: #F7F7F5; border-style: dashed; cursor: default; }
+.resumo-modo { background: var(--branco); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.45; margin: 8px 0 12px; }
+.resumo-modo a { color: var(--azul); font-weight: 700; display: inline-block; min-height: 32px; line-height: 32px; }

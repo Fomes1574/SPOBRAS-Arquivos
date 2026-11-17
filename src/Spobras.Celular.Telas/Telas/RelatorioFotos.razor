@@ -1,4 +1,5 @@
 @page "/relatorio/fotos"
+@using Spobras.Core.Relatorio
 @inherits Tela
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -24,6 +25,19 @@
     {
         <Aviso Tipo="ok">@_avisoLegenda</Aviso>
     }
+    <div class="secao-modo" role="radiogroup" aria-label="O que vai embaixo de cada foto">
+        <div class="titulo-modo">O que vai embaixo de cada foto</div>
+        <button class="modo @(ComDescricao ? "" : "on")" role="radio" aria-checked="@(ComDescricao ? "false" : "true")" @onclick="() => TrocarModo(ModoLegenda.LegendaCurta)">
+            <span class="radio"></span><DesenhoPagina Fotos="6" /><span class="txt"><b>Só legenda</b><span>Até 6 fotos por página</span></span>
+        </button>
+        <button class="modo @(ComDescricao ? "on" : "")" role="radio" aria-checked="@(ComDescricao ? "true" : "false")" @onclick="() => TrocarModo(ModoLegenda.DescricaoServico)">
+            <span class="radio"></span><DesenhoPagina Fotos="4" /><span class="txt"><b>Legenda e descrição do serviço</b><span>Até 4 fotos por página: o texto ocupa mais espaço</span></span>
+        </button>
+    </div>
+    @if (App.Rascunho.DescricoesGuardadas > 0)
+    {
+        <Aviso Tipo="atencao">@Formato.Plural(App.Rascunho.DescricoesGuardadas, "foto tem", "fotos têm") descrição guardada. Com “Só legenda” ela não sai no relatório, mas continua aqui.</Aviso>
+    }
     <div class="linha-btns" style="margin-bottom:10px">
         <button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button>
         @if (Fotos.Count > 0 && !_selecionando)
@@ -43,14 +57,18 @@
                 <button class="btn linha pequeno" disabled="@(_marcadas.Count == Fotos.Count)" @onclick="MarcarTodas">Marcar todas</button>
                 <button class="btn linha pequeno" disabled="@(_marcadas.Count == 0)" @onclick="DesmarcarTodas">Desmarcar todas</button>
             </div>
-            <div class="campo">
-                <label for="legenda-varias">Legenda para as marcadas</label>
-                <input id="legenda-varias" type="text" value="@_legenda" maxlength="@RascunhoRelatorio.MaximoDaLegenda" @oninput="e => _legenda = e.Value?.ToString() ?? string.Empty" />
-            </div>
-            <div class="linha-btns">
-                <button class="btn primario" @onclick="AplicarLegenda">Aplicar legenda</button>
-                <button class="btn pequeno perigo" disabled="@(_marcadas.Count == 0)" @onclick="() => _confirmarVarias = true">Tirar do relatório</button>
-            </div>
+            <div class="titulo-modo" style="margin-top:4px">@(_marcadas.Count switch { 0 => "Mesmo texto para várias fotos", 1 => "Mesmo texto para a marcada", var n => $"Mesmo texto para as {n} marcadas" })</div>
+            <CampoTexto @key="_rodadaLote" Rotulo="Legenda" Ajuda="Sai em negrito, logo embaixo da foto." Valor="@_legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda"
+                        Dica="Ex.: concretagem do bloco B1" AoDigitar="v => _legenda = v" AoMudar="v => _legenda = v" />
+            @if (ComDescricao)
+            {
+                <CampoTexto @key="(_rodadaLote, 1)" Rotulo="Descrição do serviço" Ajuda="Texto mais detalhado, embaixo da legenda." Valor="@_descricao" Linhas="3"
+                            Maximo="RascunhoRelatorio.MaximoDaDescricao" Dica="Ex.: concreto usinado fck 30 MPa, adensado e com cura úmida"
+                            AoDigitar="v => _descricao = v" AoMudar="v => _descricao = v" />
+            }
+            <p class="mini" style="margin:-4px 2px 10px">@(_marcadas.Count > 0 ? "Campo deixado vazio aqui não apaga nada nas fotos." : "Sem nenhuma marcada, o texto vai só para as fotos com o campo em branco.")</p>
+            <button class="btn primario" @onclick="AplicarTexto">@TextoAplicar</button>
+            <button class="btn perigo" disabled="@(_marcadas.Count == 0)" @onclick="() => _confirmarVarias = true">@(_marcadas.Count == 1 ? "Tirar a marcada do relatório" : $"Tirar as {_marcadas.Count} do relatório")</button>
         </div>
     }
     <div class="fotos" @ref="_grade" data-selecao="@(_selecionando ? "true" : "false")">
@@ -73,7 +91,15 @@
                 {
                     <span class="foto-marcada" aria-hidden="true">✓</span>
                 }
-                @if (f.Legenda.Length > 0)
+                @if (f.Legenda.Length == 0)
+                {
+                    <span class="falta">Sem legenda</span>
+                }
+                else if (ComDescricao && f.Descricao.Trim().Length == 0 && !_selecionando)
+                {
+                    <span class="falta">Falta descrição</span>
+                }
+                else
                 {
                     <span class="leg">@f.Legenda</span>
                 }
@@ -82,7 +108,7 @@
         <a class="foto add" href="relatorio/camera" style="text-decoration:none">+ Tirar foto</a>
     </div>
     <Aviso Tipo="ok"><span>Fotos guardadas no rascunho dentro do app. Pode sair, atender ligação ou desligar o celular: ao voltar, está tudo aqui.</span></Aviso>
-    <p class="mini" style="margin:10px 2px 0">Toque numa foto para escrever a legenda, girar, mudar de lugar ou tirar. Foto sem legenda vai sem texto embaixo.</p>
+    <p class="mini" style="margin:10px 2px 0">Toque numa foto para escrever @(ComDescricao ? "a legenda e a descrição" : "a legenda"), girar, mudar de lugar ou tirar. Segure e arraste para mudar a ordem.</p>
 </div>
 @if (!_selecionando)
 {
@@ -123,7 +149,14 @@
     var f = Fotos[a];
     <Folha Aberta="true" Titulo="@($"Foto {a + 1} de {Fotos.Count}")" AoFechar="() => _aberta = null">
         <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" hidden="@(App.Rascunho.Miniatura(f).Length == 0)" />
-        <CampoTexto @key="f.Arquivo" Rotulo="Legenda (opcional)" Valor="@f.Legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda" GravarAoDigitar="true" Dica="Ex.: execução do piso da sala 3" AoMudar="v => App.Rascunho.Legendar(a, v)" />
+        <CampoTexto @key="f.Arquivo" Rotulo="Legenda" Ajuda="Sai em negrito, logo embaixo da foto." Valor="@f.Legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda" GravarAoDigitar="true"
+                    Dica="Ex.: concretagem do bloco B1" AoMudar="v => App.Rascunho.Legendar(a, v)" />
+        @if (ComDescricao)
+        {
+            <CampoTexto @key="(f.Arquivo, 1)" Rotulo="Descrição do serviço" Ajuda="Texto mais detalhado, embaixo da legenda." Valor="@f.Descricao" Linhas="4"
+                        Maximo="RascunhoRelatorio.MaximoDaDescricao" GravarAoDigitar="true" Dica="Ex.: concreto usinado fck 30 MPa, adensado e com cura úmida"
+                        AoMudar="v => App.Rascunho.Descrever(a, v)" />
+        }
         <div class="linha-btns" style="margin-bottom:8px">
             <button class="btn linha pequeno" @onclick="() => App.Rascunho.Girar(a)">Girar ↻</button>
             <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => Mover(a, a - 1)">‹ Mover</button>
@@ -215,16 +248,42 @@
     {
         _selecionando = false;
         _marcadas.Clear();
-        _legenda = "";
+        _legenda = _descricao = "";
+        _rodadaLote++;
     }
 
-    /// <summary>Aplica e continua selecionando: marca o proximo grupo e digita outra legenda.</summary>
-    private void AplicarLegenda()
+    private string _descricao = "";
+    private int _rodadaLote;
+
+    private bool ComDescricao => App.Rascunho.Dados.Modo == ModoLegenda.DescricaoServico;
+
+    private void TrocarModo(ModoLegenda modo) => App.Rascunho.TrocarModo(modo);
+
+    private string TextoAplicar
     {
-        int total = App.Rascunho.LegendarVarias(_marcadas, _legenda);
-        _avisoLegenda = $"Legenda aplicada a {Formato.Plural(total, "foto", "fotos")}.";
+        get
+        {
+            if (_marcadas.Count > 0) return _marcadas.Count == 1 ? "Aplicar à marcada" : $"Aplicar às {_marcadas.Count} marcadas";
+            int n = App.Rascunho.AlvoDoTexto([], _legenda.Trim().Length > 0 || _descricao.Trim().Length == 0, ComDescricao && _descricao.Trim().Length > 0);
+            string vazio = ComDescricao ? "sem texto" : "sem legenda";
+            return n == 0 ? $"Nenhuma foto {vazio}" : n == 1 ? $"Aplicar à foto {vazio}" : $"Aplicar às {n} fotos {vazio}";
+        }
+    }
+
+    /// <summary>Aplica e continua selecionando: marca o proximo grupo e digita outro texto.</summary>
+    private void AplicarTexto()
+    {
+        if (_legenda.Trim().Length == 0 && (!ComDescricao || _descricao.Trim().Length == 0))
+        {
+            _avisoLegenda = ComDescricao ? "Escreva a legenda ou a descrição para aplicar." : "Escreva a legenda para aplicar.";
+            return;
+        }
+
+        int total = App.Rascunho.TextoEmVarias(_marcadas, _legenda, ComDescricao ? _descricao : null);
+        _avisoLegenda = total == 0 ? "Nenhuma foto mudou: elas já tinham esse texto." : $"Texto aplicado a {Formato.Plural(total, "foto", "fotos")}.";
         _marcadas.Clear();
-        _legenda = "";
+        _legenda = _descricao = "";
+        _rodadaLote++; // limpa os campos
     }
 
     // ---- Remover com Desfazer (5 s) ----
@@ -299,7 +358,7 @@
                 return "Nenhuma foto ainda";
             }
 
-            int porPagina = Math.Max(1, App.Rascunho.Dados.FotosPorPagina);
+            int porPagina = Math.Max(1, App.Rascunho.Opcoes().Capacidade);
             int paginas = (Fotos.Count + porPagina - 1) / porPagina;
             return $"{Formato.Plural(Fotos.Count, "foto", "fotos")} · cerca de {Formato.Plural(paginas, "página", "páginas")}";
         }

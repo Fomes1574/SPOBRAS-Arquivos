@@ -15,6 +15,7 @@
             <t:SoNome x:Key="SoNome" />
             <t:Iguais x:Key="Iguais" />
             <t:CaminhoParaImagem x:Key="Imagem" />
+            <t:AlturaQueSobra x:Key="AlturaQueSobra" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -257,12 +257,13 @@ async function texto(page, seletor, contem) {
     await page.getByRole('button', { name: 'Marcar todas', exact: true }).waitFor();
     await fotos.first().click();
     await fotos.nth(1).click();
-    const legendaEmLote = page.getByLabel('Legenda para as marcadas', { exact: true });
-    await legendaEmLote.fill('Vistoria em lote');
+    const legendaEmLote = page.locator('.legenda-varias').getByLabel('Legenda', { exact: true });
+    // texto diferente em cada largura: na segunda, as fotos ja tem o da primeira e o app diria que nada mudou
+    await legendaEmLote.fill(`Vistoria em lote ${w}`);
     await foto(page, '15b-rel-legenda-varias', w, h, salvar);
-    await page.getByRole('button', { name: 'Aplicar legenda', exact: true }).click();
-    await page.getByText('Legenda aplicada a 2 fotos.', { exact: true }).waitFor();
-    await page.waitForFunction(() => [...document.querySelectorAll('button[data-foto] .leg')].filter(e => e.textContent === 'Vistoria em lote').length === 2);
+    await page.getByRole('button', { name: 'Aplicar às 2 marcadas', exact: true }).click();
+    await page.getByText('Texto aplicado a 2 fotos.', { exact: true }).waitFor();
+    await page.waitForFunction(t => [...document.querySelectorAll('button[data-foto] .leg')].filter(e => e.textContent === t).length === 2, `Vistoria em lote ${w}`);
     // continua selecionando: marcacoes e campo limpos para o proximo grupo
     if (!(await page.getByText('0 marcadas', { exact: true }).isVisible())) problemas.push(`${w}x${h} depois de aplicar a legenda nao continuou no modo selecao`);
     await page.getByRole('button', { name: 'Marcar todas', exact: true }).click();
@@ -273,7 +274,7 @@ async function texto(page, seletor, contem) {
     // tirar varias com uma confirmacao e desfazer
     const total = await fotos.count();
     await fotos.nth(1).click(); await fotos.nth(2).click();
-    await page.getByRole('button', { name: 'Tirar do relatório', exact: true }).click();
+    await page.getByRole('button', { name: 'Tirar as 2 do relatório', exact: true }).click();
     await page.getByRole('dialog').waitFor();
     await foto(page, '15e-rel-tirar-varias', w, h, salvar);
     await page.getByRole('button', { name: 'Tirar 2', exact: true }).click();
@@ -332,6 +333,35 @@ async function texto(page, seletor, contem) {
     await foto(page, '15c-rel-ordenar-fotos', w, h, salvar);
     await page.getByRole('button', { name: 'Por data da foto', exact: true }).click();
     await page.getByRole('dialog', { name: 'Ordenar fotos', exact: true }).waitFor({ state: 'detached' });
+    // modo com descricao: a foto aberta ganha o campo da descricao; a selecao aplica legenda e descricao
+    await page.getByRole('radio', { name: /Legenda e descrição do serviço/ }).click();
+    await page.waitForFunction(() => document.querySelector('.modo.on')?.textContent.includes('descrição'));
+    await page.evaluate(() => window.scrollTo(0, 0)); await page.locator('.conteudo').evaluate(e => e.scrollTop = 0);
+    await foto(page, '15f-rel-modo-descricao', w, h, salvar);
+    await page.locator('button.foto').first().click(); await page.waitForTimeout(400);
+    const descricao = page.locator('.folha textarea');
+    if (await descricao.count() !== 1) problemas.push(`${w}x${h} modo com descricao: a foto aberta nao tem o campo da descricao`);
+    await descricao.fill('d'.repeat(320));
+    if ((await descricao.inputValue()).length !== 300) problemas.push(`${w}x${h} descricao passou de 300 caracteres`);
+    await descricao.fill('Concreto usinado fck 30 MPa lançado nos blocos B1 a B4, com adensamento mecânico e cura úmida por sete dias.');
+    await foto(page, '15g-rel-foto-aberta-descricao', w, h, salvar);
+    await page.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await page.waitForTimeout(300);
+    await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await fotos.nth(1).click(); await fotos.nth(2).click();
+    await page.locator('.legenda-varias textarea').fill(`Aço CA-50, cobrimento conferido e espaçadores posicionados antes da concretagem (${w}).`);
+    await foto(page, '15h-rel-marcadas-descricao', w, h, salvar);
+    await page.getByRole('button', { name: 'Aplicar às 2 marcadas', exact: true }).click();
+    await page.getByText('Texto aplicado a 2 fotos.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await ir(page, urlPronto, 'relatorio/conferir'); await page.waitForTimeout(600);
+    const apagadas = await page.locator('.chips .chip.apagado').allTextContents();
+    if (apagadas.join(',') !== '6,8') problemas.push(`${w}x${h} com descricao, 6 e 8 deviam estar apagadas (${apagadas.join(',')})`);
+    if (!(await page.locator('.chips .chip.on').textContent()).startsWith('4')) problemas.push(`${w}x${h} com descricao a capacidade marcada devia ser 4`);
+    await foto(page, '16b-rel-conferir-descricao', w, h, salvar);
+    // volta para so legenda (as descricoes ficam guardadas) e confere como antes
+    await ir(page, urlPronto, 'relatorio/fotos');
+    await page.getByRole('radio', { name: /Só legenda/ }).click();
+    await page.locator('.aviso', { hasText: 'descrição guardada' }).waitFor();
     await ir(page, urlPronto, 'relatorio/conferir'); await page.waitForTimeout(600);
     await foto(page, '16-rel-conferir', w, h, salvar);
     // dois toques rapidos em Gerar: um relatorio so, sem erro
@@ -496,13 +526,13 @@ async function texto(page, seletor, contem) {
     if (await contar() !== n + 1) problemas.push('camera: com o sensor travado a foto do toque nao entrou');
     n++;
     await abrirCamera(); await flash('Desligado'); await p.locator('.pronto-cam').click(); await p.waitForTimeout(600);
-    // legenda: no maximo 300 caracteres, com contador
+    // legenda: no maximo 100 caracteres, com contador
     await p.locator('button.foto').first().click();
     const campo = p.locator('.folha input[type=text]').first();
-    await campo.fill('x'.repeat(310));
-    if ((await campo.inputValue()).length !== 300) problemas.push('legenda: passou de 300 caracteres');
-    const contador = await p.locator('.folha .contador').textContent().catch(() => '');
-    if (!contador.includes('300 de 300')) problemas.push(`legenda: contador errado (${contador})`);
+    await campo.fill('x'.repeat(110));
+    if ((await campo.inputValue()).length !== 100) problemas.push('legenda: passou de 100 caracteres');
+    const contador = await p.locator('.folha .contador').first().textContent().catch(() => '');
+    if (!contador.includes('100 de 100')) problemas.push(`legenda: contador errado (${contador})`);
     await foto(p, '42-legenda-limite', 412, 915, true);
     await campo.fill('Legenda curta'); await campo.blur(); await p.waitForTimeout(300);
     await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await p.waitForTimeout(300);
