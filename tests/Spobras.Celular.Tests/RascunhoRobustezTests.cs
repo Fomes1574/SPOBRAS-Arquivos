@@ -285,9 +285,14 @@ public sealed class RascunhoRobustezTests : IDisposable
         r.AdicionarFoto(_jpeg);
         // espera a miniatura em segundo plano: no Windows o arquivo aberto por ela nao pode ser trocado
         await r.MiniaturasProntasAsync(TimeSpan.FromSeconds(60));
+        r.PrepararEmSegundoPlano = false;
+        await r.MiniaturasProntasAsync(TimeSpan.FromSeconds(60));
         File.WriteAllText(r.Caminho(r.Dados.Fotos[0]), "estragou");
-        Assert.Empty(r.MiniaturaAgora(r.Dados.Fotos[0]));
-        Assert.True(r.SemPrevia(r.Dados.Fotos[0]));
+        foreach (var m in Directory.GetFiles(r.PastaDasMiniaturas)) File.Delete(m);
+        var reaberto = Novo(); // sem a miniatura guardada
+        reaberto.PrepararEmSegundoPlano = false;
+        Assert.Empty(reaberto.MiniaturaAgora(reaberto.Dados.Fotos[0]));
+        Assert.True(reaberto.SemPrevia(reaberto.Dados.Fotos[0]));
     }
 
     [Fact]
