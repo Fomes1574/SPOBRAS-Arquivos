@@ -279,10 +279,12 @@ public sealed class RascunhoRobustezTests : IDisposable
     }
 
     [Fact]
-    public void Arquivo_que_nao_e_foto_fica_sem_previa_sem_travar()
+    public async Task Arquivo_que_nao_e_foto_fica_sem_previa_sem_travar()
     {
         var r = Novo();
         r.AdicionarFoto(_jpeg);
+        // espera a miniatura em segundo plano: no Windows o arquivo aberto por ela nao pode ser trocado
+        await r.MiniaturasProntasAsync(TimeSpan.FromSeconds(60));
         File.WriteAllText(r.Caminho(r.Dados.Fotos[0]), "estragou");
         Assert.Empty(r.MiniaturaAgora(r.Dados.Fotos[0]));
         Assert.True(r.SemPrevia(r.Dados.Fotos[0]));
