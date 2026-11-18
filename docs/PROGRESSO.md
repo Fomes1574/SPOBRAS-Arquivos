@@ -390,6 +390,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
+- **GPS (18/11/2026):** no teste do usuário a leitura terminou em "sem sinal" dentro do escritório com Wi-Fi. A causa está no app: o modo de precisão usado descartava toda leitura com mais de 50 m. A correção e o endereço opcional (sem pedir permissão de cara) estão em projeto na seção 9 de `docs/PLANO_CARIMBO_E_LEVEZA.md`, aguardando a liberação do usuário.
+
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 
 - **Resumo por contrato:** confirmar o nome sugerido para vários contratos, `Resumo dos contratos - AAAA-MM-DD.pdf`.

@@ -258,6 +258,92 @@ Fica só o que já terminou de salvar. A foto que ainda estava sendo convertida 
   - fila cheia.
 - **Segurança dos arquivos (seção 0):** depois de toques seguidos, o número de fotos no rascunho é igual ao número de toques.
 
+## 9. Revisão do GPS (fase de projeto, 18/11/2026)
+
+### O que aconteceu no teste do usuário
+
+Com a permissão dada, a localização ligada e o Wi-Fi da empresa, o app ficou procurando e terminou em "sem sinal do GPS".
+
+### Causa (no código do app, não no celular)
+
+- **Leituras jogadas fora:** a leitura usa o `Geolocation` do .NET MAUI com precisão "Best". No Android, esse modo descarta em silêncio toda leitura com margem de erro maior que 50 m e só entrega as que ficam abaixo disso.
+- **Fontes que não chegam lá:** dentro de prédio o GPS quase não vê os satélites. A posição pelo Wi-Fi e pelas antenas costuma ter margem de 20 a 100 m ou mais, então quase tudo era descartado.
+- **Android 14 em diante:** quando o aparelho não tem o provedor "fused" ligado, o MAUI escolhe um provedor só (o GPS). Isso piora o caso dentro de prédio.
+- **Sem atalho:** o app também não aproveitava a última localização conhecida pelo celular (a que o Google Maps e outros apps já obtiveram), que sai na hora.
+
+Resultado: 15 s sem nenhuma leitura aceita, e a mensagem "sem sinal".
+
+### O que fazem os apps de foto com localização (GPS Map Camera, Timemark, Solocator, NoteCam)
+
+- Usam o provedor combinado do Google (GPS + Wi-Fi + antenas), o mesmo do Google Maps.
+- Mostram a precisão de cada leitura.
+- Deixam escolher entre endereço automático e manual, e entre endereço curto e longo.
+- Assumem que dentro de prédio o endereço pode sair aproximado: o manual é a saída segura.
+
+### Proposta
+
+**1. Endereço opcional, sem pedir permissão de cara**
+- **Interruptor no passo 1:** cartão "Endereço nas fotos" com "Usar o endereço pelo GPS", desligado no começo.
+- **Permissão só quando ligar:** o app mostra uma frase curta ("Para pôr o endereço nas fotos, o app usa a localização só agora, uma vez") e depois o pedido do Android.
+- **Câmera sem pedidos:** a câmera nunca pede permissão.
+- **Desligado:** o item "Endereço" do carimbo fica apagado com "ligue nos dados do relatório", e nenhuma localização é usada.
+
+**2. Leitura em 3 etapas, sem jogar leitura fora**
+1. **Na hora (menos de 1 s):** a última localização conhecida do celular, se tiver menos de 2 minutos e margem de até 100 m. Aparece como "aproximada" e já permite buscar o endereço.
+2. **Leitura atual (até 20 s):** GPS, Wi-Fi e antenas juntos. Cada leitura melhor substitui a anterior e a tela mostra "precisão 35 m… 18 m…". Nenhuma leitura é descartada pela margem.
+3. **Para cedo:** com 20 m ou menos, ou no fim dos 20 s, o app fica com a melhor leitura e mostra a precisão real. Só sem nenhuma leitura aparece "sem sinal".
+
+**3. Motor de localização**
+- **Recomendado:** provedor combinado do Google (`FusedLocationProviderClient`, pacote `Xamarin.GooglePlayServices.Location`), o mesmo do Google Maps. Dentro de prédio com Wi-Fi a leitura costuma sair em poucos segundos.
+  - Ele também abre a janela do próprio Android "Ativar a localização precisa", quando estiver desligada.
+  - Custo: um pacote a mais no APK, estimado em 1 a 2 MB (medir no CI).
+- **Reserva (celular sem os serviços do Google, por exemplo Huawei):** o `LocationManager` do próprio Android, ouvindo GPS e rede ao mesmo tempo (e o provedor "fused" do sistema no Android 12+), sem filtro de margem.
+- **Bateria:** liga só quando o fiscal pede e desliga assim que termina. Nada fica rodando em segundo plano.
+
+**4. Endereço a partir do ponto**
+- **Serviço:** o Geocoder do Android, gratuito e sem chave, com internet.
+- **Falhas:** ele às vezes falha com erro de rede ("grpc failed") mesmo com internet. O app tenta de novo 2 vezes, com intervalo, antes de dizer que não achou.
+- **Escolher entre opções:** o Geocoder devolve até 5 endereços para o mesmo ponto. O app mostra os 2 ou 3 primeiros para o fiscal tocar no certo; numa escola de esquina, pode ser "Rua A" ou "Avenida B".
+- **Sem serviço pago:** fica de fora o Google Geocoding API (precisa de chave e é pago) e o Nominatim (o uso por app é restrito). Editar à mão continua sempre disponível.
+
+**5. Mensagens que dizem o que fazer**
+- **Localização do celular desligada:** botão "Ligar a localização", que abre a janela do Android.
+- **Só localização aproximada liberada (Android 12+):** botão "Permitir localização precisa".
+- **Sem internet:** o ponto fica guardado, com "Buscar o endereço depois".
+- **Precisão ruim (mais de 100 m):** aviso "Endereço pode estar errado: confira", com a opção de editar.
+
+**6. Diagnóstico da localização**
+Em Configurações, ao lado do diagnóstico da câmera, ficam os dados das últimas leituras: fonte (GPS, Wi-Fi ou rede), precisão, tempo até a primeira leitura e se o Geocoder respondeu. Serve para o teste de campo.
+
+**7. Precisão esperada**
+
+| Situação | Margem de erro |
+|---|---|
+| Céu aberto (GPS) | 3 a 10 m |
+| Dentro de prédio com Wi-Fi | 10 a 50 m |
+| Só antenas de celular | 100 a 1.000 m |
+
+Para o endereço, até 50 m costuma acertar a rua; o número pode sair aproximado e o fiscal confirma.
+
+**8. Testes**
+- **Simulados:**
+  - última localização na hora;
+  - Wi-Fi com 40 m e depois GPS com 8 m;
+  - nenhuma leitura;
+  - localização desligada;
+  - permissão só aproximada;
+  - Geocoder falhando uma vez e depois respondendo;
+  - Geocoder com 3 endereços.
+- **Visuais:** cada estado do cartão.
+- **Roteiro de campo para o usuário:**
+  - dentro do escritório com Wi-Fi;
+  - na rua;
+  - no pátio de uma escola;
+  - sem internet;
+  - com a localização desligada.
+
+  Em cada caso, anotar o tempo e a precisão mostrados no diagnóstico.
+
 ## 8. Decisões do usuário (18/11/2026)
 
 1. **Carimbo no Excel:** gravado na cópia da foto (seção 2).
