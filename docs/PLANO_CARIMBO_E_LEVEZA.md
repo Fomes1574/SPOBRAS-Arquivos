@@ -406,6 +406,28 @@ Para o endereço, até 50 m costuma acertar a rua; o número pode sair aproximad
 - **Peso:** o arquivo reduzido ficaria em poucas centenas de KB.
 - **O que falta:** o arquivo ou a liberação do endereço `dados.prefeitura.sp.gov.br` para estudar as colunas.
 
+**Decisões do usuário (18/11/2026), que substituem os itens B.1 a B.3 acima**
+- **Confirmação sempre:** com qualquer margem, acima ou abaixo de 30 m, o endereço lido vira sugestão. Ele só entra nas fotos depois de "Usar este". Sempre há "Editar" e "Marcar no mapa".
+- **30 m é a meta da leitura:** ao chegar a 30 m, a leitura para.
+- **Leitura comprometida:** depois de 30 s procurando sem chegar a 30 m, aparece um aviso só: "Leitura comprometida: vá para perto de uma janela ou ao ar livre". A leitura continua até 45 s.
+- **Sem frases soltas:** nenhuma frase dizendo que o endereço "pode não ser preciso". A margem aparece só como número na linha pequena e no diagnóstico.
+- **Satélites no diagnóstico:** aprovado (item B.4).
+- **Marcar no mapa:**
+  - mapa com o ponto lido;
+  - o fiscal arrasta o mapa até o lugar exato, com um alfinete fixo no centro;
+  - "Usar este ponto" busca o endereço desse ponto.
+  - O provedor do mapa ainda precisa ser escolhido (ver abaixo).
+
+**Provedor do mapa (a decidir)**
+
+| Opção | Custo | Peso no app | Observação |
+|---|---|---|---|
+| Leaflet (biblioteca de mapa de cerca de 40 KB, dentro da tela do app) + mapa do OpenStreetMap | grátis | cerca de 40 KB | Exige crédito "© OpenStreetMap" na tela. A política de uso proíbe uso pesado por apps sem autorização; o uso aqui é pequeno (algumas consultas por relatório, poucos fiscais), mas não há garantia de serviço |
+| Leaflet + provedor com plano gratuito (ex.: MapTiler) | grátis até um limite mensal, com chave | cerca de 40 KB | Precisa criar uma conta e uma chave (a chave fica nos segredos do CI, nunca no repositório) |
+| Google Maps (SDK para Android) | mapa no app sem custo por carregamento, mas exige chave e conta de cobrança no Google Cloud | biblioteca do Google | Traz bibliotecas do Google que entram em conflito com as do MAUI (o mesmo problema visto na localização): risco de quebrar o app |
+
+Recomendação: Leaflet + OpenStreetMap para começar, com o crédito na tela e cache dos pedaços do mapa já vistos, trocando para um provedor com chave se o uso crescer.
+
 **D. Testes**
 - Desligado não aparece em lugar nenhum: câmera, cópia carimbada, galeria, prévia, Excel e PDF.
 - Margem de 100 m vira sugestão, e só entra depois de "Usar este".
