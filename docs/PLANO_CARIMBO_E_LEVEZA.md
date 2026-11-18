@@ -221,20 +221,40 @@ O problema relatado em 18/11/2026: depois de 3 fotos seguidas, o relatório apar
 
 ### Melhorias
 
-1. **A foto entra na lista no toque.** O app reserva o lugar dela na hora, com a imagem pequena do visor e o selo "gravando…". A lista nunca aparece vazia nem com menos fotos do que foram tiradas. Se a gravação falhar, o lugar vira um aviso claro em vez de sumir.
-2. **Selo na câmera:** "3 gravando" perto do botão. Fechar a câmera continua seguro, porque o app já espera as gravações terminarem, e agora a pessoa vê isso.
-3. **Fila na câmera:** os toques nunca esperam a gravação da foto anterior. Cada foto entra numa fila; a câmera só pede para esperar se a fila passar de 6 fotos, para não estourar a memória do celular simples.
+1. **A foto entra na lista no toque.** O lugar dela é reservado na hora, com a imagem do visor e "Salvando…" (nunca "gravando", que lembra vídeo). Detalhes em "Como fica o Salvando" abaixo.
+2. **Contador na câmera:** "Salvando 2…" embaixo da miniatura da última foto.
+3. **Fila na câmera:** os toques nunca esperam a foto anterior terminar de salvar. A câmera só pede para esperar se 6 fotos estiverem salvando ao mesmo tempo, para não estourar a memória do celular simples.
 4. **Medir antes de otimizar:** uma tela de diagnóstico (escondida nas Configurações) mostra o tempo de cada passo nas últimas fotos: pegar a imagem, transformar em JPEG, passar para o app, gravar e miniatura. Com os números de um celular de verdade, otimizar o passo mais lento. Candidatos:
    - transformar em JPEG fora da tela principal (worker), sem travar os toques;
    - passar a foto da câmera para o app sem a conversão em texto que a ponte entre página e app faz hoje (verificar no .NET 10).
 5. **Carimbo e galeria fora do caminho da câmera:** a cópia carimbada e a gravação na galeria (seção 2) correm em filas separadas, depois que a foto já está segura no rascunho. Elas nunca atrasam o próximo toque.
 
+### Como fica o "Salvando"
+
+**Na câmera**
+- **Ao tocar:** a tela pisca e a miniatura no canto mostra a foto nova, como hoje. Embaixo da miniatura aparece "Salvando 1…".
+- **Fotos seguidas:** o número sobe: "Salvando 3…". O botão de tirar continua livre.
+- **Quando terminam:** aparece "✓ Salvas" por 1 segundo e o texto some.
+- **Fila cheia (6 salvando):** o botão fica cinza com "Aguarde…" e libera sozinho quando uma termina.
+- **Fechar (✕) enquanto salva:** a lista abre na hora, sem esperar. As fotos que ainda estão salvando já aparecem nela.
+
+**Na lista de fotos (passo 2)**
+- **Lugar reservado:** a foto aparece no lugar certo, na ordem dos toques, com a imagem do visor um pouco apagada, um círculo girando no canto e "Salvando…" embaixo.
+- **Bloqueio rápido:** enquanto salva, que costuma levar até 2 segundos, a foto não pode ser girada, arrastada, marcada nem receber legenda. Tocar nela mostra "Aguarde, a foto está sendo salva".
+- **Quando termina:** a foto fica normal e o círculo some, sem mensagem.
+- **Topo da lista:** "12 fotos · 2 salvando". O "· 2 salvando" some quando acabam.
+- **Falha ao salvar:** a foto fica com borda vermelha e o texto "Não foi possível salvar esta foto", com dois botões. "Tentar de novo" aparece enquanto a imagem ainda está na memória; "Tirar" está sempre disponível. A foto nunca some sem aviso.
+- **Gerar com fotos salvando:** o app mostra "Esperando 2 fotos terminarem de salvar…" e continua sozinho.
+
+**Se o app for fechado à força durante o "Salvando"**
+Fica só o que já terminou de salvar. A foto que ainda estava sendo convertida se perde, como acontece hoje; a janela é de até 2 segundos. O lugar reservado existe só na memória, então nunca sobra uma foto fantasma ao reabrir.
+
 ### Testes
 
-- **Visual (Playwright):** 3, 10 e 30 toques seguidos, fechando a câmera logo depois. A lista deve mostrar o número certo de fotos desde o primeiro instante, com "gravando…" nas que ainda não terminaram e as fotos na ordem dos toques.
+- **Visual (Playwright):** 3, 10 e 30 toques seguidos, fechando a câmera logo depois. A lista deve mostrar o número certo de fotos desde o primeiro instante, com "Salvando…" nas que ainda não terminaram e as fotos na ordem dos toques.
 - **Robustez:**
   - app fechado com fotos na fila: as que já tinham virado arquivo entram, nenhuma pela metade;
-  - falha na gravação de uma foto;
+  - falha ao salvar uma foto;
   - fila cheia.
 - **Segurança dos arquivos (seção 0):** depois de toques seguidos, o número de fotos no rascunho é igual ao número de toques.
 
