@@ -41,8 +41,32 @@
     </div>
     <p class="mini" style="margin:4px 2px">Use o mesmo logo do computador (a imagem fica guardada só no celular). O app só lê a planilha mestra; nunca grava nela. Versão @(typeof(Config).Assembly.GetName().Version?.ToString(3)).</p>
     <button class="link" style="margin:8px 2px 0" @onclick="() => _diagnostico = true">Diagnóstico da câmera</button>
+    <button class="link" style="margin:8px 2px 0" @onclick="() => _localizacao = true">Diagnóstico da localização</button>
 </div>
 <Nav Ativo="inicio" />
+
+<Folha Aberta="_localizacao" Titulo="Diagnóstico da localização" AoFechar="() => _localizacao = false">
+    @{ var leituras = App.Endereco.Leituras; }
+    <p class="texto2" style="margin:0 0 10px">@(App.Config.EnderecoPeloGps ? "Últimas leituras da localização para o endereço das fotos: de onde veio, a precisão e quanto tempo levou." : "O endereço pelo GPS está desligado: o app não usa a localização. Ligue nos dados do relatório.")</p>
+    @if (leituras.Count == 0)
+    {
+        <p class="texto2">Nenhuma leitura desde que o app abriu.</p>
+    }
+    else
+    {
+        <table class="tabela-diagnostico">
+            <thead><tr><th>Quando e fonte</th><th>Precisão</th><th>Tempo</th></tr></thead>
+            <tbody>
+                @foreach (var l in leituras.AsEnumerable().Reverse())
+                {
+                    <tr><td>@l.Quando.ToLocalTime().ToString("HH:mm:ss", Formato.PtBr) · @l.Fonte<br /><small>@l.Resultado</small></td>
+                        <td>@(l.Precisao is { } p ? p.ToString("0", Formato.PtBr) + " m" : "—")</td><td>@l.Segundos.ToString("0.0", Formato.PtBr) s</td></tr>
+                }
+            </tbody>
+        </table>
+    }
+    <button class="btn primario" style="margin-top:12px" @onclick="() => _localizacao = false">Fechar</button>
+</Folha>
 
 <Folha Aberta="_diagnostico" Titulo="Diagnóstico da câmera" AoFechar="() => _diagnostico = false">
     @{ var tempos = App.Camera.Tempos; }
@@ -87,7 +111,7 @@
 
     private async Task EscolherLogo() => Erro = await App.EscolherLogoAsync();
 
-    private bool _diagnostico;
+    private bool _diagnostico, _localizacao;
 
     private static readonly (string Nome, Func<TempoDaFoto, int> Valor)[] Passos =
     [

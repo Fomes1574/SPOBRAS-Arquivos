@@ -96,14 +96,16 @@
         {
             if (!EnderecoCelular.Usa(App.Config.Carimbo)) return null;
             var d = App.Rascunho.Dados;
+            if (d.Endereco.Length > 0 && !App.Endereco.Lendo) return d.Endereco;
+            if (!App.Endereco.UsarGps) return null; // GPS desligado pelo fiscal: nada de localizacao na camera
             return App.Endereco.Estado switch
             {
-                EstadoEndereco.Lendo => App.Endereco.Precisao is { } p ? $"lendo endereço… precisão {p:0} m" : "lendo endereço…",
-                _ when d.Endereco.Length > 0 => d.Endereco,
-                EstadoEndereco.SemPermissao => "sem permissão de localização",
-                EstadoEndereco.SemSinal => "sem sinal do GPS",
+                EstadoEndereco.Lendo => App.Endereco.Precisao is { } p ? $"procurando a posição… {p:0} m" : "procurando a posição…",
+                EstadoEndereco.SemPermissao => "endereço: permita a localização nos dados",
+                EstadoEndereco.LocalizacaoDesligada => "endereço: ligue a localização do celular",
+                EstadoEndereco.SemSinal => "endereço: posição não encontrada",
                 EstadoEndereco.SemInternet => "sem internet: endereço depois",
-                EstadoEndereco.SemServico => "digite o endereço nos dados",
+                EstadoEndereco.SemServico => "endereço: digite nos dados",
                 _ => null,
             };
         }

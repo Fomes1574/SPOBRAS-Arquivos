@@ -715,18 +715,26 @@ async function texto(page, seletor, contem) {
       await foto(p, '52-foto-com-carimbo', w, h, grande);
       await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await p.waitForTimeout(300);
 
-      // 6) endereco pelo GPS nos dados: procurando sinal, lido, editar
+      // 6) endereco nos dados: GPS desligado no comeco (nada pedido), ligar explica antes, procurando, lido, editar
       await ir(p, urlGrande, 'relatorio'); await p.waitForTimeout(400);
       const cartao = p.locator('.cartao-endereco');
       if (await cartao.count() !== 1) problemas.push(`${tela} dados: sem o cartao do endereco com o carimbo ligado`);
       else {
         await cartao.scrollIntoViewIfNeeded();
-        const ler = cartao.getByRole('button', { name: /Ler pelo GPS|Ler de novo|Tentar de novo|Permitir e ler/ });
-        if (await ler.count()) {
-          await ler.click();
-          await p.waitForTimeout(400);
-          if (await cartao.locator('.lendo-endereco').count() === 1) await foto(p, '53-endereco-procurando', w, h, grande);
+        const gps = cartao.locator('.gps-opcao');
+        if (await gps.count() !== 1) problemas.push(`${tela} dados: sem o interruptor "Usar o endereço pelo GPS"`);
+        if (await gps.getAttribute('aria-pressed') !== 'true') {
+          await foto(p, '53a-endereco-gps-desligado', w, h, grande);
+          if (await cartao.locator('.lendo-endereco').count() > 0) problemas.push(`${tela} dados: com o GPS desligado o app procurou a posicao`);
+          await gps.click(); await p.waitForTimeout(300);
+          if (await p.locator('.folha', { hasText: 'Usar o endereço pelo GPS?' }).count() !== 1) problemas.push(`${tela} dados: ligar o GPS nao explicou antes de pedir a permissao`);
+          await foto(p, '53b-endereco-gps-explica', w, h, grande);
+          await p.locator('.folha .btn.primario', { hasText: 'Continuar' }).click();
+        } else {
+          await cartao.getByRole('button', { name: /Ler de novo|Ler agora|Tentar de novo/ }).click();
         }
+        await p.waitForTimeout(400);
+        if (await cartao.locator('.lendo-endereco').count() === 1) await foto(p, '53-endereco-procurando', w, h, grande);
         await esperar(p, () => !!document.querySelector('.cartao-endereco .endereco-atual'), null, `${tela} dados: o endereco do GPS nao apareceu`, 8000);
         await foto(p, '54-endereco-lido', w, h, grande);
         await cartao.getByRole('button', { name: 'Editar', exact: true }).click();
@@ -760,7 +768,13 @@ async function texto(page, seletor, contem) {
       await foto(p, '57-diagnostico-camera', w, h, grande);
       await p.locator('.folha .btn.primario').click();
 
-      // deixa o carimbo desligado como estava (o proximo tamanho comeca do mesmo estado)
+      // deixa o GPS e o carimbo desligados como estavam (o proximo tamanho comeca do mesmo estado)
+      await ir(p, urlGrande, 'relatorio'); await p.waitForTimeout(400);
+      if (await p.locator('.cartao-endereco .gps-opcao[aria-pressed="true"]').count() === 1) {
+        await p.locator('.cartao-endereco .gps-opcao').click(); await p.waitForTimeout(300);
+        if (await p.locator('.cartao-endereco .gps-opcao[aria-pressed="false"]').count() !== 1) problemas.push(`${tela} dados: desligar o GPS nao desligou`);
+      }
+
       await ir(p, urlGrande, 'relatorio/fotos'); await p.waitForTimeout(400);
       await p.getByRole('button', { name: /^Carimbo nas fotos/ }).click();
       await p.locator('.folha .opcao.on', { hasText: 'Carimbar as fotos' }).click(); await p.waitForTimeout(300);

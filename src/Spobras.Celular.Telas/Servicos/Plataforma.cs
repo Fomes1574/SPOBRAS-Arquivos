@@ -19,6 +19,18 @@ public enum FalhaEndereco
 
     /// <summary>O servico respondeu, mas sem nenhum endereco para o ponto.</summary>
     NaoAchou,
+
+    /// <summary>Falha passageira do servico (comum no Android, mesmo com internet): vale tentar de novo.</summary>
+    Falhou,
+}
+
+/// <summary>
+/// Como esta a localizacao do celular: permissao do app (e se e a precisa ou so a aproximada), localizacao do
+/// celular ligada, e a localizacao por Wi-Fi e rede ligada (sem ela, dentro de predio quase nunca ha leitura).
+/// </summary>
+public sealed record SituacaoLocalizacao(bool Permitida, bool Precisa, bool Ligada, bool RedeLigada)
+{
+    public static readonly SituacaoLocalizacao Indisponivel = new(false, false, false, false);
 }
 
 /// <summary>Endereco de um ponto do GPS, ja no texto curto, ou o motivo de nao ter vindo.</summary>
@@ -81,18 +93,36 @@ public interface IPlataforma
     /// <summary>Pede a permissao da camera (no Android); falso se o usuario negar.</summary>
     Task<bool> PermitirCameraAsync();
 
-    /// <summary>Pede a permissao de localizacao "durante o uso"; falso se o usuario negar ou o aparelho nao tiver GPS.</summary>
-    Task<bool> PermitirLocalizacaoAsync() => Task.FromResult(false);
+    /// <summary>Situacao da localizacao, sem pedir nada ao usuario (so confere).</summary>
+    Task<SituacaoLocalizacao> SituacaoDaLocalizacaoAsync() => Task.FromResult(SituacaoLocalizacao.Indisponivel);
 
     /// <summary>
-    /// Uma leitura do GPS (uma vez so, nada fica rodando): espera ate <paramref name="limite"/> por uma leitura com a
-    /// precisao desejada e devolve a melhor que tiver. <paramref name="aoMelhorar"/> recebe a precisao de cada leitura.
-    /// Nulo se nenhuma leitura chegou (sem sinal, GPS desligado).
+    /// Pede a permissao de localizacao "durante o uso" (o Android mostra a janela dele). So e chamado quando o fiscal
+    /// liga o endereco pelo GPS. Falso se o usuario negar ou o aparelho nao tiver localizacao.
     /// </summary>
-    Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<double>? aoMelhorar = null, CancellationToken cancelar = default) =>
+    Task<bool> PermitirLocalizacaoAsync() => Task.FromResult(false);
+
+    /// <summary>Abre a tela do Android para ligar a localizacao (e a localizacao por Wi-Fi).</summary>
+    Task AbrirConfiguracoesDeLocalizacaoAsync() => Task.CompletedTask;
+
+    /// <summary>
+    /// Ultima posicao que o celular ja conhece (de outro app ou leitura recente), na hora, sem ligar o GPS. Nula se
+    /// nao houver nenhuma mais nova que <paramref name="idadeMaxima"/>.
+    /// </summary>
+    Task<Spobras.Core.Relatorio.PontoGps?> UltimaLocalizacaoAsync(TimeSpan idadeMaxima) => Task.FromResult<Spobras.Core.Relatorio.PontoGps?>(null);
+
+    /// <summary>
+    /// Le a posicao atual por GPS, Wi-Fi e rede ao mesmo tempo (uma vez so, nada fica rodando depois). Nenhuma
+    /// leitura e descartada: fica com a melhor e para antes do limite quando chega a <paramref name="precisaoDesejada"/>.
+    /// <paramref name="aoMelhorar"/> recebe cada leitura melhor que a anterior. Nulo se nenhuma leitura chegou.
+    /// </summary>
+    Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<Spobras.Core.Relatorio.PontoGps>? aoMelhorar = null, CancellationToken cancelar = default) =>
         Task.FromResult<Spobras.Core.Relatorio.PontoGps?>(null);
 
-    /// <summary>Transforma o ponto em endereco pelo servico do proprio sistema (precisa de internet).</summary>
+    /// <summary>
+    /// O primeiro endereco (o mais proximo do ponto) pelo servico do proprio sistema, ja no texto curto. Precisa de
+    /// internet.
+    /// </summary>
     Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude) => Task.FromResult(new ResultadoEndereco(null, FalhaEndereco.SemServico));
 
     /// <summary>

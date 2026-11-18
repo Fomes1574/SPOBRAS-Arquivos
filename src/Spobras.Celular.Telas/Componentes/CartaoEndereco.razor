@@ -1,70 +1,111 @@
 @using Spobras.Core.Relatorio
 @implements IDisposable
 @inject AppCelular App
-@* Endereco das fotos (carimbo): lido pelo GPS uma vez por relatorio, guardado por escola e contrato. *@
+@* Endereco das fotos (carimbo). O GPS e opcional e comeca desligado: so ao ligar o app pede a permissao. *@
 <div class="painel cartao-endereco" aria-live="polite">
-    <h2>Endereço das fotos</h2>
+    <h2>Endereço nas fotos</h2>
     @if (Chave is null)
     {
         <p class="texto2">Escolha a unidade educacional acima: o endereço fica guardado para cada escola.</p>
     }
-    else if (_editando)
-    {
-        <CampoTexto Rotulo="Endereço" Valor="@D.Endereco" Dica="Ex.: Rua Exemplo, 123 – Vila Exemplo" Maximo="120" AoMudar="Salvar" />
-        <div class="linha-btns"><button class="btn linha pequeno" @onclick="() => _editando = false">Pronto</button></div>
-    }
     else
     {
-        @if (App.Endereco.Distancia is { } longe)
+        <button class="opcao gps-opcao @(App.Endereco.UsarGps ? "on" : "")" @onclick="AlternarGps" aria-pressed="@(App.Endereco.UsarGps ? "true" : "false")">
+            <span>Usar o endereço pelo GPS<small>@(App.Endereco.UsarGps ? "A localização é usada uma vez por relatório" : "Desligado: o app não usa a localização. Dá para digitar o endereço")</small></span><span class="marca"></span>
+        </button>
+
+        @if (_editando)
         {
-            <Aviso Tipo="atencao">
-                <span>Você está a @EnderecoDasFotos.TextoDistancia(longe) do endereço guardado desta escola. Atualizar?</span>
-            </Aviso>
-            <div class="linha-btns" style="margin-bottom:10px">
-                <button class="btn primario pequeno" @onclick="() => App.Endereco.AtualizarPeloAvisoAsync()">Atualizar</button>
-                <button class="btn linha pequeno" @onclick="App.Endereco.ManterEndereco">Manter</button>
-            </div>
-        }
-        @if (App.Endereco.Lendo)
-        {
-            <p class="lendo-endereco"><span class="girando-escuro" aria-hidden="true"></span>@(App.Endereco.Precisao is { } p ? $"Procurando sinal… precisão {p:0} m" : "Procurando sinal do GPS…")</p>
-        }
-        else if (D.Endereco.Length > 0)
-        {
-            <p class="endereco-atual">@D.Endereco</p>
-            <p class="mini" style="margin:0 0 10px">@Origem</p>
-        }
-        else if (MesmoNome is { } outro)
-        {
-            <p class="texto2">Já existe um endereço guardado para uma unidade com este nome@(outro.Contrato.Length > 0 ? $" (contrato {outro.Contrato})" : ""): <b>@outro.Endereco</b>. É o mesmo local?</p>
-            <div class="linha-btns" style="margin-bottom:8px">
-                <button class="btn primario pequeno" @onclick="() => App.Endereco.UsarMesmoNome(outro)">Usar este</button>
-                <button class="btn linha pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Ler pelo GPS</button>
-            </div>
+            <CampoTexto Rotulo="Endereço" Valor="@D.Endereco" Dica="Ex.: Rua Exemplo, 123 – Vila Exemplo" Maximo="120" AoMudar="Salvar" />
+            <div class="linha-btns"><button class="btn linha pequeno" @onclick="() => _editando = false">Pronto</button></div>
         }
         else
         {
-            <p class="texto2">@Situacao</p>
-        }
-        @if (App.Endereco.Aproximada && !App.Endereco.Lendo)
-        {
-            <p class="mini" style="margin:0 0 10px;color:var(--laranja-escuro, #8a4b00)">O celular liberou só a localização aproximada: o endereço pode sair errado. Permita a localização precisa nas configurações do Android.</p>
-        }
-        @if (!App.Endereco.Lendo)
-        {
+            @if (App.Endereco.Distancia is { } longe)
+            {
+                <Aviso Tipo="atencao"><span>Você está a @EnderecoDasFotos.TextoDistancia(longe) do endereço guardado desta escola. Atualizar?</span></Aviso>
+                <div class="linha-btns" style="margin-bottom:10px">
+                    <button class="btn primario pequeno" @onclick="() => App.Endereco.AtualizarPeloAvisoAsync()">Atualizar</button>
+                    <button class="btn linha pequeno" @onclick="App.Endereco.ManterEndereco">Manter</button>
+                </div>
+            }
+            @if (App.Endereco.Lendo)
+            {
+                <p class="lendo-endereco"><span class="girando-escuro" aria-hidden="true"></span>@(App.Endereco.Precisao is { } p ? $"Procurando a posição… precisão {p:0} m" : "Procurando a posição…")</p>
+            }
+            else if (D.Endereco.Length > 0)
+            {
+                <p class="endereco-atual">@D.Endereco</p>
+                <p class="mini" style="margin:0 0 10px">@Origem</p>
+                @if (App.Endereco.Conferir)
+                {
+                    <p class="mini aviso-precisao">A posição veio com margem de @(D.Ponto!.Precisao.ToString("0")) m: o endereço pode estar errado. Confira e, se precisar, toque em Editar.</p>
+                }
+            }
+            else if (App.Endereco.UsarGps && MesmoNome is { } outro)
+            {
+                <p class="texto2">Já existe um endereço guardado para uma unidade com este nome@(outro.Contrato.Length > 0 ? $" (contrato {outro.Contrato})" : ""): <b>@outro.Endereco</b>. É o mesmo local?</p>
+                <div class="linha-btns" style="margin-bottom:8px">
+                    <button class="btn primario pequeno" @onclick="() => App.Endereco.UsarMesmoNome(outro)">Usar este</button>
+                    <button class="btn linha pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Ler pelo GPS</button>
+                </div>
+            }
+            else if (App.Endereco.UsarGps)
+            {
+                <p class="texto2">@Situacao</p>
+            }
+            @if (App.Endereco.UsarGps && !App.Endereco.Lendo)
+            {
+                @if (App.Endereco.Aproximada)
+                {
+                    <p class="mini aviso-precisao">O celular liberou só a localização aproximada: o endereço pode sair errado. Toque em “Permitir localização precisa” e escolha “Precisa”.</p>
+                }
+                @if (App.Endereco.SemRede && D.Endereco.Length == 0)
+                {
+                    <p class="mini aviso-precisao">A localização por Wi-Fi está desligada no celular: dentro de prédios fica difícil achar a posição. Ligue “Precisão da localização” nas configurações de localização.</p>
+                }
+            }
             <div class="linha-btns">
-                <button class="btn linha pequeno" @onclick="Ler">@TextoLer</button>
-                <button class="btn linha pequeno" @onclick="() => _editando = true">@(D.Endereco.Length > 0 ? "Editar" : "Digitar")</button>
+                @if (App.Endereco.UsarGps && !App.Endereco.Lendo)
+                {
+                    @switch (App.Endereco.Estado)
+                    {
+                        case EstadoEndereco.LocalizacaoDesligada:
+                            <button class="btn primario pequeno" @onclick="LigarLocalizacao">Ligar a localização</button>
+                            <button class="btn linha pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Tentar de novo</button>
+                            break;
+                        case EstadoEndereco.SemPermissao:
+                            <button class="btn primario pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Permitir e ler</button>
+                            break;
+                        default:
+                            <button class="btn linha pequeno" @onclick="Ler">@TextoLer</button>
+                            break;
+                    }
+                    @if (App.Endereco.Aproximada)
+                    {
+                        <button class="btn linha pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Permitir localização precisa</button>
+                    }
+                }
+                @if (!App.Endereco.Lendo)
+                {
+                    <button class="btn linha pequeno" @onclick="() => _editando = true">@(D.Endereco.Length > 0 ? "Editar" : "Digitar")</button>
+                }
             </div>
         }
     }
 </div>
 
+<Folha Aberta="_perguntar" Titulo="Usar o endereço pelo GPS?" AoFechar="() => _perguntar = false">
+    <p class="texto2" style="margin:0 0 12px">Para pôr o endereço da escola nas fotos, o app usa a localização do celular só quando você pedir ou ao abrir a câmera, uma vez por relatório. Nada fica rodando depois. O Android vai pedir a permissão em seguida.</p>
+    <button class="btn primario" style="margin-bottom:8px" @onclick="Ligar">Continuar</button>
+    <button class="btn linha" @onclick="() => _perguntar = false">Agora não</button>
+</Folha>
+
 @code {
     /// <summary>Chave da escola atual (nome + contrato): mudou, o endereco e conferido de novo.</summary>
     [Parameter] public string? Chave { get; set; }
 
-    private bool _editando;
+    private bool _editando, _perguntar;
 
     private DadosRascunho D => App.Rascunho.Dados;
 
@@ -80,23 +121,47 @@
 
     private void Salvar(string texto) => App.Endereco.Editar(texto);
 
+    private void AlternarGps()
+    {
+        if (App.Endereco.UsarGps)
+        {
+            App.DesligarEnderecoPeloGps();
+            StateHasChanged();
+        }
+        else
+        {
+            _perguntar = true; // explica antes de o Android pedir a permissao
+        }
+    }
+
+    private async Task Ligar()
+    {
+        _perguntar = false;
+        await App.LigarEnderecoPeloGpsAsync();
+    }
+
+    private async Task LigarLocalizacao()
+    {
+        await App.Endereco.LigarLocalizacaoAsync();
+    }
+
     private Task Ler() =>
         App.Endereco.Estado == EstadoEndereco.SemInternet && D.Ponto is not null ? App.Endereco.TentarDeNovoAsync() : App.Endereco.LerAsync(atualizar: true);
 
     private string TextoLer => App.Endereco.Estado switch
     {
-        EstadoEndereco.SemPermissao => "Permitir e ler",
         EstadoEndereco.SemSinal or EstadoEndereco.SemInternet => "Tentar de novo",
-        _ => D.Endereco.Length > 0 ? "Ler de novo" : "Ler pelo GPS",
+        _ => D.Endereco.Length > 0 ? "Ler de novo" : "Ler agora",
     };
 
     private string Situacao => App.Endereco.Estado switch
     {
-        EstadoEndereco.SemPermissao => "Sem permissão de localização. Permita para o app ler o endereço, ou digite.",
-        EstadoEndereco.SemSinal => "Sem sinal do GPS. Tente perto da entrada da escola, ou digite.",
-        EstadoEndereco.SemInternet => "Sem internet: o ponto do GPS foi guardado e o endereço é buscado quando houver sinal.",
-        EstadoEndereco.SemServico => "Este celular não transformou o ponto em endereço. Digite o endereço.",
-        _ => "O endereço é lido pelo GPS quando a câmera abrir. Também dá para ler agora ou digitar.",
+        EstadoEndereco.SemPermissao => "Sem permissão de localização. Toque em “Permitir e ler”, ou digite o endereço.",
+        EstadoEndereco.LocalizacaoDesligada => "A localização do celular está desligada. Ligue e depois toque em “Ler agora”.",
+        EstadoEndereco.SemSinal => "Nenhuma posição encontrada. Confira se a localização do celular está ligada, tente perto de uma janela ou na entrada da escola, ou digite.",
+        EstadoEndereco.SemInternet => "Sem internet: a posição foi guardada e o endereço é buscado quando houver sinal.",
+        EstadoEndereco.SemServico => "O celular não transformou a posição em endereço. Tente de novo ou digite.",
+        _ => "O endereço é lido ao abrir a câmera. Também dá para ler agora ou digitar.",
     };
 
     private string Origem
@@ -108,7 +173,7 @@
             if (D.Ponto is { } p)
             {
                 string quando = p.LidoEm.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-                return $"Lido pelo GPS em {quando} · precisão {p.Precisao:0} m";
+                return $"Lido pela localização em {quando} · precisão {p.Precisao:0} m";
             }
 
             return "Guardado para esta escola";

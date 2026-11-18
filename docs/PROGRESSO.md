@@ -1,5 +1,49 @@
 # Progresso
 
+## GPS revisado em 18/11/2026
+
+No teste do usuário, dentro do escritório com Wi-Fi, a leitura terminava em "sem sinal". A causa estava no app: o modo de localização "mais preciso" do MAUI descarta em silêncio toda leitura com mais de 50 m de margem, e dentro de prédio quase todas ficam acima disso. Revisado como na seção 9 de `docs/PLANO_CARIMBO_E_LEVEZA.md`.
+
+- **Opcional e sem pedir de cara:**
+  - O cartão "Endereço nas fotos" (passo 1) tem "Usar o endereço pelo GPS", **desligado** no começo.
+  - Desligado, o app nunca pede nem usa a localização; o endereço pode ser digitado.
+  - Ao ligar, uma folha explica antes e só então aparece a janela do Android.
+  - A câmera nunca pede permissão.
+- **Leitura em 3 etapas, sem descartar leitura:**
+  1. A última posição que o celular já conhece, se tiver até 2 min e até 50 m, vale na hora.
+  2. Senão, o app ouve GPS, Wi-Fi e rede e a fonte combinada (Android 12+) ao mesmo tempo, até 20 s. Para antes ao chegar a 20 m, fica com a melhor leitura e mostra cada melhora ("Procurando a posição… 35 m").
+  3. Sem leitura atual, ainda serve uma posição conhecida de até 10 min.
+  - Leitura com mais de 100 m pede para conferir o endereço.
+- **Motor:** o `LocationManager` do próprio Android, sem biblioteca a mais.
+  - A biblioteca do Google foi testada: puxava versões mais novas das bibliotecas AndroidX que o MAUI usa (risco de quebrar o app) e não baixa neste ambiente.
+  - A fonte "rede" do Android já usa o Wi-Fi e as antenas (nos celulares com Google, é o mesmo serviço do Google Maps).
+- **Endereço:** só o primeiro, o mais próximo, em português.
+  - Quando o serviço do Android falha de passagem, o app tenta de novo até 3 vezes. Sem internet, guarda o ponto na hora.
+  - Se o serviço não separar rua, número e bairro, a linha completa vira o texto curto (sem CEP, cidade e país).
+- **Situações com botão:**
+  - localização do celular desligada: "Ligar a localização" e "Tentar de novo";
+  - permissão só aproximada: aviso e "Permitir localização precisa";
+  - localização por Wi-Fi desligada: aviso;
+  - sem permissão: "Permitir e ler".
+- **Diagnóstico da localização** em Configurações: as últimas 10 leituras, com fonte, precisão, tempo e resultado.
+- **Testes:**
+  - Novos:
+    - desligado nunca pede nem lê;
+    - ligar pede uma vez;
+    - última posição boa vale na hora, e a velha ou imprecisa não vale;
+    - 80 m dentro do prédio é aceito;
+    - para em 20 m;
+    - posição de reserva até 10 min;
+    - localização desligada;
+    - só aproximada;
+    - serviço de endereço falhando 2 vezes e respondendo na 3ª;
+    - sem internet;
+    - diagnóstico;
+    - linha de endereço encurtada.
+  - Visuais: interruptor desligado, folha que explica, procurando, lido.
+  - Total: 616 testes, todos passando.
+- **Só no celular de verdade dá para conferir:** o tempo e a precisão dentro do escritório e da escola. O diagnóstico da localização mostra isso.
+
 ## Carimbo nas fotos, endereço pelo GPS, fotos "Salvando…" e app mais leve em 18/11/2026
 
 Implementado o plano `docs/PLANO_CARIMBO_E_LEVEZA.md` (decisões do usuário na seção 8). Carimbo e GPS só no celular.
@@ -389,8 +433,6 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
 
 ## Pendências com o usuário
-
-- **GPS (18/11/2026):** no teste do usuário a leitura terminou em "sem sinal" dentro do escritório com Wi-Fi. A causa está no app: o modo de precisão usado descartava toda leitura com mais de 50 m. A correção e o endereço opcional (sem pedir permissão de cara) estão em projeto na seção 9 de `docs/PLANO_CARIMBO_E_LEVEZA.md`, aguardando a liberação do usuário.
 
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 

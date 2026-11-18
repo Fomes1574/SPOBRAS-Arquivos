@@ -381,3 +381,5 @@ input.faixa { width: 100%; min-height: 44px; accent-color: var(--vermelho); }
 .cartao-carimbo .txt span { font-size: 13px; color: var(--sec); }
 .cartao-carimbo .estado-carimbo { flex: none; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--borda-clara); color: var(--sec); }
 .cartao-carimbo.on .estado-carimbo { background: var(--vermelho); color: #fff; }
+.cartao-endereco .gps-opcao { margin-bottom: 8px; }
+.cartao-endereco .aviso-precisao { margin: 0 0 10px; color: #7a3d00; }

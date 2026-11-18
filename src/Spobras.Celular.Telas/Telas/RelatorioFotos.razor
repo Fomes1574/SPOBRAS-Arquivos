@@ -226,7 +226,7 @@
         </div>
         @if (Ajuste.Endereco)
         {
-            <p class="mini" style="margin:0 2px 10px">@(App.Rascunho.Dados.Endereco.Length > 0 ? "Endereço: " + App.Rascunho.Dados.Endereco + "." : "O endereço é lido pelo GPS quando a câmera abrir (ou digite nos dados do relatório).") <a href="relatorio">Ver nos dados</a></p>
+            <p class="mini" style="margin:0 2px 10px">@(App.Rascunho.Dados.Endereco.Length > 0 ? "Endereço: " + App.Rascunho.Dados.Endereco + "." : (App.Config.EnderecoPeloGps ? "O endereço é lido pela localização quando a câmera abrir (ou digite nos dados do relatório)." : "Sem endereço ainda: digite nos dados do relatório ou ligue “Usar o endereço pelo GPS” lá.")) <a href="relatorio">Ver nos dados</a></p>
         }
         @if (App.Config.FotosNaGaleria)
         {

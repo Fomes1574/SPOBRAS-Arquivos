@@ -45,6 +45,12 @@ public sealed record Preferencias
     /// <summary>Carimbo nas fotos (escola, endereco, data, hora): vale para o relatorio e fica para os proximos.</summary>
     public Spobras.Core.Relatorio.AjusteCarimbo Carimbo { get; init; } = new();
 
+    /// <summary>
+    /// O fiscal ligou o endereco pelo GPS (no passo 1). Desligado, o app nunca pede nem usa a localizacao; o endereco
+    /// pode ser digitado.
+    /// </summary>
+    public bool EnderecoPeloGps { get; init; }
+
     /// <summary>Copia do logo dentro do app (o usuario escolhe a imagem uma vez).</summary>
     public string? Logo { get; init; }
 

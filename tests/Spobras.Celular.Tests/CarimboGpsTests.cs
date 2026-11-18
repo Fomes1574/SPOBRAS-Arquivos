@@ -38,7 +38,13 @@ public sealed class CarimboGpsTests : IDisposable
     private static readonly PontoGps Escola = new(-23.5505, -46.6333, 12, Hoje);
     private const double MetroDeLatitude = 1 / 111_195.0;
 
-    private AppCelular NovoApp() => new(_p, () => Hoje);
+    /// <summary>App com o endereco pelo GPS ligado pelo fiscal (o padrao e desligado; ver os testes de opcional).</summary>
+    private AppCelular NovoApp(bool gps = true)
+    {
+        var app = new AppCelular(_p, () => Hoje);
+        app.Configurar(c => c with { EnderecoPeloGps = gps });
+        return app;
+    }
 
     private byte[] Jpeg(int n, int largura = 1600, int altura = 1200) =>
         File.ReadAllBytes(AmostraCelular.Foto(Path.Combine(_raiz, "modelos"), $"m{n}.jpg", largura, altura, n));
@@ -370,7 +376,8 @@ public sealed class CarimboGpsTests : IDisposable
         _p.LocalizacaoPermitida = false;
         await app.Endereco.AoAbrirCameraAsync(ajuste);
         Assert.Equal(EstadoEndereco.SemPermissao, app.Endereco.Estado);
-        Assert.True(app.Rascunho.Dados.EnderecoConferido); // nao fica pedindo de novo a cada abertura da camera
+        Assert.Equal(0, _p.PedidosDePermissao); // a camera nunca pede permissao
+        Assert.Equal(0, _p.Leituras);
 
         _p.LocalizacaoPermitida = true;
         await app.Endereco.LerAsync(atualizar: true); // sem pontos: sem sinal

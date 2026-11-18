@@ -9,6 +9,12 @@ public sealed record PontoGps(double Latitude, double Longitude, double Precisao
     /// <summary>Precisao pior que isso: o Android so liberou a localizacao aproximada.</summary>
     public const double Aproximada = 200;
 
+    /// <summary>Precisao pior que isso: o endereco pode sair errado e a tela pede para conferir.</summary>
+    public const double Conferir = 100;
+
+    /// <summary>De onde veio a leitura: "GPS", "Wi-Fi e rede", "combinada" ou "ultima conhecida" (diagnostico).</summary>
+    public string Fonte { get; init; } = "";
+
     public bool Valido => double.IsFinite(Latitude) && double.IsFinite(Longitude) && Math.Abs(Latitude) <= 90 && Math.Abs(Longitude) <= 180;
 }
 
@@ -91,6 +97,24 @@ public static class EnderecoDasFotos
     }
 
     private static string Limpo(string? s) => TextoMedido.Limpar(s).Trim();
+
+    /// <summary>
+    /// Linha completa do endereco ("R. Exemplo, 123 - Vila Exemplo, Sao Paulo - SP, 01234-567, Brasil") reduzida ao
+    /// que interessa: "R. Exemplo, 123 – Vila Exemplo". Usada quando o servico nao separa rua, numero e bairro.
+    /// </summary>
+    public static string? EncurtarLinha(string? linha)
+    {
+        var partes = Limpo(linha).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(p => !System.Text.RegularExpressions.Regex.IsMatch(p, @"^\d{5}-?\d{3}$") && !p.Equals("Brasil", StringComparison.OrdinalIgnoreCase) && !p.Equals("Brazil", StringComparison.OrdinalIgnoreCase))
+            .Take(2).ToList();
+        if (partes.Count > 1 && partes[0].Contains(" - ", StringComparison.Ordinal))
+        {
+            partes = partes[..1]; // "R. Exemplo - Vila Exemplo, Sao Paulo - SP": sem numero, o bairro ja veio junto
+        }
+
+        string texto = string.Join(", ", partes).Replace(" - ", " – ", StringComparison.Ordinal);
+        return texto.Length == 0 ? null : texto;
+    }
 
     /// <summary>Distancia em metros entre dois pontos (formula de haversine).</summary>
     public static double Distancia(PontoGps a, PontoGps b)

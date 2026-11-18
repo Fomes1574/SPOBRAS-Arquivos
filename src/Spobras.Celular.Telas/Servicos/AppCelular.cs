@@ -17,7 +17,7 @@ public sealed class AppCelular
         Spobras.Documentos.Relatorio.PreparoDeFotos.Limite = Math.Clamp(plataforma.FotosAoMesmoTempo, 1, 4);
         Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora, () => Preferencias.Ler().Carimbo);
         Enderecos = new EnderecosGuardados(plataforma.PastaDoApp);
-        Endereco = new EnderecoCelular(plataforma, Rascunho, Enderecos, Agora);
+        Endereco = new EnderecoCelular(plataforma, Rascunho, Enderecos, Agora, () => Preferencias.Ler().EnderecoPeloGps);
         Camera = new FotosDaCamera(this);
         Galeria = new FilaDaGaleria(this);
         Pdf = new PdfCelular(plataforma, Preferencias);
@@ -46,6 +46,19 @@ public sealed class AppCelular
     public Preferencias Config => Preferencias.Ler();
 
     public void Configurar(Func<Preferencias, Preferencias> mudar) => Preferencias.Gravar(mudar(Preferencias.Ler()));
+
+    /// <summary>
+    /// O fiscal ligou "Usar o endereco pelo GPS": so agora o app pede a permissao (a janela do Android) e le a
+    /// posicao uma vez.
+    /// </summary>
+    public Task LigarEnderecoPeloGpsAsync()
+    {
+        Configurar(p => p with { EnderecoPeloGps = true });
+        return Endereco.LerAsync(atualizar: false, pedirPermissao: true);
+    }
+
+    /// <summary>Desligado: o app nao usa mais a localizacao. O endereco que ja estava (lido ou digitado) continua.</summary>
+    public void DesligarEnderecoPeloGps() => Configurar(p => p with { EnderecoPeloGps = false });
 
     /// <summary>Muda o carimbo: as copias carimbadas antigas saem e as novas sao feitas em segundo plano.</summary>
     public void Carimbar(Func<Spobras.Core.Relatorio.AjusteCarimbo, Spobras.Core.Relatorio.AjusteCarimbo> mudar)

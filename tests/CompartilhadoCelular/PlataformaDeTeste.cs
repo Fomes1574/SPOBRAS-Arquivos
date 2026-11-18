@@ -138,39 +138,99 @@ public sealed class PlataformaDeTeste : IPlataforma
         return Task.CompletedTask;
     }
 
-    // ---- GPS e endereco (simulados) ----
+    // ---- Localizacao e endereco (simulados) ----
 
+    /// <summary>A permissao ja foi dada (sem a janela do Android).</summary>
     public bool LocalizacaoPermitida { get; set; } = true;
 
-    /// <summary>Leituras que o GPS devolve, uma por vez, na ordem (a ultima se repete). Vazio = sem sinal.</summary>
+    /// <summary>O que o usuario responde na janela de permissao: permitir (precisa), so aproximada, ou negar.</summary>
+    public bool PermitirAoPedir { get; set; } = true;
+
+    public bool PermitirSoAproximada { get; set; }
+
+    public bool LocalizacaoPrecisa { get; set; } = true;
+    public bool LocalizacaoLigada { get; set; } = true;
+    public bool RedeLigada { get; set; } = true;
+
+    /// <summary>Quantas vezes a janela de permissao apareceu.</summary>
+    public int PedidosDePermissao { get; private set; }
+
+    public int AberturasDeConfiguracoes { get; private set; }
+
+    /// <summary>Ultima posicao que o celular ja conhece (nula = nenhuma).</summary>
+    public Spobras.Core.Relatorio.PontoGps? UltimaConhecida { get; set; }
+
+    /// <summary>Leituras atuais que chegam, uma a uma (a ultima e a melhor que houver). Vazio = sem sinal.</summary>
     public List<Spobras.Core.Relatorio.PontoGps> Pontos { get; } = [];
 
-    /// <summary>Espera antes de responder (para ver o "Procurando sinal").</summary>
+    /// <summary>Espera antes de cada leitura (para ver o "Procurando a posicao").</summary>
     public TimeSpan AtrasoDoGps { get; set; }
 
     public int Leituras { get; private set; }
 
-    /// <summary>Endereco de cada ponto; sem entrada, o servico nao acha nada.</summary>
+    /// <summary>Quantas leituras chegaram na ultima vez (para conferir que para antes ao chegar a precisao).</summary>
+    public int LeiturasEntregues { get; private set; }
+
+    /// <summary>Respostas do servico de endereco, uma por chamada (a ultima se repete).</summary>
+    public List<ResultadoEndereco> Respostas { get; } = [];
+
     public Func<double, double, ResultadoEndereco> Endereco { get; set; } = (_, _) => new ResultadoEndereco("Rua Exemplo, 123 – Vila Exemplo");
 
     public int Buscas { get; private set; }
 
-    public Task<bool> PermitirLocalizacaoAsync() => Task.FromResult(LocalizacaoPermitida);
+    public Task<SituacaoLocalizacao> SituacaoDaLocalizacaoAsync() =>
+        Task.FromResult(new SituacaoLocalizacao(LocalizacaoPermitida, LocalizacaoPermitida && LocalizacaoPrecisa, LocalizacaoLigada, LocalizacaoLigada && RedeLigada));
 
-    public async Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<double>? aoMelhorar = null, CancellationToken cancelar = default)
+    public Task<bool> PermitirLocalizacaoAsync()
     {
-        int n = Leituras++;
-        if (AtrasoDoGps > TimeSpan.Zero) await Task.Delay(AtrasoDoGps, cancelar);
-        if (Pontos.Count == 0) return null;
-        var p = Pontos[Math.Min(n, Pontos.Count - 1)];
-        aoMelhorar?.Invoke(p.Precisao);
-        return p;
+        PedidosDePermissao++;
+        if (PermitirAoPedir || PermitirSoAproximada)
+        {
+            LocalizacaoPermitida = true;
+            LocalizacaoPrecisa = !PermitirSoAproximada;
+        }
+
+        return Task.FromResult(LocalizacaoPermitida);
+    }
+
+    public Task AbrirConfiguracoesDeLocalizacaoAsync()
+    {
+        AberturasDeConfiguracoes++;
+        return Task.CompletedTask;
+    }
+
+    public Task<Spobras.Core.Relatorio.PontoGps?> UltimaLocalizacaoAsync(TimeSpan idadeMaxima) =>
+        Task.FromResult(LocalizacaoPermitida ? UltimaConhecida : null); // a idade e conferida pelo app, com o relogio do teste
+
+    public async Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<Spobras.Core.Relatorio.PontoGps>? aoMelhorar = null, CancellationToken cancelar = default)
+    {
+        Leituras++;
+        LeiturasEntregues = 0;
+        if (!LocalizacaoPermitida || !LocalizacaoLigada) return null;
+        Spobras.Core.Relatorio.PontoGps? melhor = null;
+        foreach (var p in Pontos)
+        {
+            if (AtrasoDoGps > TimeSpan.Zero) await Task.Delay(AtrasoDoGps, cancelar);
+            LeiturasEntregues++;
+            var lido = LocalizacaoPrecisa ? p : p with { Precisao = Math.Max(p.Precisao, 1500) };
+            if (melhor is null || lido.Precisao < melhor.Precisao)
+            {
+                melhor = lido;
+                aoMelhorar?.Invoke(lido);
+            }
+
+            if (melhor.Precisao <= precisaoDesejada) break; // para antes ao chegar a precisao
+        }
+
+        return melhor;
     }
 
     public Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude)
     {
-        Buscas++;
-        return Task.FromResult(SemConexao ? new ResultadoEndereco(null, FalhaEndereco.SemInternet) : Endereco(latitude, longitude));
+        int n = Buscas++;
+        if (SemConexao) return Task.FromResult(new ResultadoEndereco(null, FalhaEndereco.SemInternet));
+        if (Respostas.Count > 0) return Task.FromResult(Respostas[Math.Min(n, Respostas.Count - 1)]);
+        return Task.FromResult(Endereco(latitude, longitude));
     }
 
     public int FotosAoMesmoTempo { get; set; } = 4;

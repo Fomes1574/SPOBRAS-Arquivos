@@ -1310,7 +1310,7 @@ public sealed class RascunhoRelatorio
 
         if (a.Endereco && Dados.Endereco.Trim().Length == 0 && fotos.Any(f => f.Foto.Carimbo is not null))
         {
-            lista.Add("O carimbo vai sem endereço: ele ainda não foi lido. Leia pelo GPS ou digite nos dados do relatório.");
+            lista.Add("O carimbo vai sem endereço. Digite nos dados do relatório ou ligue “Usar o endereço pelo GPS” lá.");
         }
 
         return lista;

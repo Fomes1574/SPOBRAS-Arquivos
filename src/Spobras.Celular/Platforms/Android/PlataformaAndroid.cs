@@ -237,19 +237,18 @@ public sealed class PlataformaAndroid : IPlataforma
         return estado == PermissionStatus.Granted;
     }
 
-    // ---- Localizacao (so com o carimbo usando o endereco; uma leitura por relatorio) ----
+    // ---- Localizacao (so se o fiscal ligar o endereco pelo GPS; uma leitura por relatorio) ----
+
+    private readonly LocalizacaoAndroid _localizacao = new();
+
+    public Task<SituacaoLocalizacao> SituacaoDaLocalizacaoAsync() => Task.FromResult(_localizacao.Situacao());
 
     public async Task<bool> PermitirLocalizacaoAsync()
     {
         try
         {
-            var estado = await MainThread.InvokeOnMainThreadAsync(Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>);
-            if (estado != PermissionStatus.Granted)
-            {
-                estado = await MainThread.InvokeOnMainThreadAsync(Permissions.RequestAsync<Permissions.LocationWhenInUse>);
-            }
-
-            return estado == PermissionStatus.Granted;
+            var estado = await MainThread.InvokeOnMainThreadAsync(Permissions.RequestAsync<Permissions.LocationWhenInUse>);
+            return estado == PermissionStatus.Granted || _localizacao.Situacao().Permitida;
         }
         catch (Exception ex) when (ex is FeatureNotSupportedException or PermissionException or InvalidOperationException)
         {
@@ -257,99 +256,24 @@ public sealed class PlataformaAndroid : IPlataforma
         }
     }
 
-    /// <summary>
-    /// Escuta o GPS so ate chegar uma leitura com a precisao desejada (ou acabar o tempo) e para: nada fica rodando
-    /// em segundo plano. Fica com a melhor leitura que chegou.
-    /// </summary>
-    public async Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<double>? aoMelhorar = null, CancellationToken cancelar = default)
+    public Task AbrirConfiguracoesDeLocalizacaoAsync() => MainThread.InvokeOnMainThreadAsync(() =>
     {
-        Location? melhor = null;
-        var trava = new object();
-        var pronto = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Considerar(Location? l)
-        {
-            if (l is null || l.Accuracy is not { } precisao) return;
-            lock (trava)
-            {
-                if (melhor?.Accuracy is { } atual && atual <= precisao) return;
-                melhor = l;
-            }
-
-            aoMelhorar?.Invoke(precisao);
-            if (precisao <= precisaoDesejada) pronto.TrySetResult();
-        }
-
-        void Mudou(object? _, GeolocationLocationChangedEventArgs e) => Considerar(e.Location);
-        bool escutando = false;
         try
         {
-            Geolocation.Default.LocationChanged += Mudou;
-            escutando = await MainThread.InvokeOnMainThreadAsync(() =>
-                Geolocation.Default.StartListeningForegroundAsync(new GeolocationListeningRequest(GeolocationAccuracy.Best, TimeSpan.FromSeconds(1))));
-            if (!escutando)
-            {
-                // aparelho que nao escuta: uma leitura so, dentro do mesmo prazo
-                Considerar(await Geolocation.Default.GetLocationAsync(new GeolocationRequest(GeolocationAccuracy.Best, limite), cancelar));
-            }
-            else
-            {
-                await Task.WhenAny(pronto.Task, Task.Delay(limite, cancelar));
-            }
+            Platform.AppContext.StartActivity(new Intent(Settings.ActionLocationSourceSettings).AddFlags(ActivityFlags.NewTask));
         }
-        catch (Exception ex) when (ex is FeatureNotEnabledException or FeatureNotSupportedException or PermissionException or TaskCanceledException or InvalidOperationException)
+        catch (ActivityNotFoundException)
         {
-            // GPS desligado, sem GPS ou sem permissao: fica com o que tiver chegado
+            Platform.AppContext.StartActivity(new Intent(Settings.ActionSettings).AddFlags(ActivityFlags.NewTask));
         }
-        finally
-        {
-            Geolocation.Default.LocationChanged -= Mudou;
-            if (escutando)
-            {
-                MainThread.BeginInvokeOnMainThread(Geolocation.Default.StopListeningForeground);
-            }
-        }
+    });
 
-        lock (trava)
-        {
-            return melhor is null ? null : new Spobras.Core.Relatorio.PontoGps(melhor.Latitude, melhor.Longitude, melhor.Accuracy ?? 9999, DateTimeOffset.Now);
-        }
-    }
+    public Task<Spobras.Core.Relatorio.PontoGps?> UltimaLocalizacaoAsync(TimeSpan idadeMaxima) => Task.Run(() => _localizacao.Ultima(idadeMaxima));
 
-    public async Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude)
-    {
-        if (Connectivity.Current.NetworkAccess != NetworkAccess.Internet)
-        {
-            return new ResultadoEndereco(null, FalhaEndereco.SemInternet);
-        }
+    public Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<Spobras.Core.Relatorio.PontoGps>? aoMelhorar = null, CancellationToken cancelar = default) =>
+        _localizacao.LerAsync(limite, precisaoDesejada, aoMelhorar, cancelar);
 
-        try
-        {
-            var busca = Geocoding.Default.GetPlacemarksAsync(latitude, longitude);
-            if (await Task.WhenAny(busca, Task.Delay(TimeSpan.FromSeconds(12))) != busca)
-            {
-                return new ResultadoEndereco(null, FalhaEndereco.SemInternet); // demorou demais: rede fraca
-            }
-
-            foreach (var p in (await busca) ?? [])
-            {
-                if (Spobras.Core.Relatorio.EnderecoDasFotos.Formatar(p.Thoroughfare, p.SubThoroughfare, p.SubLocality, p.Locality) is { } texto)
-                {
-                    return new ResultadoEndereco(texto);
-                }
-            }
-
-            return new ResultadoEndereco(null, FalhaEndereco.NaoAchou);
-        }
-        catch (FeatureNotSupportedException)
-        {
-            return new ResultadoEndereco(null, FalhaEndereco.SemServico);
-        }
-        catch (Exception)
-        {
-            // O Geocoder do Android falha com erros de rede variados (Java.IO.IOException, "grpc failed")
-            return new ResultadoEndereco(null, Connectivity.Current.NetworkAccess == NetworkAccess.Internet ? FalhaEndereco.NaoAchou : FalhaEndereco.SemInternet);
-        }
-    }
+    public Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude) => LocalizacaoAndroid.EnderecoAsync(latitude, longitude);
 
     /// <summary>Celular com pouca memoria (Android Go ou menos de 3 GB): prepara menos fotos ao mesmo tempo.</summary>
     public int FotosAoMesmoTempo { get; } = Memoria();

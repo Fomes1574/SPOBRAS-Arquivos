@@ -258,7 +258,11 @@ Fica só o que já terminou de salvar. A foto que ainda estava sendo convertida 
   - fila cheia.
 - **Segurança dos arquivos (seção 0):** depois de toques seguidos, o número de fotos no rascunho é igual ao número de toques.
 
-## 9. Revisão do GPS (fase de projeto, 18/11/2026)
+## 9. Revisão do GPS (implementada em 18/11/2026)
+
+**Decisões do usuário:** só o primeiro endereço, o mais próximo.
+
+**Na implementação:** o motor ficou o `LocationManager` do próprio Android ouvindo GPS, rede e a fonte combinada, em vez da biblioteca do Google. Essa biblioteca trazia versões mais novas das bibliotecas AndroidX do MAUI, um risco de quebrar o app. Por isso também não há a janela do Google para ligar a localização precisa: o app abre a tela de localização do Android.
 
 ### O que aconteceu no teste do usuário
 
