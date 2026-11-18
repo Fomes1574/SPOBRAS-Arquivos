@@ -1,0 +1,205 @@
+# Plano: carimbo nas fotos, endereço pelo GPS e leveza do app
+
+Fase de projeto (18/11/2026). Nada aqui está implementado. Quando o usuário liberar, cada parte vira um passo com testes, CI verde e registro em `PROGRESSO.md`.
+
+## 0. Regra de ouro das otimizações: não perder arquivos
+
+Nenhuma melhoria abaixo pode mexer no que guarda o trabalho do fiscal. O comportamento atual fica como está:
+
+- A opção "Guardar também na galeria" continua existindo e podendo ser desligada.
+- Fechar o app ou sair sem gerar não apaga nada: fotos, legendas e descrições voltam iguais.
+- "Novo relatório" continua apagando o rascunho anterior (decisão do usuário).
+- A foto original nunca é alterada. O carimbo só aparece no relatório gerado.
+
+Só pode ser limpo o que o app refaz sozinho: miniaturas, cópias reduzidas (preparadas) e arquivos temporários.
+
+**Testes de segurança dos arquivos**, obrigatórios em toda otimização. Cada teste guarda a impressão (hash) das fotos e o texto do rascunho antes, faz a ação e confere depois:
+
+- fechar e reabrir;
+- gerar o relatório;
+- app fechado no meio do preparo das fotos;
+- limpeza das miniaturas;
+- trocar o carimbo;
+- ler o endereço;
+- atualizar o app por cima, com a pasta de dados intacta.
+
+A única ação que muda o conteúdo é "Novo relatório".
+
+## 1. Endereço pelo GPS
+
+### Como funciona
+
+- **Quando lê:** na primeira vez que a câmera abre no relatório, o app pede a localização uma vez, em segundo plano, sem travar a câmera. Ele espera até 15 s por uma leitura com precisão de 30 m ou melhor e fica com a melhor que tiver.
+- **Converter em endereço:** usa o serviço do próprio sistema (Geocoder no Android, CLGeocoder no iPhone). Não entra nenhuma biblioteca nova nem mapa no APK. Precisa de internet só nesse momento.
+- **Texto curto:** "Rua Exemplo, 123 – Vila Exemplo". Ficam de fora CEP, cidade, estado e país.
+- **Confirmar:** o fiscal confirma ou corrige o texto. O mesmo endereço vale para todas as fotos do relatório.
+- **Atualizar:** o botão "Ler de novo" roda o GPS outra vez e troca o endereço guardado.
+
+### Guardado por escola **e** contrato
+
+Na planilha, duas escolas diferentes podem ter exatamente o mesmo nome e até o mesmo código interno. Exemplo: uma escola existente com contrato de manutenção, e uma construção nova com contrato próprio. Só o nome não basta para separar.
+
+- **Chave:** nome da unidade normalizado (sem acento, sem diferença de maiúsculas e espaços) mais o número do contrato.
+- **Mesma chave:** o endereço aparece direto, mesmo sem internet.
+- **Mesmo nome, contrato diferente:** o app nunca reaproveita sozinho. Ele pergunta: "Já existe um endereço guardado para uma unidade com este nome (contrato X): Rua Exemplo, 123. É o mesmo local?", com os botões "Usar este" e "Ler pelo GPS".
+- **Relatório sem contrato** (unidade digitada à mão): a chave é só o nome, e o app sempre pede para confirmar.
+- **Distância:** cada endereço guarda o ponto do GPS. Se uma leitura nova cair a mais de 300 m dele, o app avisa: "Você está a 1,2 km do endereço guardado desta escola. Atualizar?". Isso também pega a escolha da escola errada.
+
+### Armazenamento
+
+- **Arquivo:** um JSON pequeno na pasta do app (`enderecos.json`). Cada linha tem chave, nome, contrato, endereço, latitude, longitude, precisão e data da leitura, cerca de 250 bytes.
+- **Só o que foi visitado:** entram apenas as escolas onde aquele celular já leu o endereço. A planilha não é copiada.
+- **Tamanho:** a planilha tem cerca de 1.250 unidades. Mesmo se todas fossem visitadas com dois contratos cada, seriam uns 600 KB. Um fiscal com 300 escolas fica com uns 75 KB.
+- **Por celular:** cada celular guarda o seu arquivo. Não há troca entre fiscais nem com o PC.
+- **Proteção:** o arquivo é gravado do mesmo jeito seguro do rascunho (arquivo novo e depois troca). Se o arquivo se perder, só some o atalho: o GPS lê de novo.
+
+### Quando falta alguma coisa
+
+| Situação | O que o app faz |
+|---|---|
+| Sem permissão de localização | O carimbo sai sem endereço. Aviso com "Permitir" e opção de digitar o endereço. |
+| Sem internet e sem endereço guardado | O ponto do GPS fica guardado. Aviso "Sem internet: o endereço será buscado quando houver sinal" e botão "Tentar de novo". |
+| Sinal fraco (dentro de prédio) | Mostra "precisão de 80 m" e sugere ler perto da entrada. |
+| Celular sem serviço de endereço (sem Google) | Digitar à mão. |
+| PC | O PC não tem GPS: o endereço é digitado no passo 1. |
+
+## 2. Carimbo nas fotos
+
+### O que entra (cada item liga e desliga)
+
+- **Escola:** nome da unidade do relatório. Entra na primeira linha, em negrito.
+- **Endereço:** o do item 1.
+- **Data**, **hora** ou as duas. Vêm do momento da captura: na câmera do app, a hora do toque; na foto da galeria, a data gravada na própria foto (EXIF).
+- Foto da galeria sem data gravada: o carimbo sai sem data, e o passo 3 avisa "3 fotos sem data de captura: 04, 07 e 12". O app nunca usa a data do arquivo sem avisar.
+
+**Exemplo:**
+
+```
+EMEF Exemplo
+Rua Exemplo, 123 – Vila Exemplo
+18/11/2026  14:32
+```
+
+**Visual:** texto branco sobre faixa preta a 55%, cantos arredondados, fonte do relatório (Carlito). Não entra fonte nova.
+
+### Posição e tamanho, como o controle de jogo no celular
+
+- **Editor:** botão "Carimbo" no passo 2. A foto de exemplo é a primeira deitada do relatório. Os botões "Ver em pé" e "Ver deitada" trocam a foto.
+- **Posição:** o fiscal arrasta o carimbo. Ao soltar, ele gruda no canto mais próximo.
+- **Tamanho:** pinça com dois dedos, ou a barra "Tamanho" (no PC, só a barra).
+- **Como fica guardado:** canto, distância até o canto e tamanho, tudo como fração do lado menor da foto. Por isso o carimbo fica no mesmo lugar visual em foto em pé, deitada e girada.
+- **Alcance:** a configuração vale para o relatório inteiro e fica como padrão do próximo. O botão "Padrão" volta para o canto inferior esquerdo, tamanho médio.
+- **Exceção:** cada foto pode ter "Sem carimbo nesta foto" na ficha da foto.
+
+### Sempre legível e nunca fora da foto
+
+- **Letra mínima:** 5,5 pt no papel, no menor quadro do formato escolhido. Com 8 fotos por página o carimbo cresce até esse mínimo, e a tela mostra "Carimbo aumentado para ficar legível com 8 por página".
+- **Tamanho máximo:** 60% da largura e 35% da altura da foto. O endereço quebra em até 2 linhas; o que passar disso termina em "…".
+- **Limites:** a faixa nunca sai da área da foto nem encosta na borda (margem mínima de 2% do lado menor).
+
+### Sem custo para as fotos (otimização principal)
+
+O carimbo **não é gravado na foto**. Ele é desenhado por cima, na hora de montar a página, como mais uma peça do desenho do relatório (`DesenhoRelatorio`), assim como a legenda. Com isso:
+
+- **Arquivos:** a foto preparada (1.600 px) não é refeita nem recomprimida. Mudar o carimbo não gasta memória nem tempo de processamento das fotos.
+- **Mesma imagem em todo lugar:** PDF, prévia do PC e prévia do celular desenham a mesma peça, então o que se vê na tela é o que sai no papel.
+- **Nitidez:** no PDF o texto fica vetorial, nítido na impressão, e pode ser selecionado.
+- **Excel:** uma caixa de texto posicionada sobre a foto, como os quadros, que já são formas.
+- **Ponto a decidir:** no Excel, quem editar a planilha pode mover ou apagar essa caixa. Se o usuário preferir o carimbo "colado", ele pode ser gravado só na cópia da foto que vai para o Excel. O custo seria cerca de 50 ms por foto na geração e nenhuma alteração na original.
+- **Galeria:** continua recebendo a foto original, sem carimbo. Uma cópia carimbada na galeria fica para depois, se o usuário pedir.
+
+## 3. Leveza do app
+
+| # | Melhoria | Ganho esperado | Risco para os arquivos | Como testar |
+|---|---|---|---|---|
+| 1 | Um APK para cada tipo de processador (64 e 32 bits). O de 32 bits fica para celular simples com Android Go. | Hoje o APK tem 83 MB com os dois juntos. Cada um deve cair para perto da metade; o valor real sai no CI. | Nenhum, se o nome do pacote e a chave forem os mesmos: instala por cima e mantém os dados. | O CI confere o pacote, a chave e o versionCode de cada APK. No celular, instalar por cima com um rascunho aberto. |
+| 2 | Fonte do relatório numa cópia só, com apenas as letras que o relatório aceita. A licença exige outro nome na versão reduzida, e o app já usa "SPOBRAS Relatorio". | Hoje são 2,6 MB (duas cópias de 1,3 MB). Deve ficar perto de 0,3 MB. | Nenhum. | Os testes do PDF conferem que toda letra aceita pelo `TextoMedido` existe na fonte reduzida e que as larguras não mudaram. |
+| 3 | Preparar 1 ou 2 fotos por vez em celular com pouca memória (Android "low RAM" ou menos de 3 GB). Hoje são até 4. | Menos risco de o app fechar sozinho. Fica um pouco mais lento só nesses aparelhos. | Nenhum: só muda a velocidade. | Estresse com 300 fotos de 12 MP com 1, 2 e 4 por vez, medindo tempo e pico de memória. |
+| 4 | Limpeza: confirmar com testes que só miniaturas, preparadas e temporários saem. | Pouco: o app já limpa isso hoje. | É o item mais sensível, por isso só ganha testes, sem mudar a regra. | Testes de segurança dos arquivos (seção 0). |
+
+Fica de fora o corte de código: ele pode quebrar Excel e PDF só no celular, sem aviso.
+
+Já existe e continua:
+
+- leitura da foto já reduzida (o app não abre os 12 MP inteiros na memória);
+- foto preparada uma vez e reaproveitada;
+- miniaturas sem uso há 30 dias saem.
+
+## 4. Telas
+
+### Celular
+
+- **Passo 1, Dados:** cartão "Endereço das fotos", com estes estados:
+  - vazio: "Ler pelo GPS";
+  - lendo: "Procurando sinal… precisão 40 m";
+  - achado: endereço, precisão e data, com "Ler de novo" e "Editar";
+  - guardado de outro contrato: "É o mesmo local?";
+  - sem internet;
+  - sem permissão.
+- **Câmera:** um selo pequeno no alto, "📍 lendo endereço…" e depois "📍 Rua Exemplo, 123". O selo não cobre o visor nem os botões, e tocar nele abre o cartão.
+- **Passo 2, Fotos:** botão "Carimbo" na barra, que abre o editor:
+  - foto de exemplo;
+  - chips Escola, Endereço, Data e Hora;
+  - barra Tamanho;
+  - "Ver em pé" e "Ver deitada";
+  - "Padrão" e "Pronto".
+
+  Nas miniaturas o carimbo não aparece, para não pesar a lista.
+- **Passo 3, Conferir:** o carimbo aparece na prévia das páginas, com o aviso das fotos sem data.
+
+### PC
+
+- **Passo 1:** campo "Endereço das fotos", digitado.
+- **Passo 2:** botão "Carimbo…" abre um painel lateral. O carimbo é arrastado com o mouse, e o painel tem a barra Tamanho e os mesmos chips.
+- **Passo 3:** prévia com carimbo.
+
+## 5. Testes
+
+- **Lógica (Core):**
+  - posição no canto mais próximo, com giro de 0, 90, 180 e 270 graus e foto quadrada;
+  - letra mínima em cada formato de página;
+  - corte do endereço longo;
+  - carimbo sempre dentro da imagem;
+  - chave escola + contrato: mesmo nome com contratos diferentes nunca se misturam; nome com acento e espaço duplo acha a mesma escola;
+  - aviso de distância.
+- **Endereço (com GPS e Geocoder simulados):**
+  - sem permissão;
+  - sem internet;
+  - tempo esgotado;
+  - precisão ruim;
+  - endereço sem número;
+  - arquivo `enderecos.json` danificado;
+  - mil escolas guardadas (tempo de busca e tamanho).
+- **PDF:** com PdfPig, as palavras do carimbo ficam dentro da área da foto e com letra de pelo menos 5,5 pt.
+- **Excel:** a caixa de texto fica dentro da âncora da foto. A abertura no LibreOffice continua com o mesmo número de páginas.
+- **Visual, celular (Playwright, 360 e 412 px):**
+  - editor com o carimbo nos quatro cantos, nos tamanhos mínimo e máximo;
+  - endereço longo, foto em pé e deitada;
+  - todos os estados do cartão de endereço e o selo da câmera.
+
+  O que se confere: carimbo dentro da foto, texto sem corte, contraste, alvos de toque de pelo menos 44 px e nada coberto.
+- **Visual, PC (CI Windows):** painel do carimbo e campo de endereço com a conferência automática de layout.
+- **Estresse:** 300 fotos com e sem carimbo. O tempo e a memória devem ficar praticamente iguais, porque o carimbo não toca nas fotos. Repetir com 1 foto por vez (celular simples).
+- **Segurança dos arquivos:** a lista da seção 0, em toda mudança.
+- **Celular de verdade (roteiro para o usuário):** um Android simples (8 ou 9, 2 GB) e um novo. Anotar tempo e travamentos em:
+  - abrir o app;
+  - tirar 30 fotos;
+  - ler o endereço com e sem internet;
+  - gerar com e sem carimbo;
+  - fechar no meio e reabrir.
+
+## 6. Plataformas
+
+| Aparelho | Situação | Cuidados |
+|---|---|---|
+| Android 8 e 9 (antigos, muitas vezes 32 bits e 2 GB) | Funciona hoje. | APK de 32 bits; preparar 1 foto por vez; permissão de localização simples. Já anotado: nessas versões, "Guardar também na galeria" não grava (falta a permissão de armazenamento). |
+| Android 10 a 12 | Funciona hoje. | Permissão de localização "só durante o uso". |
+| Android 13 em diante | Funciona hoje. | A localização pode ser concedida só como "aproximada". Nesse caso o app avisa que o endereço pode sair errado e pede a precisa. |
+| iPhone | Não existe ainda. | As telas e a câmera (que roda dentro da página) podem ser reaproveitadas. Galeria, arquivos, compartilhar e GPS precisam de código próprio. Exige conta de desenvolvedor da Apple (paga, por ano) e distribuição por TestFlight ou App Store. Daqui não dá para testar num iPhone de verdade. |
+
+## 7. Perguntas ao usuário
+
+1. **Carimbo no Excel:** caixa de texto sobre a foto (leve, mas editável) ou gravado na cópia da foto do Excel?
+2. **Distância do aviso:** 300 m está bom?
+3. **iPhone:** existe ou pode existir conta de desenvolvedor da Apple?
+4. **Galeria com carimbo:** só a original, sem carimbo (proposta), ou também uma cópia carimbada?
