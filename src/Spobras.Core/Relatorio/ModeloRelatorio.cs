@@ -108,7 +108,6 @@ public sealed record PaginaRelatorio(
     int Numero,
     IReadOnlyList<FotoNaPagina> Fotos,
     BlocoAssinaturas? Assinaturas,
-    bool CabecalhoReduzido,
     double TopoDasFotos)
 {
     /// <summary>Altura das faixas de fotos desta pagina, de cima para baixo (pontos).</summary>

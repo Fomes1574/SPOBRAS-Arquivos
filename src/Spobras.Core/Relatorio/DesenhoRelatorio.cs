@@ -36,7 +36,7 @@ public sealed record ImagemDesenho(Area Area, FotoRelatorio? Foto) : ElementoDes
 public static class DesenhoRelatorio
 {
     public const string Preto = "1D1D1F", Cinza = "444444", CinzaRodape = "555555", Borda = "1D1D1F", BordaClara = "9A9A9A";
-    public const string FundoDoRotulo = "ECECEA", FundoDoQuadro = "F2F2F0", BordaDoQuadro = "D2D2CE", LinhaDoRodape = "B5B5B0", Descricao = "2B2B2E";
+    public const string FundoDoQuadro = "F2F2F0", BordaDoQuadro = "D2D2CE", LinhaDoRodape = "B5B5B0", Descricao = "2B2B2E";
 
     public static IReadOnlyList<ElementoDesenho> Pagina(PlanoRelatorio plano, PaginaRelatorio pagina, bool temLogo)
     {
@@ -47,9 +47,8 @@ public static class DesenhoRelatorio
         void Texto(Area a, string texto, double tamanho, bool negrito, Alinhamento alinhamento = Alinhamento.Centro, string cor = Preto, double entrelinha = 1.2, bool centroNaAltura = true) =>
             e.Add(new TextoDesenho(a, [texto], tamanho, negrito, alinhamento, cor, tamanho * entrelinha, centroNaAltura));
 
-        if (!pagina.CabecalhoReduzido)
         {
-            // ---- Faixa de cima: logo | titulo e data | SAO PAULO OBRAS - SPOBRAS ----
+            // ---- Faixa de cima (em todas as paginas): logo | titulo e data | SAO PAULO OBRAS - SPOBRAS ----
             double alto = GradeRelatorio.AlturaDoTopo, logo = GradeRelatorio.LarguraDoLogo, orgao = GradeRelatorio.LarguraDoOrgao;
             e.Add(new RetanguloDesenho(new Area(x0, y0, largura, alto), null, Borda, 1.2));
             e.Add(new LinhaDesenho(x0 + logo, y0, x0 + logo, y0 + alto, Borda, 1));
@@ -98,22 +97,6 @@ public static class DesenhoRelatorio
 
                 y += campo.Altura;
             }
-        }
-        else
-        {
-            // ---- Cabecalho reduzido das paginas seguintes ----
-            double alto = GradeRelatorio.AlturaDoTopoReduzido, logo = GradeRelatorio.LarguraDoLogoReduzido;
-            e.Add(new RetanguloDesenho(new Area(x0, y0, largura, alto), null, Borda, 1.2));
-            e.Add(new LinhaDesenho(x0 + logo, y0, x0 + logo, y0 + alto, Borda, 1));
-            if (temLogo)
-            {
-                e.Add(new ImagemDesenho(new Area(x0 + 2 * GradeRelatorio.Mm, y0 + 2 * GradeRelatorio.Mm, logo - 4 * GradeRelatorio.Mm, alto - 4 * GradeRelatorio.Mm), null));
-            }
-
-            double meio = largura - logo, a1 = GradeRelatorio.LetraDoTituloReduzido * 1.2, a2 = GradeRelatorio.LetraDoSubtitulo * 1.3;
-            double yt = y0 + (alto - a1 - a2) / 2;
-            Texto(new Area(x0 + logo, yt, meio, a1), "RELATÓRIO FOTOGRÁFICO", GradeRelatorio.LetraDoTituloReduzido, true);
-            Texto(new Area(x0 + logo, yt + a1, meio, a2), cab.LinhasDoSubtitulo[0], GradeRelatorio.LetraDoSubtitulo, false, cor: Cinza);
         }
 
         // ---- Fotos: quadro cinza claro, foto inteira e centralizada, legenda e descricao ----
@@ -173,10 +156,11 @@ public static class DesenhoRelatorio
     private static void Par(List<ElementoDesenho> e, double x, double y, double largura, double altura, IReadOnlyList<string> rotulo, IReadOnlyList<string> valor)
     {
         double lRotulo = GradeRelatorio.LarguraDoRotulo;
-        e.Add(new RetanguloDesenho(new Area(x, y, lRotulo, altura), FundoDoRotulo, null, 0));
+        // Rotulo e valor separados por uma linha fina, sem fundo (como no cabecalho de antes).
+        e.Add(new LinhaDesenho(x + lRotulo, y, x + lRotulo, y + altura, BordaClara, 0.6));
         double aRotulo = GradeRelatorio.LetraDoRotulo * GradeRelatorio.AlturaDaLinhaDoCampo, aValor = GradeRelatorio.LetraDoValor * GradeRelatorio.AlturaDaLinhaDoCampo;
         e.Add(new TextoDesenho(new Area(x + 2 * GradeRelatorio.Mm, y, lRotulo - 4 * GradeRelatorio.Mm, altura), rotulo, GradeRelatorio.LetraDoRotulo, true, Alinhamento.Esquerda, Preto, aRotulo, CentroNaAltura: true));
-        e.Add(new TextoDesenho(new Area(x + lRotulo + GradeRelatorio.RecuoDoCampo, y, largura - lRotulo - 2 * GradeRelatorio.RecuoDoCampo, altura), valor, GradeRelatorio.LetraDoValor, true, Alinhamento.Esquerda, Preto, aValor, CentroNaAltura: true));
+        e.Add(new TextoDesenho(new Area(x + lRotulo + GradeRelatorio.RecuoDoCampo, y, largura - lRotulo - 2 * GradeRelatorio.RecuoDoCampo, altura), valor, GradeRelatorio.LetraDoValor, false, Alinhamento.Esquerda, Preto, aValor, CentroNaAltura: true));
     }
 
     /// <summary>Corta o texto com reticencias para caber numa linha.</summary>

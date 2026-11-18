@@ -509,6 +509,7 @@ public sealed class RascunhoRelatorio
         var alvo = indices.Where(i => i >= 0 && i < Dados.Fotos.Count).Distinct().OrderByDescending(i => i).ToList();
         if (alvo.Count > 0)
         {
+            _ordemAnterior = null; // o Desfazer passa a ser o desta remocao
             Alterar(d =>
             {
                 var fotos = d.Fotos.ToList();
@@ -527,6 +528,87 @@ public sealed class RascunhoRelatorio
     }
 
     public int Remover(int i) => Remover([i]);
+
+    // ---- Reordenar em grupo (mover as marcadas, deitadas primeiro), com Desfazer ----
+
+    private List<string>? _ordemAnterior;
+
+    /// <summary>Ha uma reordenacao em grupo que o Desfazer pode voltar.</summary>
+    public bool TemOrdemParaDesfazer => _ordemAnterior is not null;
+
+    /// <summary>
+    /// As marcadas vao juntas para o fim (ou para o inicio), na ordem em que estavam; as outras nao mudam de ordem.
+    /// Devolve quantas foram (0 se ja estavam la: nada muda e nao ha o que desfazer).
+    /// </summary>
+    public int MoverMarcadas(IEnumerable<int> indices, bool paraOFim)
+    {
+        var marcadas = indices.ToHashSet();
+        return Reordenar(fotos => OrdemDasFotos.Marcadas(fotos, marcadas.Contains, paraOFim)) ? marcadas.Count(i => i >= 0 && i < Dados.Fotos.Count) : 0;
+    }
+
+    /// <summary>Deitadas primeiro e em pe no fim, pelo formato depois do giro. Devolve false se ja estava assim.</summary>
+    public bool DeitadasPrimeiro() => Reordenar(fotos => OrdemDasFotos.DeitadasPrimeiro(fotos, FormatoGirado));
+
+    /// <summary>Quantas fotos estao em pe (pelo formato depois do giro).</summary>
+    public int EmPe => Dados.Fotos.Count(f => FormatoGirado(f) is var t && t.Altura > t.Largura);
+
+    private (int Largura, int Altura) FormatoGirado(FotoRascunho f)
+    {
+        var (l, a) = f.Largura is { } lg && f.Altura is { } al ? (lg, al) : LerTamanho(f);
+        return f.Rotacao % 180 != 0 ? (a, l) : (l, a);
+    }
+
+    private (int, int) LerTamanho(FotoRascunho f)
+    {
+        try
+        {
+            var info = Fotos.Ler(Caminho(f));
+            return (info.Largura, info.Altura);
+        }
+        catch (FotoInvalidaException)
+        {
+            return (4, 3); // foto estragada fica com as deitadas
+        }
+    }
+
+    private bool Reordenar(Func<IReadOnlyList<FotoRascunho>, List<FotoRascunho>> ordem)
+    {
+        bool mudou = false;
+        List<string>? antes = null;
+        Alterar(d =>
+        {
+            var nova = ordem(d.Fotos);
+            mudou = nova.Where((f, i) => f.Arquivo != d.Fotos[i].Arquivo).Any();
+            antes = [.. d.Fotos.Select(f => f.Arquivo)];
+            return mudou ? d with { Fotos = nova } : d;
+        });
+        if (mudou)
+        {
+            _ordemAnterior = antes;
+        }
+
+        return mudou;
+    }
+
+    /// <summary>Volta a ordem de antes da ultima reordenacao em grupo. Foto que entrou depois fica no fim.</summary>
+    public bool DesfazerOrdem()
+    {
+        if (_ordemAnterior is not { } ordem)
+        {
+            return false;
+        }
+
+        _ordemAnterior = null;
+        Alterar(d =>
+        {
+            var posicao = ordem.Select((a, i) => (a, i)).ToDictionary(x => x.a, x => x.i);
+            return d with { Fotos = [.. d.Fotos.OrderBy(f => posicao.TryGetValue(f.Arquivo, out int i) ? i : int.MaxValue)] };
+        });
+        return true;
+    }
+
+    /// <summary>O tempo do Desfazer acabou (ou outra acao tomou o lugar dele).</summary>
+    public void EsquecerOrdem() => _ordemAnterior = null;
 
     /// <summary>Devolve as fotos removidas ha pouco, cada uma para a posicao de onde saiu (na ordem inversa).</summary>
     public int Desfazer()

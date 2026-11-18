@@ -350,18 +350,22 @@
                         <Button Style="{StaticResource BotaoLinha}" Content="Ordenar pela data da foto" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarPorDataCommand}"
                                 ToolTip="Usa a data em que a foto foi tirada; fotos sem essa data vão para o fim"
                                 Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
+                        <Button Style="{StaticResource BotaoLinha}" Content="Deitadas primeiro, em pé no fim" MinHeight="44" Margin="0,0,8,8" Command="{Binding OrdenarDeitadasPrimeiroCommand}"
+                                ToolTip="Pelo formato depois do giro; dentro de cada grupo, a ordem de agora continua. Dá para desfazer."
+                                Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}" />
                     </WrapPanel>
 
                     <!-- Marcadas e mesmo texto para varias fotos -->
                     <Border Background="{StaticResource Fundo}" CornerRadius="10" Padding="14,12" Margin="0,0,0,10"
                             Visibility="{Binding TemFotos, Converter={StaticResource Visivel}}">
                         <StackPanel>
-                            <DockPanel Margin="0,0,0,10">
+                            <DockPanel Margin="0,0,0,2">
                                 <Button x:Name="TirarMarcadas" DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" MinHeight="40" Padding="14,0"
                                         Content="{Binding TextoTirarMarcadas}" Command="{Binding TirarMarcadasCommand}" BorderBrush="{StaticResource VermelhoEscuro}"
                                         Foreground="{StaticResource VermelhoEscuro}" Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}"
                                         ToolTip="As fotos não são apagadas do computador; dá para desfazer logo depois" />
-                                <Border x:Name="SeloMarcadas" CornerRadius="6" Padding="10,4" Margin="0,0,8,0" VerticalAlignment="Center">
+<WrapPanel>
+                                <Border x:Name="SeloMarcadas" CornerRadius="6" Padding="10,4" Margin="0,0,8,8" VerticalAlignment="Center">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="#E2E2DF" />
@@ -381,11 +385,18 @@
                                         </TextBlock.Style>
                                     </TextBlock>
                                 </Border>
-                                <Button Style="{StaticResource BotaoLinha}" Content="Marcar todas" MinHeight="40" Margin="0,0,8,0" Command="{Binding SelecionarTodasCommand}" />
-                                <Button Style="{StaticResource BotaoLinha}" Content="Desmarcar todas" MinHeight="40" Margin="0,0,8,0" Command="{Binding DesmarcarTodasCommand}"
+                                <Button Style="{StaticResource BotaoLinha}" Content="Marcar todas" MinHeight="40" Margin="0,0,8,8" Command="{Binding SelecionarTodasCommand}" />
+                                <Button Style="{StaticResource BotaoLinha}" Content="Desmarcar todas" MinHeight="40" Margin="0,0,8,8" Command="{Binding DesmarcarTodasCommand}"
+                                        Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}" />
+                                <Button Style="{StaticResource BotaoLinha}" Content="Mover para o início" MinHeight="40" Margin="0,0,8,8" Command="{Binding MoverMarcadasParaOInicioCommand}"
+                                        ToolTip="As marcadas vão juntas para o começo, na ordem em que estão. Dá para desfazer."
+                                        Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}" />
+                                <Button Style="{StaticResource BotaoLinha}" Content="Mover para o fim" MinHeight="40" Margin="0,0,8,8" Command="{Binding MoverMarcadasParaOFimCommand}"
+                                        ToolTip="As marcadas vão juntas para o fim, na ordem em que estão. Dá para desfazer."
                                         Visibility="{Binding TemMarcadas, Converter={StaticResource Visivel}}" />
                                 <TextBlock Text="Marque na caixinha de cada foto para escolher quais recebem o texto." Style="{StaticResource Texto2}" FontSize="13"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Visibility="{Binding TemMarcadas, Converter={StaticResource VisivelSeNao}}" />
+                                           VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="{Binding TemMarcadas, Converter={StaticResource VisivelSeNao}}" />
+                                </WrapPanel>
                             </DockPanel>
                             <TextBlock Text="Mesmo texto para várias fotos" FontWeight="Bold" Margin="0,0,0,6" />
                             <Grid>

@@ -80,7 +80,7 @@ public class RelatorioTests
         foreach (var p in plano.Paginas)
         {
             ConferirPagina(plano, p, onde);
-            Assert.Equal(p.Numero > 1, p.CabecalhoReduzido);
+            Assert.Equal(plano.Paginas[0].TopoDasFotos, p.TopoDasFotos, 3); // o mesmo cabecalho em todas as paginas
         }
     }
 
@@ -232,11 +232,18 @@ public class RelatorioTests
         Assert.True(cheia.AlturaDoQuadro < semAssinatura.AlturaDoQuadro && cheia.AlturaDoQuadro >= semAssinatura.AlturaDoQuadro * 0.75);
         Assert.Contains(cheia.Avisos, a => a.Mensagem.Contains("um pouco menores"));
 
-        // 12 fotos: a pagina 2 (cabecalho reduzido) tem espaco, nada muda nas fotos
+        // 12 fotos (pedido de 18/11/2026): as paginas continuam cheias e todas as fotos diminuem igual, sem pagina com 2 fotos
         var duas = PaginadorRelatorio.Paginar(Fotos(12), opcoes, Completo);
         Assert.Equal([6, 6], duas.Paginas.Select(p => p.Fotos.Count));
-        Assert.Equal(semAssinatura.AlturaDoQuadro, duas.AlturaDoQuadro, 3);
+        Assert.Equal(cheia.AlturaDoQuadro, duas.AlturaDoQuadro, 3);
         Assert.NotNull(duas.Paginas[1].Assinaturas);
+        Assert.Single(duas.Paginas.SelectMany(p => p.Fotos).Select(f => Math.Round(f.Quadro.Altura, 3)).Distinct());
+        Assert.DoesNotContain(duas.Avisos, a => a.Mensagem.Contains("última linha"));
+
+        // 13 fotos: a ultima pagina tem 1 foto e sobra espaco, nada muda
+        var treze = PaginadorRelatorio.Paginar(Fotos(13), opcoes, Completo);
+        Assert.Equal(semAssinatura.AlturaDoQuadro, treze.AlturaDoQuadro, 3);
+        Assert.Equal([6, 6, 1], treze.Paginas.Select(p => p.Fotos.Count));
 
         Assert.All(PaginadorRelatorio.Paginar(Fotos(6), new OpcoesRelatorio()).Paginas, p => Assert.Null(p.Assinaturas));
         ConferirPlano(cheia);
@@ -244,14 +251,21 @@ public class RelatorioTests
     }
 
     [Fact]
-    public void Cabecalho_reduzido_da_mais_espaco_nas_paginas_seguintes()
+    public void Cabecalho_completo_em_todas_as_paginas_com_rotulo_sem_fundo_e_dado_normal()
     {
-        var plano = PaginadorRelatorio.Paginar(Fotos(7), new OpcoesRelatorio(), Completo);
-        Assert.False(plano.Paginas[0].CabecalhoReduzido);
-        Assert.True(plano.Paginas[1].CabecalhoReduzido);
-        Assert.True(plano.Paginas[1].TopoDasFotos < plano.Paginas[0].TopoDasFotos - 30);
-        Assert.Equal("CEU Exemplo Ômega – Construção de nova unidade · Contrato 017/EX/2026 · continuação", plano.Cabecalho.LinhasDoSubtitulo[0]);
-        Assert.Equal("17 de novembro de 2026", plano.Cabecalho.DataPorExtenso);
+        var plano = PaginadorRelatorio.Paginar(Fotos(13), new OpcoesRelatorio(), Completo);
+        Assert.All(plano.Paginas, p => Assert.Equal(plano.Paginas[0].TopoDasFotos, p.TopoDasFotos, 3));
+        foreach (var pagina in plano.Paginas)
+        {
+            var desenho = DesenhoRelatorio.Pagina(plano, pagina, temLogo: true);
+            var textos = desenho.OfType<TextoDesenho>().ToList();
+            Assert.Contains(textos, t => t.Linhas.SequenceEqual(["UNIDADE EDUCACIONAL"]));
+            Assert.Contains(textos, t => t.Linhas.SequenceEqual(["017/EX/2026"]) && !t.Negrito); // o dado em letra normal
+            Assert.Contains(textos, t => t.Linhas.SequenceEqual(["CONTRATO"]) && t.Negrito);      // o nome do campo em negrito
+            Assert.Contains(textos, t => t.Linhas.SequenceEqual(["17 de novembro de 2026"]));
+            Assert.DoesNotContain(desenho.OfType<RetanguloDesenho>(), r => r.Fundo is not null && r.Fundo != DesenhoRelatorio.FundoDoQuadro); // sem fundo cinza no cabecalho
+        }
+
         Assert.Equal("CEU Exemplo Ômega – Construção de nova unidade · Relatório fotográfico de 17/11/2026", plano.Cabecalho.Rodape);
     }
 

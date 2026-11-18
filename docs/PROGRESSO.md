@@ -1,5 +1,23 @@
 # Progresso
 
+## Cabeçalho em todas as páginas e mover fotos em 18/11/2026
+
+- **Cabeçalho completo em todas as páginas** (saiu o cabeçalho reduzido), no PDF, no Excel e nas prévias. Os nomes dos campos ficam sem fundo cinza, separados do valor por uma linha fina, e os dados saem em letra normal, como antes.
+- **Assinatura:** se a última página estiver cheia, todas as fotos do relatório diminuem um pouco, igual em todas, e as páginas continuam cheias (opção 2, aprovada).
+  - Só se precisassem ficar pequenas demais, a última linha desce junto com a assinatura.
+  - Com cabeçalho enorme, as fotos diminuem até o menor quadro; se nem assim couber, o app explica o motivo e não gera.
+- **Mover as marcadas para o início ou para o fim** (PC e celular): vão juntas, na ordem em que estavam, continuam marcadas e há Desfazer de 5 s.
+- **"Deitadas primeiro, em pé no fim"** junto das ordenações: vale o formato depois do giro, a foto quadrada fica com as deitadas e dentro de cada grupo a ordem fica igual. Também tem Desfazer.
+- A regra fica em `OrdemDasFotos` (Core), a mesma no PC e no celular.
+- **Testes:**
+  - unidade e 500 listas aleatórias sem perder nem repetir foto;
+  - reordenar enquanto a câmera grava;
+  - Desfazer com foto nova no meio do caminho;
+  - teste visual do celular com mover e desfazer;
+  - 1.500 relatórios aleatórios com o cabeçalho em todas as páginas;
+  - PDF e Excel com o mesmo número de páginas em 13 casos;
+  - estresse de 300 fotos: Excel e PDF em 15,9 s sem preparo e 1,8 s com as fotos preparadas.
+
 ## Relatório fotográfico novo, tela 2 e proposta A em 17/11/2026
 
 Implementado o que o usuário aprovou nos modelos `modelo-relatorio.pdf` e `modelo-tela2-e-assinatura.pdf`, no computador e no celular.

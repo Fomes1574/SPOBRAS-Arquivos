@@ -108,7 +108,7 @@ public class RelatorioPdfTests : IDisposable
     }
 
     [Fact]
-    public void Cada_palavra_cai_no_lugar_planejado_com_a_fonte_embutida_e_o_cabecalho_reduzido()
+    public void Cada_palavra_cai_no_lugar_planejado_com_a_fonte_embutida_e_o_cabecalho_em_todas_as_paginas()
     {
         string legenda = "EXECUÇÃO DA ARMADURA DO BLOCO DE COROAMENTO B12 COM CONFERÊNCIA DE COBRIMENTO E ESPAÇADORES NA OBRA.";
         var lista = Enumerable.Range(1, 10).Select(n =>
@@ -148,16 +148,11 @@ public class RelatorioPdfTests : IDisposable
             string texto = string.Join(" ", palavras.Select(w => w.Text));
             Assert.Contains($"Página {i + 1} de {plano.Paginas.Count}", texto);
             Assert.Contains("CEU Exemplo Alfa · Relatório fotográfico de 10/11/2026", texto);
-            if (i > 0)
-            {
-                Assert.Contains("continuação", texto);
-                Assert.DoesNotContain("UNIDADE", texto);
-            }
-            else
-            {
-                Assert.Contains("10 de novembro de 2026", texto);
-                Assert.Contains("UNIDADE EDUCACIONAL", texto);
-            }
+            // cabecalho completo em todas as paginas
+            Assert.Contains("10 de novembro de 2026", texto);
+            Assert.Contains("UNIDADE EDUCACIONAL", texto);
+            Assert.Contains("044/EX/2026", texto);
+            Assert.DoesNotContain("continuação", texto);
         }
 
         string ultima = string.Join(" ", doc.GetPage(doc.NumberOfPages).GetWords().Select(w => w.Text));

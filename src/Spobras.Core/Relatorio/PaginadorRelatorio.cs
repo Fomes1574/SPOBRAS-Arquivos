@@ -7,8 +7,9 @@ namespace Spobras.Core.Relatorio;
 /// - todas as fotos no mesmo quadro, alinhadas em linhas e colunas, inteiras e centralizadas;
 /// - a legenda colada embaixo do quadro, com espaco de pelo menos 2 linhas (foto sem legenda guarda o mesmo espaco);
 /// - com os limites de 100 (legenda) e 300 caracteres (descricao), o texto sempre cabe: nao existe continuacao;
-/// - da pagina 2 em diante, cabecalho reduzido;
-/// - as assinaturas ficam na pagina da ultima foto, nunca sozinhas numa pagina.
+/// - o cabecalho completo em todas as paginas (pedido em 18/11/2026);
+/// - as assinaturas ficam na pagina da ultima foto, nunca sozinhas numa pagina: se a ultima pagina estiver cheia,
+///   todas as fotos do relatorio diminuem um pouco (igual em todas), e as paginas continuam cheias.
 /// </summary>
 public static class PaginadorRelatorio
 {
@@ -94,9 +95,9 @@ public static class PaginadorRelatorio
         }
 
         double maiorTexto = alturaDoTexto.Max();
-        double corpo1 = GradeRelatorio.FimDoConteudo - cabecalho.TopoDasFotos(reduzido: false);
+        double corpo1 = GradeRelatorio.FimDoConteudo - cabecalho.TopoDasFotos;
 
-        // O quadro e o mesmo em todo o relatorio: o que cabe na primeira pagina (a de cabecalho maior) com o maior texto.
+        // O quadro e o mesmo em todo o relatorio: o que cabe numa pagina com o maior texto.
         double quadro = (corpo1 - faixasPorPagina * maiorTexto - (faixasPorPagina - 1) * GradeRelatorio.EspacoEntreLinhas) / faixasPorPagina;
         quadro = Math.Min(quadro, largura * ProporcaoMaxima);
         if (quadro < GradeRelatorio.MenorQuadro)
@@ -108,20 +109,44 @@ public static class PaginadorRelatorio
         var paginas = Montar(fotos, textos, alturaDoTexto, colunas, faixasPorPagina, quadro, cabecalho, moverUltimaFaixa: false);
         if (opcoes.Assinaturas && !CabemAssinaturas(paginas[^1]))
         {
-            // Pagina unica: as fotos diminuem so o necessario. Mais paginas: a ultima faixa desce junto com as assinaturas.
+            // Todas as fotos diminuem so o necessario (o mesmo quadro em todas as paginas). So se precisassem ficar
+            // pequenas demais, a ultima linha de fotos desce junto com as assinaturas.
             int faixasNaUltima = paginas[^1].Fotos.Select(f => f.Faixa).Distinct().Count();
             double falta = paginas[^1].BaseDasFotos + GradeRelatorio.BlocoDasAssinaturas - GradeRelatorio.FimDoConteudo;
             double menor = Math.Floor((quadro - falta / faixasNaUltima - 0.5) * 100) / 100;
-            if (paginas.Count == 1 && menor >= Math.Max(GradeRelatorio.MenorQuadro, quadro * MenorEncolhimento))
+            if (menor >= Math.Max(GradeRelatorio.MenorQuadro, quadro * MenorEncolhimento))
             {
                 quadro = menor;
                 paginas = Montar(fotos, textos, alturaDoTexto, colunas, faixasPorPagina, quadro, cabecalho, moverUltimaFaixa: false);
-                avisos.Add(Aviso.Info("As fotos ficaram um pouco menores para as assinaturas caberem na mesma página."));
+                avisos.Add(Aviso.Info("As fotos ficaram um pouco menores para as assinaturas caberem na página da última foto."));
             }
-            else if (faixasNaUltima > 1 || paginas.Count > 1)
+            else
             {
-                paginas = Montar(fotos, textos, alturaDoTexto, colunas, faixasPorPagina, quadro, cabecalho, moverUltimaFaixa: true);
-                avisos.Add(Aviso.Info("A última linha de fotos foi para a página seguinte, junto com as assinaturas."));
+                bool mover = faixasNaUltima > 1 || paginas.Count > 1;
+                if (mover)
+                {
+                    paginas = Montar(fotos, textos, alturaDoTexto, colunas, faixasPorPagina, quadro, cabecalho, moverUltimaFaixa: true);
+                }
+
+                // Cabecalho muito grande: ainda falta espaco. As fotos diminuem o que for preciso, ate o menor quadro.
+                if (!CabemAssinaturas(paginas[^1]))
+                {
+                    int faixas = paginas[^1].Fotos.Select(f => f.Faixa).Distinct().Count();
+                    double falta2 = paginas[^1].BaseDasFotos + GradeRelatorio.BlocoDasAssinaturas - GradeRelatorio.FimDoConteudo;
+                    double menor2 = Math.Floor((quadro - falta2 / faixas - 0.5) * 100) / 100;
+                    if (menor2 < GradeRelatorio.MenorQuadro)
+                    {
+                        avisos.Add(Aviso.Impede("O cabeçalho ficou grande demais para caber junto das fotos e das assinaturas. Encurte a descrição ou o objeto do relatório."));
+                        return Vazio();
+                    }
+
+                    quadro = menor2;
+                    paginas = Montar(fotos, textos, alturaDoTexto, colunas, faixasPorPagina, quadro, cabecalho, moverUltimaFaixa: mover);
+                }
+
+                avisos.Add(Aviso.Info(mover
+                    ? "A última linha de fotos foi para a página seguinte, junto com as assinaturas."
+                    : "As fotos ficaram menores para as assinaturas caberem na página da última foto."));
             }
         }
 
@@ -198,15 +223,15 @@ public static class PaginadorRelatorio
         var naPagina = new List<FotoNaPagina>();
         double largura = GradeRelatorio.LarguraDoQuadro(colunas);
         int totalDeFaixas = alturaDoTexto.Count;
-        double topo = cabecalho.TopoDasFotos(reduzido: false), y = topo;
+        double topo = cabecalho.TopoDasFotos, y = topo;
         int faixasNaPagina = 0;
 
         void Fechar()
         {
-            paginas.Add(new PaginaRelatorio(paginas.Count + 1, [.. naPagina], null, paginas.Count > 0, topo));
+            paginas.Add(new PaginaRelatorio(paginas.Count + 1, [.. naPagina], null, topo));
             naPagina.Clear();
             faixasNaPagina = 0;
-            topo = y = cabecalho.TopoDasFotos(reduzido: true);
+            topo = y = cabecalho.TopoDasFotos;
         }
 
         for (int faixa = 0; faixa < totalDeFaixas; faixa++)

@@ -284,6 +284,31 @@ async function texto(page, seletor, contem) {
     await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
     await page.locator('.desfazer').waitFor({ state: 'detached' });
     if (await fotos.count() !== total) problemas.push(`${w}x${h} desfazer nao devolveu as 2 fotos`);
+    // mover as marcadas para o fim (na ordem em que estavam) e desfazer; depois "Deitadas primeiro, em pe no fim"
+    const ordem = () => page.evaluate(() => [...document.querySelectorAll('button[data-foto] img')].map(i => i.getAttribute('src')));
+    const ordemAntes = await ordem();
+    await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await fotos.nth(0).click(); await fotos.nth(1).click();
+    await page.getByRole('button', { name: 'Mover para o fim', exact: true }).click();
+    await page.locator('.desfazer').waitFor();
+    if (!(await page.locator('.desfazer .txt').textContent()).includes('2 fotos foram para o fim')) problemas.push(`${w}x${h} aviso de mover para o fim errado`);
+    const ordemFim = await ordem();
+    if (JSON.stringify(ordemFim.slice(-2)) !== JSON.stringify(ordemAntes.slice(0, 2)) || ordemFim.length !== ordemAntes.length) problemas.push(`${w}x${h} mover para o fim nao levou as marcadas, na ordem, para o fim`);
+    if (await page.locator('.foto-marcada').count() !== 2) problemas.push(`${w}x${h} depois de mover, as fotos deixaram de estar marcadas`);
+    await foto(page, '15i-rel-mover-fim', w, h, salvar);
+    await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+    await page.locator('.desfazer').waitFor({ state: 'detached' });
+    if (JSON.stringify(await ordem()) !== JSON.stringify(ordemAntes)) problemas.push(`${w}x${h} desfazer nao voltou a ordem de antes`);
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await page.getByRole('button', { name: 'Ordenar ▾', exact: true }).click();
+    await page.getByRole('button', { name: 'Deitadas primeiro, em pé no fim', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('.desfazer') || [...document.querySelectorAll('.aviso')].some(a => a.textContent.includes('deitadas primeiro')), null, { timeout: 5000 })
+      .catch(() => problemas.push(`${w}x${h} deitadas primeiro nao respondeu`));
+    if (await page.locator('.desfazer').count() > 0) {
+      await page.getByRole('button', { name: 'Desfazer', exact: true }).click();
+      await page.locator('.desfazer').waitFor({ state: 'detached' });
+    }
+    if (JSON.stringify(await ordem()) !== JSON.stringify(ordemAntes)) problemas.push(`${w}x${h} depois de desfazer o deitadas primeiro a ordem nao voltou`);
     const antes = await page.locator('button.foto').count();
     await ir(page, urlPronto, 'relatorio/camera'); await page.waitForTimeout(1500);
     await foto(page, '13-rel-camera', w, h, salvar);

@@ -334,6 +334,73 @@ public sealed class RascunhoRobustezTests : IDisposable
     }
 
     [Fact]
+    public void Mover_marcadas_e_deitadas_primeiro_com_desfazer_sem_perder_foto()
+    {
+        var r = Novo();
+        var deitada = _jpeg;
+        var emPe = File.ReadAllBytes(AmostraCelular.Foto(Path.Combine(_raiz, "modelo"), "p.jpg", 600, 800, 2));
+        for (int i = 0; i < 6; i++) r.AdicionarFoto(i % 3 == 1 ? emPe : deitada); // fotos 2 e 5 em pe
+        r.Legendar(0, "primeira");
+        string[] A() => [.. r.Dados.Fotos.Select(f => f.Arquivo)];
+        var antes = A();
+
+        Assert.Equal(2, r.MoverMarcadas([0, 3], paraOFim: true));
+        Assert.Equal([antes[1], antes[2], antes[4], antes[5], antes[0], antes[3]], A());
+        Assert.Equal(0, r.MoverMarcadas([4, 5], paraOFim: true)); // ja estao no fim: nada muda
+        Assert.True(r.TemOrdemParaDesfazer);
+        Assert.True(r.DesfazerOrdem());
+        Assert.Equal(antes, A());
+        Assert.Equal("primeira", r.Dados.Fotos[0].Legenda);
+        Assert.False(r.DesfazerOrdem()); // so uma vez
+
+        Assert.Equal(1, r.MoverMarcadas([4], paraOFim: false));
+        Assert.Equal(antes[4], A()[0]);
+        r.DesfazerOrdem();
+
+        // deitadas primeiro, em pe no fim; com giro conta o formato girado
+        r.Girar(0); // a primeira fica em pe
+        Assert.Equal(3, r.EmPe);
+        Assert.True(r.DeitadasPrimeiro());
+        Assert.Equal([antes[2], antes[3], antes[5], antes[0], antes[1], antes[4]], A());
+        Assert.False(r.DeitadasPrimeiro()); // de novo: nada muda
+
+        // foto nova entra no meio do Desfazer: a ordem de antes volta e a nova fica no fim
+        r.AdicionarFoto(deitada);
+        string nova = A()[^1];
+        Assert.True(r.DesfazerOrdem());
+        Assert.Equal([.. antes, nova], A());
+
+        // tirar uma foto depois de mover: o Desfazer da ordem deixa de valer
+        r.MoverMarcadas([0], paraOFim: true);
+        r.Remover(0);
+        Assert.False(r.TemOrdemParaDesfazer);
+
+        // reaberto do disco: a ordem nova ficou gravada
+        Assert.Equal(A(), Novo().Dados.Fotos.Select(f => f.Arquivo));
+    }
+
+    [Fact]
+    public async Task Reordenar_em_grupo_enquanto_a_camera_grava_nao_perde_nem_repete_foto()
+    {
+        var r = Novo();
+        for (int i = 0; i < 40; i++) r.AdicionarFoto(_jpeg);
+        var camera = Task.Run(() => { for (int i = 0; i < 60; i++) r.AdicionarFoto(_jpeg); });
+        var sorte = new Random(3);
+        while (!camera.IsCompleted)
+        {
+            int n = r.Dados.Fotos.Count;
+            r.MoverMarcadas(Enumerable.Range(0, n).Where(_ => sorte.Next(4) == 0), sorte.Next(2) == 0);
+            if (sorte.Next(3) == 0) r.DesfazerOrdem();
+            r.DeitadasPrimeiro();
+            await Task.Delay(1);
+        }
+
+        await camera;
+        Assert.Equal(100, r.Dados.Fotos.Count);
+        Assert.Equal(100, r.Dados.Fotos.Select(f => f.Arquivo).Distinct().Count());
+    }
+
+    [Fact]
     public void Mesmo_texto_em_varias_marcadas_ou_so_nas_em_branco_e_campo_vazio_nao_apaga()
     {
         var r = Novo();

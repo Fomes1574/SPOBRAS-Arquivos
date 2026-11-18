@@ -20,24 +20,22 @@ public sealed record CampoCabecalho(
     public bool Dupla => Rotulo2 is not null;
 }
 
-/// <summary>Cabecalho da primeira pagina: a faixa de cima e as linhas de campos (so os preenchidos).</summary>
+/// <summary>Cabecalho de todas as paginas: a faixa de cima e as linhas de campos (so os preenchidos).</summary>
 public sealed record CabecalhoMontado(
     IReadOnlyList<CampoCabecalho> Campos,
-    IReadOnlyList<string> LinhasDoSubtitulo,
     string DataPorExtenso,
     string Rodape)
 {
     public double AlturaDosCampos => Campos.Sum(c => c.Altura);
 
-    /// <summary>Altura do cabecalho da primeira pagina (faixa de cima e campos).</summary>
+    /// <summary>Altura do cabecalho (faixa de cima e campos), igual em todas as paginas.</summary>
     public double Altura => GradeRelatorio.AlturaDoTopo + AlturaDosCampos;
 
     /// <summary>Y (na folha) do primeiro campo.</summary>
     public static double TopoDosCampos => GradeRelatorio.MargemDeCima + GradeRelatorio.AlturaDoTopo;
 
-    /// <summary>Onde as fotos comecam na primeira pagina e nas seguintes (cabecalho reduzido).</summary>
-    public double TopoDasFotos(bool reduzido) =>
-        GradeRelatorio.MargemDeCima + (reduzido ? GradeRelatorio.AlturaDoTopoReduzido : Altura) + GradeRelatorio.RespiroAntesDasFotos;
+    /// <summary>Onde as fotos comecam (o cabecalho e o mesmo em todas as paginas).</summary>
+    public double TopoDasFotos => GradeRelatorio.MargemDeCima + Altura + GradeRelatorio.RespiroAntesDasFotos;
 }
 
 /// <summary>Textos e medidas do cabecalho do relatorio. Campo vazio nao gera rotulo nem espaco.</summary>
@@ -130,23 +128,6 @@ public static class CabecalhoRelatorio
         return campos;
     }
 
-    /// <summary>Linha de baixo do cabecalho reduzido: "Escola · Contrato 017/EX/2026 · continuação", numa linha so.</summary>
-    public static IReadOnlyList<string> Subtitulo(DadosRelatorio d)
-    {
-        double largura = GradeRelatorio.Largura - GradeRelatorio.LarguraDoLogoReduzido - 4 * GradeRelatorio.Mm;
-        string contrato = d.Contrato.Trim().Length > 0 ? " · Contrato " + d.Contrato.Trim() : "";
-        string fim = contrato + " · continuação";
-        string escola = d.Unidade.Trim();
-        string texto = escola.Length > 0 ? escola + fim : fim.TrimStart(' ', '·');
-        while (escola.Length > 0 && TextoMedido.Largura(texto, GradeRelatorio.LetraDoSubtitulo, false) > largura)
-        {
-            escola = escola[..^1].TrimEnd();
-            texto = escola + "…" + fim;
-        }
-
-        return [texto];
-    }
-
     /// <summary>Texto do rodape, a esquerda: "Escola · Relatório fotográfico de 17/11/2026", encurtado se preciso.</summary>
     public static string Rodape(DadosRelatorio d)
     {
@@ -165,9 +146,9 @@ public static class CabecalhoRelatorio
 
     public static CabecalhoMontado Montar(DadosRelatorio d)
     {
-        // O subtitulo e o rodape tambem saem com a fonte do relatorio: so o que ela desenha.
-        var limpo = d with { Unidade = TextoMedido.Limpar(d.Unidade), Contrato = TextoMedido.Limpar(d.Contrato) };
-        return new(Campos(d), Subtitulo(limpo), PorExtenso(d.Data), Rodape(limpo));
+        // O rodape tambem sai com a fonte do relatorio: so o que ela desenha.
+        var limpo = d with { Unidade = TextoMedido.Limpar(d.Unidade) };
+        return new(Campos(d), PorExtenso(d.Data), Rodape(limpo));
     }
 
     /// <summary>Parte da escola no nome sugerido: com o resto, o nome fica com no maximo 120 caracteres.</summary>

@@ -7,7 +7,7 @@
 <Barra Titulo="Relatório fotográfico" Sub="@Resumo" Voltar="relatorio">
     <a class="acao texto" href="relatorio/conferir" style="text-decoration:none">Seguir</a>
 </Barra>
-<div class="conteudo" style="padding-bottom:@(_removidas > 0 ? "170px" : "90px")">
+<div class="conteudo" style="padding-bottom:@(TemDesfazer ? "170px" : "90px")">
     <Etapas Atual="1" />
     @if (Erro is not null)
     {
@@ -56,6 +56,10 @@
             <div class="linha-btns" style="margin-bottom:10px">
                 <button class="btn linha pequeno" disabled="@(_marcadas.Count == Fotos.Count)" @onclick="MarcarTodas">Marcar todas</button>
                 <button class="btn linha pequeno" disabled="@(_marcadas.Count == 0)" @onclick="DesmarcarTodas">Desmarcar todas</button>
+            </div>
+            <div class="linha-btns" style="margin-bottom:12px">
+                <button class="btn linha pequeno" disabled="@(_marcadas.Count == 0)" @onclick="() => MoverMarcadas(false)">Mover para o início</button>
+                <button class="btn linha pequeno" disabled="@(_marcadas.Count == 0)" @onclick="() => MoverMarcadas(true)">Mover para o fim</button>
             </div>
             <div class="titulo-modo" style="margin-top:4px">@(_marcadas.Count switch { 0 => "Mesmo texto para várias fotos", 1 => "Mesmo texto para a marcada", var n => $"Mesmo texto para as {n} marcadas" })</div>
             <CampoTexto @key="_rodadaLote" Rotulo="Legenda" Ajuda="Sai em negrito, logo embaixo da foto." Valor="@_legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda"
@@ -112,16 +116,16 @@
 </div>
 @if (!_selecionando)
 {
-    <a class="fab @(_removidas > 0 ? "acima" : "")" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
+    <a class="fab @(TemDesfazer ? "acima" : "")" href="relatorio/camera" style="text-decoration:none"><Icone Nome="relatorio" Cor="#fff" />Tirar foto</a>
 }
-@if (_removidas > 0)
+@if (TemDesfazer)
 {
     <div class="desfazer" role="status" aria-live="polite">
-        @if (_ultimaRemovida is { Length: > 0 } urlRemovida)
+        @if (_textoOrdem is null && _ultimaRemovida is { Length: > 0 } urlRemovida)
         {
             <img class="mini-foto" src="@urlRemovida" alt="" />
         }
-        <span class="txt">@(_removidas == 1 ? "Foto removida" : $"{_removidas} fotos removidas")</span>
+        <span class="txt">@(_textoOrdem ?? (_removidas == 1 ? "Foto removida" : $"{_removidas} fotos removidas"))</span>
         <button @onclick="Desfazer">Desfazer</button>
         <i class="tempo-desfazer" @key="_rodada"></i>
     </div>
@@ -142,6 +146,7 @@
 <Folha Aberta="_ordenar" Titulo="Ordenar fotos" AoFechar="() => _ordenar = false">
     <button class="opcao" @onclick="() => Ordenar(true)">Por data da foto</button>
     <button class="opcao" @onclick="() => Ordenar(false)">Por nome do arquivo</button>
+    <button class="opcao" @onclick="DeitadasPrimeiro">Deitadas primeiro, em pé no fim</button>
 </Folha>
 
 @if (_aberta is int a && a < Fotos.Count)
@@ -196,7 +201,8 @@
         Dispose();
         App.Rascunho.MiniaturaPronta -= AoFicarPronta;
         App.Rascunho.Mudou -= AoFicarPronta;
-        // Saiu da tela com o Desfazer aberto: a remocao vale.
+        // Saiu da tela com o Desfazer aberto: a remocao (ou a nova ordem) vale.
+        App.Rascunho.EsquecerOrdem();
         if (_removidas > 0)
         {
             _relogio?.Cancel();
@@ -220,6 +226,8 @@
     private void Ordenar(bool porData)
     {
         App.Rascunho.OrdenarFotos(porData);
+        App.Rascunho.EsquecerOrdem(); // a ordem nova vale; o Desfazer de uma reordenacao anterior nao volta mais
+        _textoOrdem = null;
         _ordenar = false;
     }
 
@@ -311,6 +319,7 @@
         var ultima = Fotos.ElementAtOrDefault(indices.Max());
         _ultimaRemovida = ultima is null ? null : App.Rascunho.Miniatura(ultima);
         _removidas = App.Rascunho.Remover(indices);
+        _textoOrdem = null; // o Desfazer passa a ser o desta remocao
         _aberta = null;
         _rodada++; // a barra vermelha comeca cheia de novo
         _relogio?.Cancel();
@@ -332,7 +341,9 @@
         await InvokeAsync(() =>
         {
             App.Rascunho.FinalizarRemocoes();
+            App.Rascunho.EsquecerOrdem();
             _removidas = 0;
+            _textoOrdem = null;
             StateHasChanged();
         });
     }
@@ -340,8 +351,77 @@
     private void Desfazer()
     {
         _relogio?.Cancel();
+        if (_textoOrdem is not null)
+        {
+            var marcadas = ArquivosMarcados();
+            App.Rascunho.DesfazerOrdem();
+            Remarcar(marcadas);
+            _textoOrdem = null;
+            return;
+        }
+
         App.Rascunho.Desfazer();
         _removidas = 0;
+    }
+
+    // ---- Reordenar em grupo com Desfazer (5 s) ----
+    private string? _textoOrdem;
+    private bool TemDesfazer => _removidas > 0 || _textoOrdem is not null;
+
+    private HashSet<string> ArquivosMarcados() => [.. _marcadas.Where(i => i < Fotos.Count).Select(i => Fotos[i].Arquivo)];
+
+    /// <summary>Depois de reordenar, as mesmas fotos continuam marcadas (nas posicoes novas).</summary>
+    private void Remarcar(HashSet<string> arquivos)
+    {
+        _marcadas.Clear();
+        for (int i = 0; i < Fotos.Count; i++)
+        {
+            if (arquivos.Contains(Fotos[i].Arquivo)) _marcadas.Add(i);
+        }
+    }
+
+    private void MoverMarcadas(bool paraOFim)
+    {
+        var marcadas = ArquivosMarcados();
+        int n = App.Rascunho.MoverMarcadas(_marcadas, paraOFim);
+        string onde = paraOFim ? "o fim" : "o início";
+        if (n == 0)
+        {
+            _avisoLegenda = _marcadas.Count == 1 ? $"A foto marcada já está n{(paraOFim ? "o fim" : "o início")}." : $"As fotos marcadas já estão n{(paraOFim ? "o fim" : "o início")}.";
+            return;
+        }
+
+        Remarcar(marcadas);
+        MostrarDesfazerOrdem(n == 1 ? $"Foto marcada foi para {onde}" : $"{n} fotos foram para {onde}");
+    }
+
+    private void DeitadasPrimeiro()
+    {
+        _ordenar = false;
+        if (!App.Rascunho.DeitadasPrimeiro())
+        {
+            _avisoLegenda = "As fotos já estão com as deitadas primeiro e as em pé no fim.";
+            return;
+        }
+
+        MostrarDesfazerOrdem($"Deitadas primeiro, {Formato.Plural(App.Rascunho.EmPe, "foto em pé", "fotos em pé")} no fim");
+    }
+
+    private void MostrarDesfazerOrdem(string texto)
+    {
+        // Uma remocao ainda no Desfazer passa a valer: o Desfazer agora e o da nova ordem.
+        if (_removidas > 0)
+        {
+            App.Rascunho.FinalizarRemocoes();
+            _removidas = 0;
+        }
+
+        _textoOrdem = texto;
+        _avisoLegenda = null;
+        _rodada++;
+        _relogio?.Cancel();
+        var esta = _relogio = new CancellationTokenSource();
+        _ = Contar(esta.Token);
     }
 
     private int? _aberta;

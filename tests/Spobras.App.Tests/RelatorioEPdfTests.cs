@@ -330,6 +330,60 @@ public class RelatorioVmTests : ComApp
     }
 
     [Fact]
+    public async Task Mover_marcadas_para_o_fim_ou_inicio_e_deitadas_primeiro_com_desfazer()
+    {
+        var vm = NovoRelatorio();
+        vm.TempoDoDesfazer = TimeSpan.FromMinutes(5);
+        vm.Adicionar(CriarFotos(8)); // fotos 4 e 8 em pe
+        await vm.Miniaturas;
+        var f = vm.Fotos.ToList();
+        f[0].Legenda = "primeira";
+
+        // marcadas vao juntas para o fim, na ordem em que estavam; as outras nao mudam de ordem
+        f[1].Selecionada = f[4].Selecionada = true;
+        vm.MoverMarcadasParaOFimCommand.Execute(null);
+        Assert.Equal([f[0], f[2], f[3], f[5], f[6], f[7], f[1], f[4]], vm.Fotos);
+        Assert.Equal("2 fotos foram para o fim", vm.TextoDesfazer);
+        Assert.Equal("Foto 07", vm.Fotos[6].Rotulo); // o numero acompanha a ordem
+        Assert.True(f[1].Selecionada); // continuam marcadas
+        vm.MoverMarcadasParaOFimCommand.Execute(null); // ja estao no fim: nada muda
+        Assert.Equal("As 2 fotos marcadas já estão no fim.", vm.Resultado);
+        vm.DesfazerCommand.Execute(null);
+        Assert.Equal(f, vm.Fotos);
+        Assert.Equal("primeira", vm.Fotos[0].Legenda);
+
+        vm.MoverMarcadasParaOInicioCommand.Execute(null);
+        Assert.Equal([f[1], f[4], f[0], f[2], f[3], f[5], f[6], f[7]], vm.Fotos);
+        Assert.Equal("2 fotos foram para o início", vm.TextoDesfazer);
+        vm.DesfazerCommand.Execute(null);
+        vm.DesmarcarTodasCommand.Execute(null);
+
+        // deitadas primeiro, em pe no fim (pelo formato depois do giro); de novo nao muda nada
+        vm.GirarDireitaCommand.Execute(f[0]); // a primeira fica em pe
+        await vm.Miniaturas;
+        vm.OrdenarDeitadasPrimeiroCommand.Execute(null);
+        Assert.Equal([f[1], f[2], f[4], f[5], f[6], f[0], f[3], f[7]], vm.Fotos);
+        Assert.Equal("Deitadas primeiro, 3 fotos em pé no fim", vm.TextoDesfazer);
+        vm.OrdenarDeitadasPrimeiroCommand.Execute(null);
+        Assert.Equal("As fotos já estão com as deitadas primeiro e as em pé no fim.", vm.Resultado);
+
+        // Desfazer com foto nova no meio do caminho: a ordem de antes volta e a nova fica no fim
+        vm.Adicionar([CriarFoto(Path.Combine("Downloads", "Fotos", "nova.jpg"), 400, 300)]);
+        var nova = vm.Fotos[^1];
+        vm.DesfazerCommand.Execute(null);
+        Assert.Equal([.. f, nova], vm.Fotos);
+
+        // tirar depois de mover: o Desfazer devolve a foto tirada, nao a ordem antiga
+        vm.Fotos[2].Selecionada = true;
+        vm.MoverMarcadasParaOFimCommand.Execute(null);
+        vm.RemoverCommand.Execute(vm.Fotos[0]);
+        Assert.Equal("Foto tirada do relatório", vm.TextoDesfazer);
+        vm.DesfazerCommand.Execute(null);
+        Assert.Equal(9, vm.Fotos.Count);
+        Assert.Equal(f[2], vm.Fotos[^1]);
+    }
+
+    [Fact]
     public async Task Mesmo_texto_em_varias_e_modo_com_descricao_sem_perder_o_que_foi_escrito()
     {
         var vm = NovoRelatorio();

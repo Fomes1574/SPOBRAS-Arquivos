@@ -176,8 +176,7 @@ public static class GeradorRelatorio
             int primeira = linhas.Count + 1;
             double yDaPagina = GradeRelatorio.MargemDeCima; // o topo da pagina na folha
 
-            // ---- Cabecalho ----
-            if (!pagina.CabecalhoReduzido)
+            // ---- Cabecalho (completo em todas as paginas) ----
             {
                 int l = NovaLinha(GradeRelatorio.AlturaDoTopo);
                 Caixa(l, C(0), l, C(2), ETopo);
@@ -206,20 +205,6 @@ public static class GeradorRelatorio
                     {
                         Caixa(lc, C(2), lc, m, EValor, Texto(campo.Valor));
                     }
-                }
-            }
-            else
-            {
-                int l = NovaLinha(GradeRelatorio.AlturaDoTopoReduzido);
-                // logo de 30 mm: colunas C e D (o rotulo tem 33 mm; a diferenca nao aparece)
-                Caixa(l, C(0), l, C(1), ETopo);
-                Caixa(l, C(2), l, m, ETopo, Rico(("RELATÓRIO FOTOGRÁFICO", GradeRelatorio.LetraDoTituloReduzido, true, DesenhoRelatorio.Preto),
-                    ("\n" + cab.LinhasDoSubtitulo[0], GradeRelatorio.LetraDoSubtitulo, false, DesenhoRelatorio.Cinza)));
-                if (idLogo is not null)
-                {
-                    var area = new Area(GradeRelatorio.MargemLateral + 2 * GradeRelatorio.Mm, GradeRelatorio.MargemDeCima + 2 * GradeRelatorio.Mm,
-                        GradeRelatorio.LarguraDoRotulo - 4 * GradeRelatorio.Mm, GradeRelatorio.AlturaDoTopoReduzido - 4 * GradeRelatorio.Mm);
-                    Figura(primeira, PaginadorRelatorio.Encaixar(tamanhoLogo.Largura, tamanhoLogo.Altura, area), yDaPagina, idLogo, "Logo");
                 }
             }
 
@@ -400,7 +385,7 @@ public static class GeradorRelatorio
         {
             Fonte(11, false, DesenhoRelatorio.Preto),                                          // 0 padrao
             Fonte(GradeRelatorio.LetraDoRotulo, true, DesenhoRelatorio.Preto),                 // 1 rotulo
-            Fonte(GradeRelatorio.LetraDoValor, true, DesenhoRelatorio.Preto),                  // 2 valor
+            Fonte(GradeRelatorio.LetraDoValor, false, DesenhoRelatorio.Preto),                 // 2 valor
             Fonte(GradeRelatorio.LetraDaLegenda, true, DesenhoRelatorio.Preto),                // 3 legenda
             Fonte(GradeRelatorio.LetraDaDescricao, false, DesenhoRelatorio.Descricao),         // 4 descricao
             Fonte(GradeRelatorio.LetraDoNome, true, DesenhoRelatorio.Preto),                   // 5 nome
@@ -411,7 +396,7 @@ public static class GeradorRelatorio
         {
             """<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>""",
             Xf(0, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),              // 1 faixa de cima
-            Xf(1, 2, 2, """horizontal="left" vertical="center" wrapText="1" indent="1" """),     // 2 rotulo
+            Xf(1, 0, 2, """horizontal="left" vertical="center" wrapText="1" indent="1" """),     // 2 rotulo (sem fundo)
             Xf(2, 0, 2, """horizontal="left" vertical="center" wrapText="1" indent="1" """),     // 3 valor
             Xf(3, 0, 0, """horizontal="center" vertical="top" wrapText="1" """),                 // 4 legenda
             Xf(4, 0, 0, """horizontal="justify" vertical="top" wrapText="1" """),                // 5 descricao
@@ -422,7 +407,7 @@ public static class GeradorRelatorio
 
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"""
                + $"""<fonts count="{fontes.Length}">{string.Concat(fontes)}</fonts>"""
-               + $"""<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF{DesenhoRelatorio.FundoDoRotulo}"/><bgColor indexed="64"/></patternFill></fill></fills>"""
+               + """<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>"""
                + $"""<borders count="4"><border><left/><right/><top/><bottom/><diagonal/></border>{Borda(DesenhoRelatorio.Borda)}{Borda(DesenhoRelatorio.BordaClara)}<border><left/><right/><top style="thin"><color rgb="FF{DesenhoRelatorio.Preto}"/></top><bottom/><diagonal/></border></borders>"""
                + """<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>"""
                + $"""<cellXfs count="{xfs.Length}">{string.Concat(xfs)}</cellXfs>"""

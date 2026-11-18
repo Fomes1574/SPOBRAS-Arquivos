@@ -15,11 +15,11 @@ public static class GradeRelatorio
     /// <summary>Largura util (entre as margens).</summary>
     public const double Largura = LarguraDaFolha - 2 * MargemLateral;
 
-    /// <summary>Altura do cabecalho da primeira pagina (logo, titulo e SPOBRAS) e do cabecalho reduzido das seguintes.</summary>
-    public const double AlturaDoTopo = 24 * Mm, AlturaDoTopoReduzido = 14 * Mm;
+    /// <summary>Altura da faixa de cima do cabecalho (logo, titulo e SPOBRAS), repetido em todas as paginas.</summary>
+    public const double AlturaDoTopo = 24 * Mm;
 
-    /// <summary>Larguras da faixa de cima: logo e SPOBRAS de 44 mm; reduzido, logo de 30 mm.</summary>
-    public const double LarguraDoLogo = 44 * Mm, LarguraDoOrgao = 44 * Mm, LarguraDoLogoReduzido = 30 * Mm;
+    /// <summary>Larguras da faixa de cima: logo e SPOBRAS de 44 mm.</summary>
+    public const double LarguraDoLogo = 44 * Mm, LarguraDoOrgao = 44 * Mm;
 
     /// <summary>Largura do rotulo de cada campo do cabecalho (33 mm).</summary>
     public const double LarguraDoRotulo = 33 * Mm;
@@ -41,7 +41,6 @@ public static class GradeRelatorio
 
     // Letras (pt) e altura de linha (multiplo da letra).
     public const double LetraDoTitulo = 17, LetraDaData = 9.5, LetraDoOrgao = 9, LetraDoOrgaoForte = 12;
-    public const double LetraDoTituloReduzido = 13, LetraDoSubtitulo = 9.5;
     public const double LetraDoRotulo = 7.6, LetraDoValor = 9, AlturaDaLinhaDoCampo = 1.25;
     public const double LetraDaLegenda = 10, AlturaDaLinhaDaLegenda = 1.22;
     public const double LetraDaDescricao = 9.2, AlturaDaLinhaDaDescricao = 1.25;

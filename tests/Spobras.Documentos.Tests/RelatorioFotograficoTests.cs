@@ -273,10 +273,9 @@ public class RelatorioFotograficoTests : IDisposable
 
         Assert.Equal(3, textos.Count(t => t == "RELATÓRIO FOTOGRÁFICO")); // um titulo por pagina
         Assert.Contains("\n10 de novembro de 2026", textos);
-        Assert.Single(textos, "EMEF Exemplo"); // campos so na primeira pagina
-        Assert.Equal(2, textos.Count(t => t == "\nEMEF Exemplo · Contrato 000/EXEMPLO/2026 · continuação")); // reduzido nas outras
-        Assert.Single(textos, "CONTRATO");
-        Assert.Single(textos, "LOTE");
+        Assert.Equal(3, textos.Count(t => t == "EMEF Exemplo")); // cabecalho completo em todas as paginas
+        Assert.Equal(3, textos.Count(t => t == "CONTRATO"));
+        Assert.Equal(3, textos.Count(t => t == "LOTE"));
         Assert.DoesNotContain("PORTARIA", textos); // campo vazio nao aparece
         Assert.Contains("Serviço 1 & <teste>", textos); // caracteres especiais preservados
         Assert.Contains("Serviço 14 & <teste>", textos);

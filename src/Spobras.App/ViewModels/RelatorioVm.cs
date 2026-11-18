@@ -698,6 +698,9 @@ public sealed partial class RelatorioVm : TelaVm
     public TimeSpan TempoDoDesfazer { get; set; } = TimeSpan.FromSeconds(5);
 
     private List<(FotoVm Foto, int Posicao)> _removidas = [];
+
+    /// <summary>Ordem de antes da ultima reordenacao em grupo (mover as marcadas, deitadas primeiro): o Desfazer volta a ela.</summary>
+    private List<FotoVm>? _ordemAnterior;
     private int _rodadaDoDesfazer;
 
     /// <summary>O ✕ de uma foto: tira na hora, sem confirmar, com Desfazer. A foto nao e apagada do computador.</summary>
@@ -728,6 +731,7 @@ public sealed partial class RelatorioVm : TelaVm
     {
         // Cada remocao nova substitui o Desfazer anterior (o anterior ja nao pode mais voltar).
         _removidas = [.. fotos.Select(f => (f, Fotos.IndexOf(f))).Where(x => x.Item2 >= 0).OrderBy(x => x.Item2)];
+        _ordemAnterior = null;
         foreach (var (foto, _) in _removidas)
         {
             foto.Selecionada = false;
@@ -747,6 +751,7 @@ public sealed partial class RelatorioVm : TelaVm
         if (rodada == _rodadaDoDesfazer)
         {
             _removidas = [];
+            _ordemAnterior = null;
             TextoDesfazer = "";
         }
     }
@@ -754,6 +759,7 @@ public sealed partial class RelatorioVm : TelaVm
     private void EsquecerDesfazer()
     {
         _removidas = [];
+        _ordemAnterior = null;
         _rodadaDoDesfazer++;
         TextoDesfazer = "";
     }
@@ -761,6 +767,13 @@ public sealed partial class RelatorioVm : TelaVm
     [RelayCommand]
     private void Desfazer()
     {
+        if (_ordemAnterior is { } ordem)
+        {
+            // Volta a ordem de antes; foto que entrou depois fica no fim, foto que saiu nao volta por aqui.
+            Reordenar([.. ordem.Where(Fotos.Contains), .. Fotos.Where(f => !ordem.Contains(f))]);
+            _ordemAnterior = null;
+        }
+
         foreach (var (foto, posicao) in _removidas)
         {
             Fotos.Insert(Math.Min(posicao, Fotos.Count), foto);
@@ -792,6 +805,63 @@ public sealed partial class RelatorioVm : TelaVm
     [RelayCommand]
     private void OrdenarPorData() =>
         Reordenar(Fotos.OrderBy(f => f.CapturadaEm is null).ThenBy(f => f.CapturadaEm).ThenBy(f => f.Nome, OrdemNatural.Instancia));
+
+    /// <summary>As marcadas vao juntas para o fim da lista, na ordem em que estavam (com Desfazer).</summary>
+    [RelayCommand]
+    private void MoverMarcadasParaOFim() => MoverMarcadas(paraOFim: true);
+
+    /// <summary>As marcadas vao juntas para o inicio da lista, na ordem em que estavam (com Desfazer).</summary>
+    [RelayCommand]
+    private void MoverMarcadasParaOInicio() => MoverMarcadas(paraOFim: false);
+
+    private void MoverMarcadas(bool paraOFim)
+    {
+        int quantas = QuantasMarcadas;
+        if (quantas == 0)
+        {
+            return;
+        }
+
+        var antes = Fotos.ToList();
+        var nova = OrdemDasFotos.Marcadas(antes, i => antes[i].Selecionada, paraOFim);
+        string onde = paraOFim ? "o fim" : "o início";
+        if (OrdemDasFotos.Mudancas(antes, nova) == 0)
+        {
+            string ja = paraOFim ? "no fim" : "no início";
+            Resultado = quantas == 1 ? $"A foto marcada já está {ja}." : $"As {quantas} fotos marcadas já estão {ja}.";
+            ResultadoComFalha = false;
+            return;
+        }
+
+        ReordenarComDesfazer(antes, nova, quantas == 1 ? $"Foto marcada foi para {onde}" : $"{quantas} fotos foram para {onde}");
+    }
+
+    /// <summary>Deitadas primeiro e em pe no fim, pelo formato depois do giro; dentro de cada grupo, a ordem de antes.</summary>
+    [RelayCommand]
+    private void OrdenarDeitadasPrimeiro()
+    {
+        var antes = Fotos.ToList();
+        var nova = OrdemDasFotos.DeitadasPrimeiro(antes, f => (f.Largura, f.Altura));
+        if (OrdemDasFotos.Mudancas(antes, nova) == 0)
+        {
+            Resultado = "As fotos já estão com as deitadas primeiro e as em pé no fim.";
+            ResultadoComFalha = false;
+            return;
+        }
+
+        int emPe = nova.Count(f => f.Altura > f.Largura);
+        ReordenarComDesfazer(antes, nova, $"Deitadas primeiro, {Formato.Plural(emPe, "foto em pé", "fotos em pé")} no fim");
+    }
+
+    private void ReordenarComDesfazer(List<FotoVm> antes, List<FotoVm> nova, string texto)
+    {
+        _removidas = [];
+        _ordemAnterior = antes;
+        Reordenar(nova);
+        TextoDesfazer = texto;
+        int rodada = ++_rodadaDoDesfazer;
+        _ = EsquecerDepois(rodada);
+    }
 
     [RelayCommand]
     private void SelecionarTodas()
