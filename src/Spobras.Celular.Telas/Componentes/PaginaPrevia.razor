@@ -16,10 +16,6 @@
                     break;
                 case ImagemDesenho { Foto: { } foto } im:
                     <image href="@Foto(foto)" x="@Num(im.Area.X)" y="@Num(im.Area.Y)" width="@Num(im.Area.Largura)" height="@Num(im.Area.Altura)" preserveAspectRatio="xMidYMid meet" />
-                    @if (foto.Carimbo is not null)
-                    {
-                        @((MarkupString)SvgCarimbo.NaArea(foto, im.Area))
-                    }
                     break;
                 case ImagemDesenho im when Logo is not null:
                     <image href="@Logo" x="@Num(im.Area.X)" y="@Num(im.Area.Y)" width="@Num(im.Area.Largura)" height="@Num(im.Area.Altura)" preserveAspectRatio="xMidYMid meet" />

@@ -1,5 +1,7 @@
 # Plano: carimbo nas fotos, endereço pelo GPS e leveza do app
 
+> **18/11/2026: o carimbo e o GPS foram retirados do app a pedido do usuário.** Deste plano continuam valendo só a câmera com "Salvando…" (seção 7), a regra de não perder arquivos (seção 0) e a leveza (seção 3: APK por processador, fonte reduzida e preparo em celular com pouca memória). O resto fica como histórico.
+
 Projetado e liberado em 18/11/2026; **implementado em 18/11/2026** (ver `PROGRESSO.md`). Onde a implementação ficou diferente do projeto, o texto abaixo já está corrigido.
 
 ## 0. Regra de ouro das otimizações: não perder arquivos

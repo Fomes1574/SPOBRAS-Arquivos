@@ -237,43 +237,7 @@ public sealed class PlataformaAndroid : IPlataforma
         return estado == PermissionStatus.Granted;
     }
 
-    // ---- Localizacao (so se o fiscal ligar o endereco pelo GPS; uma leitura por relatorio) ----
-
-    private readonly LocalizacaoAndroid _localizacao = new();
-
-    public Task<SituacaoLocalizacao> SituacaoDaLocalizacaoAsync() => Task.FromResult(_localizacao.Situacao());
-
-    public async Task<bool> PermitirLocalizacaoAsync()
-    {
-        try
-        {
-            var estado = await MainThread.InvokeOnMainThreadAsync(Permissions.RequestAsync<Permissions.LocationWhenInUse>);
-            return estado == PermissionStatus.Granted || _localizacao.Situacao().Permitida;
-        }
-        catch (Exception ex) when (ex is FeatureNotSupportedException or PermissionException or InvalidOperationException)
-        {
-            return false;
-        }
-    }
-
-    public Task AbrirConfiguracoesDeLocalizacaoAsync() => MainThread.InvokeOnMainThreadAsync(() =>
-    {
-        try
-        {
-            Platform.AppContext.StartActivity(new Intent(Settings.ActionLocationSourceSettings).AddFlags(ActivityFlags.NewTask));
-        }
-        catch (ActivityNotFoundException)
-        {
-            Platform.AppContext.StartActivity(new Intent(Settings.ActionSettings).AddFlags(ActivityFlags.NewTask));
-        }
-    });
-
-    public Task<Spobras.Core.Relatorio.PontoGps?> UltimaLocalizacaoAsync(TimeSpan idadeMaxima) => Task.Run(() => _localizacao.Ultima(idadeMaxima));
-
-    public Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<Spobras.Core.Relatorio.PontoGps>? aoMelhorar = null, CancellationToken cancelar = default) =>
-        _localizacao.LerAsync(limite, precisaoDesejada, aoMelhorar, cancelar);
-
-    public Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude) => LocalizacaoAndroid.EnderecoAsync(latitude, longitude);
+    // ---- Memoria ----
 
     /// <summary>Celular com pouca memoria (Android Go ou menos de 3 GB): prepara menos fotos ao mesmo tempo.</summary>
     public int FotosAoMesmoTempo { get; } = Memoria();

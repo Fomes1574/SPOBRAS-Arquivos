@@ -110,7 +110,7 @@
                 // Pendencia do proprio plano (ex.: cabecalho grande demais) tambem impede gerar, com o motivo na tela.
                 _problemas = [.. _problemas, .. _plano.Avisos.Where(a => a.Gravidade == Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem)];
                 // O que nao impede, mas vale conferir (foto sem legenda, fotos menores para a assinatura caber).
-                _conferir = [.. _plano.Avisos.Where(a => a.Gravidade != Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem), .. App.Rascunho.AvisosDoCarimbo(_plano)];
+                _conferir = [.. _plano.Avisos.Where(a => a.Gravidade != Spobras.Core.Gravidade.ImpedeGerar).Select(a => a.Mensagem)];
             }
         }
         catch (Spobras.Documentos.Imagens.FotoInvalidaException ex)

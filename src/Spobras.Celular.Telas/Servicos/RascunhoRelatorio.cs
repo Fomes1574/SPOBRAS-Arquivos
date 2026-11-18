@@ -20,9 +20,6 @@ public sealed record FotoRascunho(string Arquivo, string Legenda = "", int Rotac
 
     /// <summary>Marca do conteudo (tamanho e trechos do arquivo): avisa quando a mesma foto entra de novo.</summary>
     public string? Impressao { get; init; }
-
-    /// <summary>Esta foto sai sem carimbo, mesmo com o carimbo ligado.</summary>
-    public bool SemCarimbo { get; init; }
 }
 
 /// <summary>
@@ -73,17 +70,6 @@ public sealed record DadosRascunho
     public string AssinaturaFiscal { get; init; } = "";
     public string AssinaturaContratada { get; init; } = "";
 
-    /// <summary>Endereco do carimbo (o mesmo em todas as fotos deste relatorio).</summary>
-    public string Endereco { get; init; } = "";
-
-    /// <summary>Ponto do GPS do endereco (sem internet, fica so o ponto ate o endereco ser buscado).</summary>
-    public PontoGps? Ponto { get; init; }
-
-    /// <summary>Chave da escola (nome + contrato) a que o endereco pertence: trocou de escola, o endereco nao vale mais.</summary>
-    public string EnderecoDe { get; init; } = "";
-
-    /// <summary>O GPS ja foi lido neste relatorio (abrir a camera de novo nao le outra vez).</summary>
-    public bool EnderecoConferido { get; init; }
     public List<FotoRascunho> Fotos { get; init; } = [];
     public DateTimeOffset? Alterado { get; init; }
 
@@ -108,13 +94,8 @@ public sealed class RascunhoRelatorio
     private const int TentativasDeMiniatura = 3;
     private int _trabalhando;
 
-    public RascunhoRelatorio(string pastaDoApp, Func<DateTimeOffset>? agora = null, Func<AjusteCarimbo?>? carimbo = null)
+    public RascunhoRelatorio(string pastaDoApp, Func<DateTimeOffset>? agora = null)
     {
-        if (carimbo is not null)
-        {
-            Carimbo = carimbo; // antes de limpar: as copias carimbadas atuais nao podem parecer velhas
-        }
-
         _pasta = Path.Combine(pastaDoApp, "rascunho");
         _arquivo = Path.Combine(_pasta, "rascunho.json");
         _agora = agora ?? (() => DateTimeOffset.Now);
@@ -151,25 +132,8 @@ public sealed class RascunhoRelatorio
 
     private static readonly OpcoesRelatorio Padrao = new();
 
-    /// <summary>Ajuste do carimbo (vem das configuracoes). Nulo ou desligado: fotos sem carimbo.</summary>
-    public Func<AjusteCarimbo?> Carimbo { get; set; } = () => null;
-
-    /// <summary>Carimbo desta foto: escola e endereco do relatorio, data e hora da captura.</summary>
-    public CarimboFoto? CarimboDe(FotoRascunho f) =>
-        f.SemCarimbo ? null : CarimboFoto.Montar(Carimbo(), Dados.Unidade, Dados.Endereco, f.CapturadaEm);
-
     private string ArquivoPreparado(FotoRascunho f) =>
-        Path.Combine(PastaDasPreparadas, PreparoDeFotos.NomeNoCache(f.Arquivo, f.Rotacao, Padrao.LadoMaximoFoto, Padrao.QualidadeFoto, CarimboDe(f)));
-
-    /// <summary>
-    /// O carimbo mudou (ajuste, escola ou endereco): as copias carimbadas antigas saem (sao arquivos internos, refeitos
-    /// em segundo plano, uma foto por vez). Fotos e legendas nao sao tocadas.
-    /// </summary>
-    public void CarimboMudou()
-    {
-        LimparPreparadasVelhas();
-        Acordar();
-    }
+        Path.Combine(PastaDasPreparadas, PreparoDeFotos.NomeNoCache(f.Arquivo, f.Rotacao, Padrao.LadoMaximoFoto, Padrao.QualidadeFoto));
 
     /// <summary>Uma miniatura ficou pronta em segundo plano (a tela atualiza).</summary>
     public event Action? MiniaturaPronta;
@@ -246,7 +210,6 @@ public sealed class RascunhoRelatorio
             FotosPorPagina = OpcoesRelatorio.Capacidades.Contains(d.FotosPorPagina) ? d.FotosPorPagina : 6,
             Modo = Enum.IsDefined(d.Modo) ? d.Modo : ModoLegenda.LegendaCurta,
             AssinaturaFiscal = d.AssinaturaFiscal ?? "", AssinaturaContratada = d.AssinaturaContratada ?? "",
-            Endereco = d.Endereco ?? "", EnderecoDe = d.EnderecoDe ?? "", Ponto = d.Ponto is { Valido: true } pt ? pt : null,
             Fotos = fotos,
             Removidas = removidas,
         };
@@ -264,18 +227,10 @@ public sealed class RascunhoRelatorio
     /// </summary>
     public void Alterar(Func<DadosRascunho, DadosRascunho> mudar)
     {
-        bool carimbo;
         lock (_gravando)
         {
-            var antes = Dados;
             Dados = mudar(Dados) with { Alterado = _agora() };
             Gravar();
-            carimbo = antes.Unidade != Dados.Unidade || antes.Endereco != Dados.Endereco;
-        }
-
-        if (carimbo && Carimbo() is { Ligado: true })
-        {
-            CarimboMudou();
         }
 
         Mudou?.Invoke();
@@ -518,21 +473,6 @@ public sealed class RascunhoRelatorio
 
     public void Descrever(int i, string descricao) => Trocar(i, f => f with { Descricao = Limitar(descricao, MaximoDaDescricao) });
 
-    /// <summary>Liga ou desliga o carimbo so nesta foto.</summary>
-    public void SemCarimbo(int i, bool sem)
-    {
-        if (i < 0 || i >= Dados.Fotos.Count || Dados.Fotos[i].SemCarimbo == sem) return;
-        Trocar(i, f => f with { SemCarimbo = sem });
-        CarimboMudou();
-    }
-
-    /// <summary>Endereco do carimbo deste relatorio (do GPS, guardado ou digitado), da escola indicada pela chave.</summary>
-    public void DefinirEndereco(string endereco, PontoGps? ponto, string chave, bool conferido = true) =>
-        Alterar(d => d with { Endereco = TextoMedido.Limpar(endereco).Trim(), Ponto = ponto, EnderecoDe = chave, EnderecoConferido = d.EnderecoConferido || conferido });
-
-    /// <summary>Marca que o GPS ja foi lido neste relatorio (mesmo sem endereco: sem sinal, sem permissao).</summary>
-    public void EnderecoFoiConferido() => Alterar(d => d.EnderecoConferido ? d : d with { EnderecoConferido = true });
-
     public int LegendarVarias(IEnumerable<int> indices, string legenda) => TextoEmVarias(indices, legenda, null);
 
     /// <summary>
@@ -727,9 +667,6 @@ public sealed class RascunhoRelatorio
 
     /// <summary>Quantas fotos estao em pe (pelo formato depois do giro).</summary>
     public int EmPe => Dados.Fotos.Count(f => FormatoGirado(f) is var t && t.Altura > t.Largura);
-
-    /// <summary>Largura e altura da foto como ela sai no relatorio (depois do giro).</summary>
-    public (int Largura, int Altura) TamanhoGirado(FotoRascunho f) => FormatoGirado(f);
 
     private (int Largura, int Altura) FormatoGirado(FotoRascunho f)
     {
@@ -932,7 +869,7 @@ public sealed class RascunhoRelatorio
         if (!Directory.Exists(PastaDasPreparadas) || _gerando.CurrentCount == 0) return; // gerando: a pasta esta em uso
         lock (_miniaturaTrava)
         {
-            // Fica so a versao atual de cada foto (giro e carimbo de agora); as removidas ha pouco ficam para o Desfazer.
+            // Fica so a versao atual de cada foto (giro de agora); as removidas ha pouco ficam para o Desfazer.
             var validas = Dados.Fotos.Concat(Dados.Removidas.Select(r => r.Foto))
                 .Select(f => Path.GetFileName(ArquivoPreparado(f))).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var m in Directory.GetFiles(PastaDasPreparadas))
@@ -1124,10 +1061,10 @@ public sealed class RascunhoRelatorio
         try
         {
             string destino = ArquivoPreparado(pendente);
-            byte[] pronta = Fotos.Preparar(Caminho(pendente), Padrao.LadoMaximoFoto, Padrao.QualidadeFoto, pendente.Rotacao, CarimboDe(pendente));
+            byte[] pronta = Fotos.Preparar(Caminho(pendente), Padrao.LadoMaximoFoto, Padrao.QualidadeFoto, pendente.Rotacao);
             lock (_miniaturaTrava)
             {
-                // so grava se a foto continua no relatorio com o mesmo giro e o mesmo carimbo (nada mudou no meio)
+                // so grava se a foto continua no relatorio com o mesmo giro (nada mudou no meio)
                 if (File.Exists(Caminho(pendente)) && Dados.Fotos.FirstOrDefault(f => f.Arquivo == pendente.Arquivo) is { } atual && ArquivoPreparado(atual) == destino)
                 {
                     PreparoDeFotos.Gravar(destino, pronta);
@@ -1274,48 +1211,6 @@ public sealed class RascunhoRelatorio
         return lista;
     }
 
-    /// <summary>
-    /// O que vale conferir no carimbo antes de gerar (nao impede): fotos sem data de captura, carimbo pequeno demais
-    /// para o papel e carimbo sem o endereco.
-    /// </summary>
-    public IReadOnlyList<string> AvisosDoCarimbo(PlanoRelatorio plano)
-    {
-        var lista = new List<string>();
-        if (Carimbo() is not { Ligado: true } a)
-        {
-            return lista;
-        }
-
-        var fotos = plano.Paginas.SelectMany(p => p.Fotos).ToList();
-        if (a.Data || a.Hora)
-        {
-            var semData = fotos.Where(f => f.Foto.Carimbo is not null && Dados.Fotos.FirstOrDefault(r => Caminho(r) == f.Foto.Caminho) is { CapturadaEm: null })
-                .Select(f => f.Numero.ToString("00")).ToList();
-            if (semData.Count == 1)
-            {
-                lista.Add($"A foto {semData[0]} não tem data de captura: o carimbo dela sai sem data.");
-            }
-            else if (semData.Count > 1)
-            {
-                string nomes = string.Join(", ", semData.Take(5)) + (semData.Count > 5 ? $" e mais {semData.Count - 5}" : "");
-                lista.Add($"{semData.Count} fotos não têm data de captura ({nomes}): o carimbo delas sai sem data.");
-            }
-        }
-
-        var letras = fotos.Select(GeometriaCarimbo.LetraNoPapel).Where(l => l is not null).Select(l => l!.Value).ToList();
-        if (letras.Count > 0 && letras.Min() < GeometriaCarimbo.MenorLetraNoPapel)
-        {
-            lista.Add($"O carimbo ficou pequeno com {plano.Opcoes.Capacidade} fotos por página (letra de {letras.Min().ToString("0.0", new System.Globalization.CultureInfo("pt-BR"))} pt). Aumente o tamanho no passo 2 (Carimbo) ou use menos fotos por página.");
-        }
-
-        if (a.Endereco && Dados.Endereco.Trim().Length == 0 && fotos.Any(f => f.Foto.Carimbo is not null))
-        {
-            lista.Add("O carimbo vai sem endereço. Digite nos dados do relatório ou ligue “Usar o endereço pelo GPS” lá.");
-        }
-
-        return lista;
-    }
-
     public PlanoRelatorio Plano()
     {
         var fotos = Dados.Fotos.Select(f =>
@@ -1328,7 +1223,7 @@ public sealed class RascunhoRelatorio
                 (l, a) = (a, l);
             }
 
-            return new FotoRelatorio(c, l, a) { Legenda = f.Legenda.Trim(), Descricao = f.Descricao.Trim(), Rotacao = f.Rotacao, Carimbo = CarimboDe(f) };
+            return new FotoRelatorio(c, l, a) { Legenda = f.Legenda.Trim(), Descricao = f.Descricao.Trim(), Rotacao = f.Rotacao };
         }).ToList();
         return PaginadorRelatorio.Paginar(fotos, Opcoes(), Cabecalho());
     }

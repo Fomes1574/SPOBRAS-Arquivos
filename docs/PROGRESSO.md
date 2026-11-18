@@ -1,5 +1,26 @@
 # Progresso
 
+## Carimbo nas fotos e GPS retirados em 18/11/2026
+
+A pedido do usuário, o carimbo nas fotos e o endereço pelo GPS saíram do app por completo:
+- **Telas:** saíram o editor, o cartão "Carimbo nas fotos", "Carimbo nesta foto", o cartão "Endereço nas fotos", o selo do endereço na câmera, os avisos do carimbo no passo 3, o carimbo nas prévias e o "Diagnóstico da localização".
+- **Código:** saíram a gravação do carimbo nas cópias e na galeria, a leitura da localização e o serviço de endereço.
+- **Permissões:** o app não pede mais nenhuma permissão de localização.
+
+Continuam:
+- **Câmera:** fotos "Salvando…", fila e foto que não salvou.
+- **Galeria:** recebe a foto igual à do rascunho, em segundo plano.
+- **Diagnóstico da câmera.**
+- **Leveza:** um APK por processador, fonte do relatório reduzida, preparo de uma ou duas fotos por vez em celular com pouca memória.
+
+**Celular que usou a versão com carimbo:**
+- Abre o rascunho e as configurações normalmente: os campos antigos são ignorados e fotos e legendas ficam iguais (teste).
+- As cópias carimbadas antigas e o arquivo de endereços guardados saem sozinhos, por serem arquivos internos do app.
+
+**Testes:** 484 testes, todos passando. O teste visual do celular também passou, e o estresse de 300 fotos chegando juntas mantém as originais idênticas.
+
+As seções abaixo sobre o carimbo e o GPS ficam só como histórico.
+
 ## GPS revisado em 18/11/2026
 
 No teste do usuário, dentro do escritório com Wi-Fi, a leitura terminava em "sem sinal". A causa estava no app: o modo de localização "mais preciso" do MAUI descarta em silêncio toda leitura com mais de 50 m de margem, e dentro de prédio quase todas ficam acima disso. Revisado como na seção 9 de `docs/PLANO_CARIMBO_E_LEVEZA.md`.
@@ -433,11 +454,6 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
 
 ## Pendências com o usuário
-
-- **GPS, segundo teste (18/11/2026):**
-  - No prédio da SIURB o endereço saiu na rua vizinha, com margem de 100 m (o Google Maps também só achou a região).
-  - O interruptor desligado não tirava o endereço das fotos.
-  - Proposta na seção 10 de `docs/PLANO_CARIMBO_E_LEVEZA.md`, aguardando as decisões do usuário.
 
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 

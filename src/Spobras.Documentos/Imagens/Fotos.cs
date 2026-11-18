@@ -44,13 +44,11 @@ public static class Fotos
     }
 
     /// <summary>
-    /// Copia em JPEG, na orientacao certa e com o maior lado limitado. A proporcao e sempre preservada. Com carimbo, ele
-    /// e gravado nesta copia (a original nunca muda).
+    /// Copia em JPEG, na orientacao certa e com o maior lado limitado. A proporcao e sempre preservada.
     /// </summary>
-    public static byte[] Preparar(string caminho, int ladoMaximo, int qualidade, int rotacaoManual = 0, Spobras.Core.Relatorio.CarimboFoto? carimbo = null)
+    public static byte[] Preparar(string caminho, int ladoMaximo, int qualidade, int rotacaoManual = 0)
     {
         using var bitmap = Decodificar(caminho, ladoMaximo, rotacaoManual);
-        Carimbador.Desenhar(bitmap, carimbo); // no mesmo passo, com a imagem ja na memoria
         using var imagem = SKImage.FromBitmap(bitmap);
         using var dados = imagem.Encode(SKEncodedImageFormat.Jpeg, Math.Clamp(qualidade, 1, 100));
         return dados.ToArray();

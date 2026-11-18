@@ -24,10 +24,6 @@
             <div class="flashou"></div>
             <div class="segure" @ref="_segure" hidden>Segure firme…</div>
         </div>
-        @if (TextoEndereco is { } local)
-        {
-            <a class="selo-endereco @(App.Endereco.Lendo ? "lendo" : "")" href="relatorio" aria-label="Endereço das fotos: @local. Abrir os dados do relatório">📍 @local</a>
-        }
         @if (_erroCamera is not null)
         {
             <div class="erro-cam" style="position:absolute;inset:0;display:grid;place-items:center"><div>@_erroCamera<br /><br /><button class="bt-cam" @onclick="Abrir">Tentar de novo</button></div></div>
@@ -89,27 +85,6 @@
 
     private int NaoSalvas => App.Rascunho.Salvando.Count(s => s.Erro is not null);
 
-    /// <summary>Selo do endereco (so com o carimbo usando o endereco).</summary>
-    private string? TextoEndereco
-    {
-        get
-        {
-            if (!EnderecoCelular.Usa(App.Config.Carimbo)) return null;
-            var d = App.Rascunho.Dados;
-            if (d.Endereco.Length > 0 && !App.Endereco.Lendo) return d.Endereco;
-            if (!App.Endereco.UsarGps) return null; // GPS desligado pelo fiscal: nada de localizacao na camera
-            return App.Endereco.Estado switch
-            {
-                EstadoEndereco.Lendo => App.Endereco.Precisao is { } p ? $"procurando a posição… {p:0} m" : "procurando a posição…",
-                EstadoEndereco.SemPermissao => "endereço: permita a localização nos dados",
-                EstadoEndereco.LocalizacaoDesligada => "endereço: ligue a localização do celular",
-                EstadoEndereco.SemSinal => "endereço: posição não encontrada",
-                EstadoEndereco.SemInternet => "sem internet: endereço depois",
-                EstadoEndereco.SemServico => "endereço: digite nos dados",
-                _ => null,
-            };
-        }
-    }
     private string? _erroCamera;
     private bool _opcoes, _frente, _temLanterna, _semFlash;
     private double _proporcaoVisor = 3.0 / 4.0;
@@ -160,7 +135,6 @@
     protected override void Iniciar()
     {
         App.Rascunho.Mudou += Redesenhar;
-        App.Endereco.Mudou += Redesenhar;
         if (App.Rascunho.Dados.Fotos.Count > 0 && App.Rascunho.Miniatura(App.Rascunho.Dados.Fotos[^1]) is { Length: > 0 } url)
         {
             _inicial = url;
@@ -189,7 +163,6 @@
         {
             _modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
             await _modulo.InvokeVoidAsync("ligarDisparo", _disparo, _miniatura, _visor, _segure, App.Camera.Referencia(JS), _contador, App.Camera.MaximoNaFila);
-            _ = App.Endereco.AoAbrirCameraAsync(App.Config.Carimbo); // em segundo plano: a camera nao espera o GPS
         }
 
         var r = await _modulo.InvokeAsync<InicioCamera>("iniciar", _video, _frente);
@@ -253,7 +226,6 @@
     public async ValueTask DisposeAsync()
     {
         App.Rascunho.Mudou -= Redesenhar;
-        App.Endereco.Mudou -= Redesenhar;
         Dispose(); // o Blazor so chama o DisposeAsync quando os dois existem
         if (_modulo is not null)
         {

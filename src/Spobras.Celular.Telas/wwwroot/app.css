@@ -202,7 +202,6 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .fab { white-space: nowrap; }
 .fab svg { width: 22px; height: 22px; flex: none; }
 
-
 .grupo-chip { display: inline-flex; flex: none; }
 .grupo-chip.on .chip { background: var(--preto); color: #fff; border-color: var(--preto); border-radius: 999px 0 0 999px; }
 .grupo-chip.on .limpar-chip { border-radius: 0 999px 999px 0; padding-left: 8px; }
@@ -343,13 +342,11 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .resumo-modo { background: var(--branco); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.45; margin: 8px 0 12px; }
 .resumo-modo a { color: var(--azul); font-weight: 700; display: inline-block; min-height: 32px; line-height: 32px; }
 
-/* Camera: fotos salvando, fila cheia e selo do endereco */
+/* Camera: fotos salvando e fila cheia */
 .camera .pronto-cam { position: relative; }
 .camera .salvando-cam { position: absolute; left: 0; bottom: calc(100% + 6px); white-space: nowrap; background: rgba(0,0,0,.72); color: #fff; font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; pointer-events: none; }
 .camera .salvando-cam.ok { background: #1f7a3a; }
 .camera .disparo.cheia { opacity: .4; cursor: wait; }
-.camera .selo-endereco { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: calc(100% - 24px); box-sizing: border-box; background: rgba(0,0,0,.62); color: #fff; font-size: 13px; padding: 0 12px; min-height: 36px; display: flex; align-items: center; border-radius: 999px; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.camera .selo-endereco.lendo { color: #ddd; }
 
 /* Lista: foto ainda salvando (lugar reservado) e a que nao foi salva */
 .foto.salvando img { opacity: .55; }
@@ -359,27 +356,9 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .foto.nao-salva img { opacity: .4; }
 .foto.nao-salva .estado { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; color: #8a1c14; font-size: 12px; font-weight: 700; padding: 3px 6px; text-align: left; line-height: 1.25; }
 @keyframes girar { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .foto.salvando .girando, .girando-escuro { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .foto.salvando .girando { animation: none; } }
 
-/* Editor do carimbo e previa da foto com carimbo */
-.previa-carimbo { display: block; width: 100%; max-height: 52vh; border-radius: 10px; background: #2b2b2e; margin: 0 auto; }
-.previa-carimbo.arrastavel g.carimbo { cursor: grab; }
-.previa-foto-carimbo { margin-bottom: 10px; }
-.previa-foto-carimbo .previa-carimbo { max-height: 40vh; }
-input.faixa { width: 100%; min-height: 44px; accent-color: var(--vermelho); }
-
-/* Diagnostico da camera e cartao do endereco */
+/* Diagnostico da camera */
 .tabela-diagnostico { width: 100%; border-collapse: collapse; font-size: 14px; }
 .tabela-diagnostico th, .tabela-diagnostico td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--borda-clara, #e5e5e0); }
 .tabela-diagnostico td:nth-child(n+2), .tabela-diagnostico th:nth-child(n+2) { text-align: right; }
-.cartao-endereco .endereco-atual { font-size: 16px; font-weight: 600; margin: 0 0 2px; overflow-wrap: anywhere; }
-.cartao-endereco .lendo-endereco { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
-.girando-escuro { width: 16px; height: 16px; flex: none; border: 2.5px solid #d0d0cc; border-top-color: var(--preto, #1d1d1f); border-radius: 50%; animation: girar .8s linear infinite; }
-.cartao-carimbo { display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; text-align: left; background: var(--branco); border: 1.5px solid var(--borda); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; min-height: 56px; font: inherit; color: var(--preto); cursor: pointer; }
-.cartao-carimbo .txt { min-width: 0; }
-.cartao-carimbo .txt b { display: block; font-size: 15px; }
-.cartao-carimbo .txt span { font-size: 13px; color: var(--sec); }
-.cartao-carimbo .estado-carimbo { flex: none; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--borda-clara); color: var(--sec); }
-.cartao-carimbo.on .estado-carimbo { background: var(--vermelho); color: #fff; }
-.cartao-endereco .gps-opcao { margin-bottom: 8px; }
-.cartao-endereco .aviso-precisao { margin: 0 0 10px; color: #7a3d00; }

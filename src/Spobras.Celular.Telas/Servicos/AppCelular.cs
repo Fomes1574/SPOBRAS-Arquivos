@@ -15,13 +15,39 @@ public sealed class AppCelular
         Base = new BaseCelular(plataforma, Preferencias, Agora);
         // Celular com pouca memoria prepara uma (ou duas) fotos por vez: mais devagar, mas sem o sistema fechar o app.
         Spobras.Documentos.Relatorio.PreparoDeFotos.Limite = Math.Clamp(plataforma.FotosAoMesmoTempo, 1, 4);
-        Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora, () => Preferencias.Ler().Carimbo);
-        Enderecos = new EnderecosGuardados(plataforma.PastaDoApp);
-        Endereco = new EnderecoCelular(plataforma, Rascunho, Enderecos, Agora, () => Preferencias.Ler().EnderecoPeloGps);
+        Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora);
         Camera = new FotosDaCamera(this);
         Galeria = new FilaDaGaleria(this);
         Pdf = new PdfCelular(plataforma, Preferencias);
         ResumoPdf = new ResumoPdfCelular(this);
+        LimparSobrasDoCarimbo();
+    }
+
+    /// <summary>
+    /// Arquivos internos da versao que tinha carimbo e GPS (enderecos guardados e copias temporarias da galeria): o
+    /// app nao usa mais. Fotos e rascunho nao sao tocados.
+    /// </summary>
+    private void LimparSobrasDoCarimbo()
+    {
+        foreach (string nome in new[] { "enderecos.json", "enderecos.json.bak", "enderecos.json.tmp" })
+        {
+            try
+            {
+                File.Delete(Path.Combine(Plataforma.PastaDoApp, nome));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+            }
+        }
+
+        try
+        {
+            string temp = Path.Combine(Plataforma.PastaDoApp, "galeria-temp");
+            if (Directory.Exists(temp)) Directory.Delete(temp, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     public IPlataforma Plataforma { get; }
@@ -30,8 +56,6 @@ public sealed class AppCelular
     public BaseCelular Base { get; }
     public RascunhoRelatorio Rascunho { get; }
     public PdfCelular Pdf { get; }
-    public EnderecosGuardados Enderecos { get; }
-    public EnderecoCelular Endereco { get; }
     public FotosDaCamera Camera { get; }
     public FilaDaGaleria Galeria { get; }
 
@@ -46,29 +70,6 @@ public sealed class AppCelular
     public Preferencias Config => Preferencias.Ler();
 
     public void Configurar(Func<Preferencias, Preferencias> mudar) => Preferencias.Gravar(mudar(Preferencias.Ler()));
-
-    /// <summary>
-    /// O fiscal ligou "Usar o endereco pelo GPS": so agora o app pede a permissao (a janela do Android) e le a
-    /// posicao uma vez.
-    /// </summary>
-    public Task LigarEnderecoPeloGpsAsync()
-    {
-        Configurar(p => p with { EnderecoPeloGps = true });
-        return Endereco.LerAsync(atualizar: false, pedirPermissao: true);
-    }
-
-    /// <summary>Desligado: o app nao usa mais a localizacao. O endereco que ja estava (lido ou digitado) continua.</summary>
-    public void DesligarEnderecoPeloGps() => Configurar(p => p with { EnderecoPeloGps = false });
-
-    /// <summary>Muda o carimbo: as copias carimbadas antigas saem e as novas sao feitas em segundo plano.</summary>
-    public void Carimbar(Func<Spobras.Core.Relatorio.AjusteCarimbo, Spobras.Core.Relatorio.AjusteCarimbo> mudar)
-    {
-        var antes = Config.Carimbo;
-        var depois = mudar(antes).Normalizado();
-        if (depois == antes) return;
-        Configurar(p => p with { Carimbo = depois });
-        Rascunho.CarimboMudou();
-    }
 
     /// <summary>Guarda os ultimos arquivos gerados (para a tela inicial).</summary>
     public void Registrar(IEnumerable<Salvo> salvos) =>

@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Microsoft.JSInterop;
-using Spobras.Core.Relatorio;
-using Spobras.Documentos.Imagens;
 
 namespace Spobras.Celular.Servicos;
 
@@ -56,7 +54,7 @@ public sealed class FotosDaCamera(AppCelular app)
 
         if (app.Config.FotosNaGaleria)
         {
-            app.Galeria.Enfileirar(foto, app.Config.Carimbo);
+            app.Galeria.Enfileirar(foto);
         }
     }
 
@@ -82,23 +80,18 @@ public sealed class FotosDaCamera(AppCelular app)
 
 /// <summary>
 /// Guarda na galeria do celular as fotos tiradas pelo app (quando a opcao esta ligada), uma por vez, em segundo plano,
-/// sem atrasar a camera. Com o carimbo ligado no momento da foto, vai a foto carimbada em tamanho cheio; a original sem
-/// carimbo fica no rascunho. Se o endereco ainda estiver sendo lido, espera ate 30 s por ele.
+/// sem atrasar a camera. A foto vai igual a do rascunho.
 /// </summary>
 public sealed class FilaDaGaleria(AppCelular app)
 {
-    public static readonly TimeSpan EsperaDoEndereco = TimeSpan.FromSeconds(30);
-
-    private sealed record Item(FotoRascunho Foto, string Caminho, AjusteCarimbo? Ajuste, DateTimeOffset Entrou);
-
-    private readonly ConcurrentQueue<Item> _fila = new();
+    private readonly ConcurrentQueue<string> _fila = new();
     private int _trabalhando;
 
     public int Pendentes => _fila.Count + Volatile.Read(ref _trabalhando);
 
-    public void Enfileirar(FotoRascunho foto, AjusteCarimbo? ajuste)
+    public void Enfileirar(FotoRascunho foto)
     {
-        _fila.Enqueue(new Item(foto, app.Rascunho.Caminho(foto), ajuste is { Ligado: true } ? ajuste : null, app.Agora()));
+        _fila.Enqueue(app.Rascunho.Caminho(foto));
         if (Interlocked.CompareExchange(ref _trabalhando, 1, 0) == 0)
         {
             _ = Task.Run(ProcessarAsync);
@@ -119,9 +112,19 @@ public sealed class FilaDaGaleria(AppCelular app)
     {
         try
         {
-            while (_fila.TryDequeue(out var item))
+            while (_fila.TryDequeue(out var caminho))
             {
-                await GuardarAsync(item);
+                try
+                {
+                    if (File.Exists(caminho)) // saiu do rascunho antes de chegar a vez (Novo relatorio): nada a fazer
+                    {
+                        await app.Plataforma.GuardarNaGaleriaAsync(caminho);
+                    }
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+                {
+                    // a galeria e uma copia a mais: a foto continua segura no rascunho
+                }
             }
         }
         finally
@@ -130,61 +133,6 @@ public sealed class FilaDaGaleria(AppCelular app)
             if (!_fila.IsEmpty && Interlocked.CompareExchange(ref _trabalhando, 1, 0) == 0)
             {
                 _ = Task.Run(ProcessarAsync);
-            }
-        }
-    }
-
-    private async Task GuardarAsync(Item item)
-    {
-        string? temp = null;
-        try
-        {
-            if (!File.Exists(item.Caminho))
-            {
-                return; // saiu do rascunho antes de chegar a vez (Novo relatorio)
-            }
-
-            string arquivo = item.Caminho;
-            if (item.Ajuste is { } ajuste)
-            {
-                if (EnderecoCelular.Usa(ajuste))
-                {
-                    // o endereco ainda esta sendo lido: espera um pouco por ele
-                    while (app.Endereco.Lendo && app.Agora() - item.Entrou < EsperaDoEndereco)
-                    {
-                        await Task.Delay(300);
-                    }
-                }
-
-                var d = app.Rascunho.Dados;
-                if (CarimboFoto.Montar(ajuste, d.Unidade, d.Endereco, item.Foto.CapturadaEm) is { } carimbo)
-                {
-                    string pasta = Path.Combine(app.Plataforma.PastaDoApp, "galeria-temp");
-                    Directory.CreateDirectory(pasta);
-                    temp = Path.Combine(pasta, Path.GetFileName(item.Caminho));
-                    byte[] carimbada = Fotos.Preparar(item.Caminho, 20000, 92, 0, carimbo); // tamanho cheio
-                    await File.WriteAllBytesAsync(temp, carimbada);
-                    arquivo = temp;
-                }
-            }
-
-            await app.Plataforma.GuardarNaGaleriaAsync(arquivo);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FotoInvalidaException or InvalidOperationException)
-        {
-            // a galeria e uma copia a mais: a foto continua segura no rascunho
-        }
-        finally
-        {
-            if (temp is not null)
-            {
-                try
-                {
-                    File.Delete(temp); // copia temporaria do proprio app
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                }
             }
         }
     }
