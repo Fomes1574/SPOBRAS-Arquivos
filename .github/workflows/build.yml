@@ -127,7 +127,7 @@ jobs:
       - name: Gerar os APKs
         run: |
           for rid in android-arm64 android-arm; do
-            dotnet publish src/Spobras.Celular -c Release -f net10.0-android -r $rid -p:RuntimeIdentifiers=$rid \
+            dotnet publish src/Spobras.Celular -c Release -f net10.0-android -p:ProcessadorDoApk=$rid \
               -p:AndroidSdkDirectory="$ANDROID_HOME" $ASSINATURA -o publish/celular-$rid
           done
 

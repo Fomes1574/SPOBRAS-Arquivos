@@ -20,8 +20,10 @@
     <!-- APK (nao AAB): instala direto, sem loja. -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RuntimeIdentifiers>android-arm64;android-arm</RuntimeIdentifiers>
-    <!-- O CI gera um APK para cada tipo de processador (64 e 32 bits), publicando uma vez para cada um
-         (-r android-arm64 / -r android-arm): cada APK leva so o codigo daquele processador. -->
+    <RuntimeIdentifiers Condition="'$(ProcessadorDoApk)' != ''">$(ProcessadorDoApk)</RuntimeIdentifiers>
+    <!-- O CI gera um APK para cada tipo de processador (64 e 32 bits), publicando uma vez para cada um com
+         -p:ProcessadorDoApk=android-arm64 / android-arm: cada APK leva so o codigo daquele processador. (Uma
+         propriedade propria, porque RuntimeIdentifier(s) na linha de comando passaria para as bibliotecas.) -->
 
     <!-- Os pacotes do MAUI usam a versao do workload, fora do controle central de versoes. -->
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
