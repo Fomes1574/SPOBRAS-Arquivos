@@ -20,10 +20,8 @@
     <!-- APK (nao AAB): instala direto, sem loja. -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RuntimeIdentifiers>android-arm64;android-arm</RuntimeIdentifiers>
-    <!-- Um APK para cada tipo de processador (64 bits e 32 bits), cada um com perto da metade do tamanho do APK
-         unico. O de 32 bits fica para celular simples com Android Go. O codigo de versao de cada um ganha o numero do
-         tipo na frente (padrao do .NET), entao os dois instalam por cima da versao antiga com os dados guardados. -->
-    <AndroidCreatePackagePerAbi Condition="'$(Configuration)' == 'Release'">true</AndroidCreatePackagePerAbi>
+    <!-- O CI gera um APK para cada tipo de processador (64 e 32 bits), publicando uma vez para cada um
+         (-r android-arm64 / -r android-arm): cada APK leva so o codigo daquele processador. -->
 
     <!-- Os pacotes do MAUI usam a versao do workload, fora do controle central de versoes. -->
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
