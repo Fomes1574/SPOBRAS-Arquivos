@@ -1,0 +1,117 @@
+@using Spobras.Core.Relatorio
+@implements IDisposable
+@inject AppCelular App
+@* Endereco das fotos (carimbo): lido pelo GPS uma vez por relatorio, guardado por escola e contrato. *@
+<div class="painel cartao-endereco" aria-live="polite">
+    <h2>Endereço das fotos</h2>
+    @if (Chave is null)
+    {
+        <p class="texto2">Escolha a unidade educacional acima: o endereço fica guardado para cada escola.</p>
+    }
+    else if (_editando)
+    {
+        <CampoTexto Rotulo="Endereço" Valor="@D.Endereco" Dica="Ex.: Rua Exemplo, 123 – Vila Exemplo" Maximo="120" AoMudar="Salvar" />
+        <div class="linha-btns"><button class="btn linha pequeno" @onclick="() => _editando = false">Pronto</button></div>
+    }
+    else
+    {
+        @if (App.Endereco.Distancia is { } longe)
+        {
+            <Aviso Tipo="atencao">
+                <span>Você está a @EnderecoDasFotos.TextoDistancia(longe) do endereço guardado desta escola. Atualizar?</span>
+            </Aviso>
+            <div class="linha-btns" style="margin-bottom:10px">
+                <button class="btn primario pequeno" @onclick="() => App.Endereco.AtualizarPeloAvisoAsync()">Atualizar</button>
+                <button class="btn linha pequeno" @onclick="App.Endereco.ManterEndereco">Manter</button>
+            </div>
+        }
+        @if (App.Endereco.Lendo)
+        {
+            <p class="lendo-endereco"><span class="girando-escuro" aria-hidden="true"></span>@(App.Endereco.Precisao is { } p ? $"Procurando sinal… precisão {p:0} m" : "Procurando sinal do GPS…")</p>
+        }
+        else if (D.Endereco.Length > 0)
+        {
+            <p class="endereco-atual">@D.Endereco</p>
+            <p class="mini" style="margin:0 0 10px">@Origem</p>
+        }
+        else if (MesmoNome is { } outro)
+        {
+            <p class="texto2">Já existe um endereço guardado para uma unidade com este nome@(outro.Contrato.Length > 0 ? $" (contrato {outro.Contrato})" : ""): <b>@outro.Endereco</b>. É o mesmo local?</p>
+            <div class="linha-btns" style="margin-bottom:8px">
+                <button class="btn primario pequeno" @onclick="() => App.Endereco.UsarMesmoNome(outro)">Usar este</button>
+                <button class="btn linha pequeno" @onclick="() => App.Endereco.LerAsync(atualizar: true)">Ler pelo GPS</button>
+            </div>
+        }
+        else
+        {
+            <p class="texto2">@Situacao</p>
+        }
+        @if (App.Endereco.Aproximada && !App.Endereco.Lendo)
+        {
+            <p class="mini" style="margin:0 0 10px;color:var(--laranja-escuro, #8a4b00)">O celular liberou só a localização aproximada: o endereço pode sair errado. Permita a localização precisa nas configurações do Android.</p>
+        }
+        @if (!App.Endereco.Lendo)
+        {
+            <div class="linha-btns">
+                <button class="btn linha pequeno" @onclick="Ler">@TextoLer</button>
+                <button class="btn linha pequeno" @onclick="() => _editando = true">@(D.Endereco.Length > 0 ? "Editar" : "Digitar")</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    /// <summary>Chave da escola atual (nome + contrato): mudou, o endereco e conferido de novo.</summary>
+    [Parameter] public string? Chave { get; set; }
+
+    private bool _editando;
+
+    private DadosRascunho D => App.Rascunho.Dados;
+
+    private EnderecoGuardado? MesmoNome => App.Endereco.MesmoNome.FirstOrDefault();
+
+    protected override void OnInitialized() => App.Endereco.Mudou += Redesenhar;
+
+    protected override void OnParametersSet() => App.Endereco.Sincronizar();
+
+    public void Dispose() => App.Endereco.Mudou -= Redesenhar;
+
+    private void Redesenhar() => _ = InvokeAsync(StateHasChanged);
+
+    private void Salvar(string texto) => App.Endereco.Editar(texto);
+
+    private Task Ler() =>
+        App.Endereco.Estado == EstadoEndereco.SemInternet && D.Ponto is not null ? App.Endereco.TentarDeNovoAsync() : App.Endereco.LerAsync(atualizar: true);
+
+    private string TextoLer => App.Endereco.Estado switch
+    {
+        EstadoEndereco.SemPermissao => "Permitir e ler",
+        EstadoEndereco.SemSinal or EstadoEndereco.SemInternet => "Tentar de novo",
+        _ => D.Endereco.Length > 0 ? "Ler de novo" : "Ler pelo GPS",
+    };
+
+    private string Situacao => App.Endereco.Estado switch
+    {
+        EstadoEndereco.SemPermissao => "Sem permissão de localização. Permita para o app ler o endereço, ou digite.",
+        EstadoEndereco.SemSinal => "Sem sinal do GPS. Tente perto da entrada da escola, ou digite.",
+        EstadoEndereco.SemInternet => "Sem internet: o ponto do GPS foi guardado e o endereço é buscado quando houver sinal.",
+        EstadoEndereco.SemServico => "Este celular não transformou o ponto em endereço. Digite o endereço.",
+        _ => "O endereço é lido pelo GPS quando a câmera abrir. Também dá para ler agora ou digitar.",
+    };
+
+    private string Origem
+    {
+        get
+        {
+            var guardado = App.Enderecos.Buscar(Chave);
+            if (guardado is { Digitado: true } && guardado.Endereco == D.Endereco) return "Digitado · guardado para esta escola";
+            if (D.Ponto is { } p)
+            {
+                string quando = p.LidoEm.ToLocalTime().ToString("dd/MM/yyyy 'às' HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+                return $"Lido pelo GPS em {quando} · precisão {p.Precisao:0} m";
+            }
+
+            return "Guardado para esta escola";
+        }
+    }
+}

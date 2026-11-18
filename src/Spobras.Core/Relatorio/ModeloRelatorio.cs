@@ -69,6 +69,9 @@ public sealed record FotoRelatorio(string Caminho, int Largura, int Altura)
 
     /// <summary>Rotacao manual em graus (0, 90, 180, 270), alem da orientacao EXIF.</summary>
     public int Rotacao { get; init; }
+
+    /// <summary>Carimbo gravado na copia da foto que vai para o relatorio (so no celular). A original nao muda.</summary>
+    public CarimboFoto? Carimbo { get; init; }
 }
 
 /// <summary>Retangulo em pontos na folha A4 (origem no canto de cima a esquerda da folha).</summary>

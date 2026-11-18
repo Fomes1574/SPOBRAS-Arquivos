@@ -50,6 +50,10 @@
     <CampoTexto PermiteApagar="true" Rotulo="Processo SEI" Valor="@D.ProcessoSei" Dica="Opcional" AoMudar="v => Mudar(d => d with { ProcessoSei = v })" />
     <CampoTexto PermiteApagar="true" Rotulo="Objeto" Valor="@D.Objeto" Linhas="2" AoMudar="v => Mudar(d => d with { Objeto = v })" />
     <CampoTexto PermiteApagar="true" Rotulo="Descrição geral" Valor="@D.Descricao" Linhas="3" Maximo="Spobras.Core.Relatorio.OpcoesRelatorio.MaximoDaDescricaoGeral" Dica="Um resumo da visita ou do serviço" AoMudar="v => Mudar(d => d with { Descricao = v })" />
+    @if (EnderecoCelular.Usa(App.Config.Carimbo))
+    {
+        <CartaoEndereco Chave="@Spobras.Core.Relatorio.EnderecoDasFotos.Chave(D.Unidade, D.Contrato)" />
+    }
     <button class="btn linha" style="margin-bottom:10px" @onclick="Atualizar" disabled="@(!App.Base.TemDados)">Atualizar dados pela base</button>
     <a class="btn primario" href="relatorio/fotos">Continuar para as fotos</a>
     @if (!App.Rascunho.Vazio)
@@ -236,10 +240,24 @@
         Informar(mudou.Count == 0 ? "ok" : "info", mudou.Count == 0 ? "Os dados já estavam iguais aos da base." : $"Atualizado pela base: {string.Join(", ", mudou)}.");
     }
 
-    private void Recomecar()
+    private async Task Recomecar()
     {
-        App.Rascunho.Recomecar();
         _recomecar = false;
+        if (App.Rascunho.SalvandoAgora > 0)
+        {
+            // foto da camera ainda salvando: espera terminar, para ela nao cair no relatorio novo
+            _mensagem = "Esperando as fotos terminarem de salvar…";
+            _tipo = "info";
+            StateHasChanged();
+            if (!await App.Rascunho.EsperarSalvarAsync(TimeSpan.FromSeconds(30)))
+            {
+                _mensagem = "Ainda há fotos salvando. Tente começar de novo daqui a pouco.";
+                _tipo = "atencao";
+                return;
+            }
+        }
+
+        App.Rascunho.Recomecar();
         _mensagem = null;
     }
 }

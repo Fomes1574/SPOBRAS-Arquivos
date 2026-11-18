@@ -292,8 +292,8 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .padrao { margin-top: 14px; }
 
 /* Fonte do relatorio (Carlito, licenca OFL: fontes/OFL.txt), a mesma do PDF: a previa quebra as linhas igual. */
-@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/Carlito-Regular.ttf") format("truetype"); font-weight: 400; }
-@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/Carlito-Bold.ttf") format("truetype"); font-weight: 700; }
+@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/SpobrasRelatorio-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "SPOBRAS Relatorio"; src: url("fontes/SpobrasRelatorio-Bold.ttf") format("truetype"); font-weight: 700; }
 .previa-pagina { background: #fff; border: 1px solid var(--borda); border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .previa-pagina svg { display: block; width: 100%; height: auto; font-family: "SPOBRAS Relatorio", Carlito, Calibri, sans-serif; }
 .base-contratos .chip, .resumo-acao { min-width:44px; min-height:44px; white-space:nowrap; }
@@ -342,3 +342,42 @@ a.atalho, a.obra, a.btn { color: inherit; text-decoration: none; }
 .chip.apagado { color: #6b6b70; background: #F7F7F5; border-style: dashed; cursor: default; }
 .resumo-modo { background: var(--branco); border: 1px solid var(--borda); border-radius: 12px; padding: 10px 12px; font-size: 14px; line-height: 1.45; margin: 8px 0 12px; }
 .resumo-modo a { color: var(--azul); font-weight: 700; display: inline-block; min-height: 32px; line-height: 32px; }
+
+/* Camera: fotos salvando, fila cheia e selo do endereco */
+.camera .pronto-cam { position: relative; }
+.camera .salvando-cam { position: absolute; left: 0; bottom: calc(100% + 6px); white-space: nowrap; background: rgba(0,0,0,.72); color: #fff; font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px; pointer-events: none; }
+.camera .salvando-cam.ok { background: #1f7a3a; }
+.camera .disparo.cheia { opacity: .4; cursor: wait; }
+.camera .selo-endereco { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); max-width: calc(100% - 24px); box-sizing: border-box; background: rgba(0,0,0,.62); color: #fff; font-size: 13px; padding: 0 12px; min-height: 36px; display: flex; align-items: center; border-radius: 999px; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.camera .selo-endereco.lendo { color: #ddd; }
+
+/* Lista: foto ainda salvando (lugar reservado) e a que nao foi salva */
+.foto.salvando img { opacity: .55; }
+.foto.salvando .girando { position: absolute; right: 6px; top: 6px; width: 16px; height: 16px; border: 2.5px solid rgba(255,255,255,.5); border-top-color: #fff; border-radius: 50%; animation: girar .8s linear infinite; }
+.foto.salvando .estado { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 6px; text-align: left; }
+.foto.nao-salva { outline: 3px solid var(--vermelho); outline-offset: -3px; }
+.foto.nao-salva img { opacity: .4; }
+.foto.nao-salva .estado { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; color: #8a1c14; font-size: 12px; font-weight: 700; padding: 3px 6px; text-align: left; line-height: 1.25; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .foto.salvando .girando, .girando-escuro { animation: none; } }
+
+/* Editor do carimbo e previa da foto com carimbo */
+.previa-carimbo { display: block; width: 100%; max-height: 52vh; border-radius: 10px; background: #2b2b2e; margin: 0 auto; }
+.previa-carimbo.arrastavel g.carimbo { cursor: grab; }
+.previa-foto-carimbo { margin-bottom: 10px; }
+.previa-foto-carimbo .previa-carimbo { max-height: 40vh; }
+input.faixa { width: 100%; min-height: 44px; accent-color: var(--vermelho); }
+
+/* Diagnostico da camera e cartao do endereco */
+.tabela-diagnostico { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabela-diagnostico th, .tabela-diagnostico td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--borda-clara, #e5e5e0); }
+.tabela-diagnostico td:nth-child(n+2), .tabela-diagnostico th:nth-child(n+2) { text-align: right; }
+.cartao-endereco .endereco-atual { font-size: 16px; font-weight: 600; margin: 0 0 2px; overflow-wrap: anywhere; }
+.cartao-endereco .lendo-endereco { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+.girando-escuro { width: 16px; height: 16px; flex: none; border: 2.5px solid #d0d0cc; border-top-color: var(--preto, #1d1d1f); border-radius: 50%; animation: girar .8s linear infinite; }
+.cartao-carimbo { display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%; text-align: left; background: var(--branco); border: 1.5px solid var(--borda); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; min-height: 56px; font: inherit; color: var(--preto); cursor: pointer; }
+.cartao-carimbo .txt { min-width: 0; }
+.cartao-carimbo .txt b { display: block; font-size: 15px; }
+.cartao-carimbo .txt span { font-size: 13px; color: var(--sec); }
+.cartao-carimbo .estado-carimbo { flex: none; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 4px 10px; background: var(--borda-clara); color: var(--sec); }
+.cartao-carimbo.on .estado-carimbo { background: var(--vermelho); color: #fff; }

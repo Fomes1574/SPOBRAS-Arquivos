@@ -1,6 +1,6 @@
 # Plano: carimbo nas fotos, endereço pelo GPS e leveza do app
 
-Fase de projeto (18/11/2026). Nada aqui está implementado. Quando o usuário liberar, cada parte vira um passo com testes, CI verde e registro em `PROGRESSO.md`.
+Projetado e liberado em 18/11/2026; **implementado em 18/11/2026** (ver `PROGRESSO.md`). Onde a implementação ficou diferente do projeto, o texto abaixo já está corrigido.
 
 ## 0. Regra de ouro das otimizações: não perder arquivos
 
@@ -91,12 +91,12 @@ Rua Exemplo, 123 – Vila Exemplo
 - **Posição:** o fiscal arrasta o carimbo. Ao soltar, ele gruda no canto mais próximo.
 - **Tamanho:** pinça com dois dedos, ou a barra "Tamanho" (no PC, só a barra).
 - **Como fica guardado:** canto, distância até o canto e tamanho, tudo como fração do lado menor da foto. Por isso o carimbo fica no mesmo lugar visual em foto em pé, deitada e girada.
-- **Alcance:** a configuração vale para o relatório inteiro e fica como padrão do próximo. O botão "Padrão" volta para o canto inferior esquerdo, tamanho médio.
+- **Alcance:** a configuração vale para o relatório inteiro e fica como padrão do próximo. O botão "Padrão" volta para o canto inferior esquerdo, no tamanho padrão.
 - **Exceção:** cada foto pode ter "Sem carimbo nesta foto" na ficha da foto.
 
 ### Sempre legível e nunca fora da foto
 
-- **Letra mínima:** 5,5 pt no papel, no menor quadro do formato escolhido. Com 8 fotos por página o carimbo cresce até esse mínimo, e a tela mostra "Carimbo aumentado para ficar legível com 8 por página".
+- **Letra mínima:** 5 pt no papel. O tamanho padrão (6% do lado menor da foto) dá pelo menos isso até 6 fotos por página, mesmo com o cabeçalho completo e as assinaturas (teste). Se o tamanho escolhido der menos que isso no formato de página escolhido (por exemplo, 8 por página), o passo 3 avisa: "O carimbo ficou pequeno com 8 fotos por página (letra de 4,6 pt). Aumente o tamanho…". O app não aumenta sozinho, para a cópia carimbada não ser refeita a cada troca do número de fotos por página.
 - **Tamanho máximo:** 60% da largura e 35% da altura da foto. O endereço quebra em até 2 linhas; o que passar disso termina em "…".
 - **Limites:** a faixa nunca sai da área da foto nem encosta na borda (margem mínima de 2% do lado menor).
 
@@ -106,8 +106,8 @@ O carimbo é **gravado na cópia reduzida** (1.600 px) que vai para o relatório
 
 - **Na tela:** enquanto o fiscal arrasta e muda o tamanho, a prévia desenha o carimbo por cima da foto, sem gravar nada. Por isso a resposta ao dedo é instantânea. A conta da posição e a fonte são as mesmas da gravação, então o que se vê é o que sai.
 - **Sem passo a mais na geração:** a cópia carimbada é feita junto com a cópia reduzida, em segundo plano, assim que a foto entra, e no mesmo passo, enquanto a imagem já está na memória. Na hora de gerar, ela já está pronta.
-- **Mudou o carimbo:** só a cópia carimbada é refeita, a partir da cópia reduzida sem carimbo (que é pequena), uma foto por vez, em segundo plano. A versão antiga sai: é arquivo interno, e o app refaz quando precisar.
-- **Custo:** estimativa de 40 a 80 ms por foto num celular simples, gastos enquanto o fiscal escreve as legendas. Medir no estresse.
+- **Mudou o carimbo:** a cópia carimbada é refeita a partir da original (lida já reduzida), uma foto por vez, em segundo plano. Fica só uma cópia por foto (não guarda a sem carimbo junto), para não dobrar o espaço ocupado. A versão antiga sai: é arquivo interno, e o app refaz quando precisar.
+- **Custo medido (computador, 300 fotos de 2400 px):** 73 ms por foto sem carimbo e 73 a 75 ms com carimbo, a mesma memória (cerca de 93 MB). A conta da posição leva 2 microssegundos. A cópia carimbada em tamanho cheio para a galeria levou cerca de 120 ms por foto. No celular simples os tempos são maiores, mas a diferença com e sem carimbo continua pequena.
 
 ### Galeria com carimbo (decidido em 18/11/2026)
 
@@ -223,7 +223,7 @@ O problema relatado em 18/11/2026: depois de 3 fotos seguidas, o relatório apar
 
 1. **A foto entra na lista no toque.** O lugar dela é reservado na hora, com a imagem do visor e "Salvando…" (nunca "gravando", que lembra vídeo). Detalhes em "Como fica o Salvando" abaixo.
 2. **Contador na câmera:** "Salvando 2…" embaixo da miniatura da última foto.
-3. **Fila na câmera:** os toques nunca esperam a foto anterior terminar de salvar. A câmera só pede para esperar se 6 fotos estiverem salvando ao mesmo tempo, para não estourar a memória do celular simples.
+3. **Fila na câmera:** os toques nunca esperam a foto anterior terminar de salvar. A câmera só pede para esperar se 6 fotos estiverem salvando ao mesmo tempo (3 num celular com pouca memória), para não estourar a memória do celular simples.
 4. **Medir antes de otimizar:** uma tela de diagnóstico (escondida nas Configurações) mostra o tempo de cada passo nas últimas fotos: pegar a imagem, transformar em JPEG, passar para o app, gravar e miniatura. Com os números de um celular de verdade, otimizar o passo mais lento. Candidatos:
    - transformar em JPEG fora da tela principal (worker), sem travar os toques;
    - passar a foto da câmera para o app sem a conversão em texto que a ponte entre página e app faz hoje (verificar no .NET 10).
@@ -243,7 +243,7 @@ O problema relatado em 18/11/2026: depois de 3 fotos seguidas, o relatório apar
 - **Bloqueio rápido:** enquanto salva, que costuma levar até 2 segundos, a foto não pode ser girada, arrastada, marcada nem receber legenda. Tocar nela mostra "Aguarde, a foto está sendo salva".
 - **Quando termina:** a foto fica normal e o círculo some, sem mensagem.
 - **Topo da lista:** "12 fotos · 2 salvando". O "· 2 salvando" some quando acabam.
-- **Falha ao salvar:** a foto fica com borda vermelha e o texto "Não foi possível salvar esta foto", com dois botões. "Tentar de novo" aparece enquanto a imagem ainda está na memória; "Tirar" está sempre disponível. A foto nunca some sem aviso.
+- **Falha ao salvar:** a foto fica com borda vermelha e "Não salva · toque". O toque abre "Esta foto não foi salva", com o motivo e dois botões: "Tentar de novo" (funciona enquanto a imagem ainda está na memória; se não estiver, o app avisa para tirar de novo) e "Tirar da lista". A foto nunca some sem aviso.
 - **Gerar com fotos salvando:** o app mostra "Esperando 2 fotos terminarem de salvar…" e continua sozinho.
 
 **Se o app for fechado à força durante o "Salvando"**

@@ -34,12 +34,20 @@
             <span class="radio"></span><DesenhoPagina Fotos="4" /><span class="txt"><b>Legenda e descrição do serviço</b><span>Até 4 fotos por página: o texto ocupa mais espaço</span></span>
         </button>
     </div>
+    @if (!_selecionando)
+    {
+        <button class="cartao-carimbo @(Ajuste.Ligado ? "on" : "")" @onclick="AbrirCarimbo" aria-label="Carimbo nas fotos: @(Ajuste.Ligado ? "ligado" : "desligado")">
+            <span class="txt"><b>Carimbo nas fotos</b><span>@ResumoCarimbo</span></span>
+            <span class="estado-carimbo">@(Ajuste.Ligado ? "Ligado" : "Desligado")</span>
+        </button>
+    }
     @if (App.Rascunho.DescricoesGuardadas > 0)
     {
         <Aviso Tipo="atencao">@Formato.Plural(App.Rascunho.DescricoesGuardadas, "foto tem", "fotos têm") descrição guardada. Com “Só legenda” ela não sai no relatório, mas continua aqui.</Aviso>
     }
     <div class="linha-btns" style="margin-bottom:10px">
         <button class="btn linha pequeno" @onclick="DaGaleria">Da galeria</button>
+
         @if (Fotos.Count > 0 && !_selecionando)
         {
             <button class="btn linha pequeno" @onclick="() => _ordenar = true">Ordenar ▾</button>
@@ -109,6 +117,31 @@
                 }
             </button>
         }
+        @foreach (var sv in App.Rascunho.Salvando)
+        {
+            var esta = sv;
+            if (esta.Erro is null)
+            {
+                <div class="foto salvando" @key="esta.Id" role="img" aria-label="Foto @(Fotos.Count + 1): salvando">
+                    @if (esta.Previa.Length > 0)
+                    {
+                        <img src="@esta.Previa" alt="" />
+                    }
+                    <span class="girando" aria-hidden="true"></span>
+                    <span class="estado">Salvando…</span>
+                </div>
+            }
+            else
+            {
+                <button class="foto nao-salva" @key="esta.Id" @onclick="() => _naoSalva = esta.Id" aria-label="Foto não salva. Tocar para tentar de novo ou tirar">
+                    @if (esta.Previa.Length > 0)
+                    {
+                        <img src="@esta.Previa" alt="" />
+                    }
+                    <span class="estado">Não salva · toque</span>
+                </button>
+            }
+        }
         <a class="foto add" href="relatorio/camera" style="text-decoration:none">+ Tirar foto</a>
     </div>
     <Aviso Tipo="ok"><span>Fotos guardadas no rascunho dentro do app. Pode sair, atender ligação ou desligar o celular: ao voltar, está tudo aqui.</span></Aviso>
@@ -143,6 +176,66 @@
     </div>
 }
 
+@if (_naoSalva is long idNaoSalva && App.Rascunho.Salvando.FirstOrDefault(x => x.Id == idNaoSalva) is { Erro: { } motivo } naoSalva)
+{
+    <Folha Aberta="true" Titulo="Esta foto não foi salva" AoFechar="() => _naoSalva = null">
+        @if (naoSalva.Previa.Length > 0)
+        {
+            <img class="previa-foto" src="@naoSalva.Previa" alt="Foto que não foi salva" />
+        }
+        <p class="texto2" style="margin:0 0 12px">Não foi possível salvar esta foto (@motivo). Ela ainda pode estar na memória do celular: tente de novo. Se não der, tire a foto outra vez.</p>
+        <button class="btn primario" style="margin-bottom:8px" @onclick="() => TentarDeNovo(idNaoSalva)">Tentar de novo</button>
+        <button class="btn linha" @onclick="() => TirarNaoSalva(idNaoSalva)">Tirar da lista</button>
+    </Folha>
+}
+
+<Folha Aberta="_carimbo" Titulo="Carimbo nas fotos" AoFechar="FecharCarimbo">
+    <button class="opcao @(Ajuste.Ligado ? "on" : "")" @onclick="() => App.Carimbar(a => a with { Ligado = !a.Ligado })">
+        <span>Carimbar as fotos<small>Vai gravado na cópia que entra no relatório. A foto original não muda.</small></span><span class="marca"></span>
+    </button>
+    @if (Ajuste.Ligado)
+    {
+        <div class="chips" role="group" aria-label="O que entra no carimbo" style="margin:10px 0 8px">
+            <button class="chip @(Ajuste.Escola ? "on" : "")" aria-pressed="@(Ajuste.Escola ? "true" : "false")" @onclick="() => App.Carimbar(a => a with { Escola = !a.Escola })">Escola</button>
+            <button class="chip @(Ajuste.Endereco ? "on" : "")" aria-pressed="@(Ajuste.Endereco ? "true" : "false")" @onclick="() => App.Carimbar(a => a with { Endereco = !a.Endereco })">Endereço</button>
+            <button class="chip @(Ajuste.Data ? "on" : "")" aria-pressed="@(Ajuste.Data ? "true" : "false")" @onclick="() => App.Carimbar(a => a with { Data = !a.Data })">Data</button>
+            <button class="chip @(Ajuste.Hora ? "on" : "")" aria-pressed="@(Ajuste.Hora ? "true" : "false")" @onclick="() => App.Carimbar(a => a with { Hora = !a.Hora })">Hora</button>
+        </div>
+        var ex = Exemplo();
+        <PreviaCarimbo @ref="_previa" Url="@ex.Url" Largura="ex.Largura" Altura="ex.Altura" Carimbo="ex.Carimbo" Arrastavel="true" Versao="_versaoCarimbo" />
+        @if (_exemploSemData && (Ajuste.Data || Ajuste.Hora))
+        {
+            <p class="mini" style="margin:6px 2px 0">Esta foto não tem data gravada (veio da galeria sem a data): o carimbo dela sai sem data e hora.</p>
+        }
+        @if (ex.Carimbo is null)
+        {
+            <p class="mini" style="margin:6px 2px 0">Escolha pelo menos um item. Sem nome da escola, endereço ou data, nada é carimbado.</p>
+        }
+        <p class="mini" style="margin:6px 2px 10px">Arraste o carimbo: ele gruda no canto mais perto. Com dois dedos, muda o tamanho.</p>
+        <div class="campo" style="margin-bottom:8px">
+            <label for="tamanho-carimbo">Tamanho</label>
+            <input id="tamanho-carimbo" class="faixa" type="range" min="@((int)(AjusteCarimbo.TamanhoMinimo * 1000))" max="@((int)(AjusteCarimbo.TamanhoMaximo * 1000))" step="1"
+                   value="@((int)Math.Round(Ajuste.Tamanho * 1000))" @onchange="MudarTamanho" aria-valuetext="@TextoTamanho" />
+        </div>
+        <div class="linha-btns" style="margin-bottom:8px">
+            @if (TemDeitada && TemEmPe)
+            {
+                <button class="btn linha pequeno" @onclick="() => _verEmPe = !_verEmPe">@(_verEmPe ? "Ver deitada" : "Ver em pé")</button>
+            }
+            <button class="btn linha pequeno" @onclick="() => App.Carimbar(a => a.Padrao())">Padrão</button>
+        </div>
+        @if (Ajuste.Endereco)
+        {
+            <p class="mini" style="margin:0 2px 10px">@(App.Rascunho.Dados.Endereco.Length > 0 ? "Endereço: " + App.Rascunho.Dados.Endereco + "." : "O endereço é lido pelo GPS quando a câmera abrir (ou digite nos dados do relatório).") <a href="relatorio">Ver nos dados</a></p>
+        }
+        @if (App.Config.FotosNaGaleria)
+        {
+            <p class="mini" style="margin:0 2px 10px">As próximas fotos da câmera vão carimbadas também para a galeria.</p>
+        }
+    }
+    <button class="btn primario" @onclick="FecharCarimbo">Pronto</button>
+</Folha>
+
 <Folha Aberta="_ordenar" Titulo="Ordenar fotos" AoFechar="() => _ordenar = false">
     <button class="opcao" @onclick="() => Ordenar(true)">Por data da foto</button>
     <button class="opcao" @onclick="() => Ordenar(false)">Por nome do arquivo</button>
@@ -153,7 +246,15 @@
 {
     var f = Fotos[a];
     <Folha Aberta="true" Titulo="@($"Foto {a + 1} de {Fotos.Count}")" AoFechar="() => _aberta = null">
-        <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" hidden="@(App.Rascunho.Miniatura(f).Length == 0)" />
+        @if (Ajuste.Ligado && !f.SemCarimbo)
+        {
+            var tam = App.Rascunho.TamanhoGirado(f);
+            <div class="previa-foto-carimbo"><PreviaCarimbo Url="@App.Rascunho.Miniatura(f)" Largura="tam.Largura" Altura="tam.Altura" Carimbo="App.Rascunho.CarimboDe(f)" /></div>
+        }
+        else
+        {
+            <img class="previa-foto" src="@App.Rascunho.Miniatura(f)" alt="Foto @(a + 1)" hidden="@(App.Rascunho.Miniatura(f).Length == 0)" />
+        }
         <CampoTexto @key="f.Arquivo" Rotulo="Legenda" Ajuda="Sai em negrito, logo embaixo da foto." Valor="@f.Legenda" Maximo="RascunhoRelatorio.MaximoDaLegenda" GravarAoDigitar="true"
                     Dica="Ex.: concretagem do bloco B1" AoMudar="v => App.Rascunho.Legendar(a, v)" />
         @if (ComDescricao)
@@ -171,6 +272,10 @@
             <button class="btn linha pequeno" disabled="@(a == 0)" @onclick="() => _aberta = a - 1">‹ Anterior</button>
             <button class="btn linha pequeno" disabled="@(a == Fotos.Count - 1)" @onclick="() => _aberta = a + 1">Próxima ›</button>
         </div>
+        @if (Ajuste.Ligado)
+        {
+            <button class="opcao @(f.SemCarimbo ? "" : "on")" style="margin-bottom:6px" @onclick="() => App.Rascunho.SemCarimbo(a, !f.SemCarimbo)"><span>Carimbo nesta foto<small>@(f.SemCarimbo ? "Esta foto sai sem carimbo" : "Sai com o carimbo do relatório")</small></span><span class="marca"></span></button>
+        }
         <button class="link" style="color:var(--vermelho);margin-bottom:6px" @onclick="() => Remover([a])">Tirar esta foto do relatório</button>
         <button class="btn primario" @onclick="() => _aberta = null">Pronto</button>
     </Folha>
@@ -183,11 +288,141 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
-        _arrastar = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/arrastar.js");
-        _referencia = DotNetObjectReference.Create(this);
-        await _arrastar.InvokeVoidAsync("ligar", _grade, _referencia);
+        if (firstRender)
+        {
+            _arrastar = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/arrastar.js");
+            _referencia = DotNetObjectReference.Create(this);
+            await _arrastar.InvokeVoidAsync("ligar", _grade, _referencia);
+        }
+
+        // O editor liga o arrastar no desenho da foto; se o desenho foi refeito (carimbo desligado e ligado), liga de novo.
+        if (_carimbo && _previa is not null && _previa.Elemento.Id is { } id && id != _svgLigado)
+        {
+            _svgLigado = id;
+            _moduloCarimbo ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/carimbo.js");
+            await _moduloCarimbo.InvokeVoidAsync("ligar", _previa.Elemento, _referencia);
+        }
     }
+
+    // ---- Carimbo ----
+    private bool _carimbo, _verEmPe, _exemploSemData;
+    private int _versaoCarimbo;
+    private PreviaCarimbo? _previa;
+    private IJSObjectReference? _moduloCarimbo;
+    private string? _svgLigado;
+
+    private AjusteCarimbo Ajuste => App.Config.Carimbo;
+
+    private bool TemDeitada => Fotos.Any(f => App.Rascunho.TamanhoGirado(f) is var t && t.Largura >= t.Altura);
+    private bool TemEmPe => Fotos.Any(f => App.Rascunho.TamanhoGirado(f) is var t && t.Altura > t.Largura);
+
+    private string ResumoCarimbo
+    {
+        get
+        {
+            var a = Ajuste;
+            var itens = new[] { (a.Escola, "escola"), (a.Endereco, "endereço"), (a.Data, "data"), (a.Hora, "hora") }.Where(x => x.Item1).Select(x => x.Item2).ToList();
+            if (!a.Ligado) return "Escola, endereço, data e hora gravados na foto do relatório";
+            return itens.Count == 0 ? "Nada escolhido para carimbar" : char.ToUpperInvariant(itens[0][0]) + string.Join(", ", itens)[1..];
+        }
+    }
+
+    private string TextoTamanho => Ajuste.Tamanho >= 0.06 ? "grande" : Ajuste.Tamanho >= 0.04 ? "médio" : "pequeno";
+
+    private void AbrirCarimbo()
+    {
+        _carimbo = true;
+        _verEmPe = !TemDeitada && TemEmPe;
+        _svgLigado = null;
+    }
+
+    private void FecharCarimbo() => _carimbo = false;
+
+    /// <summary>Foto de exemplo do editor (a primeira deitada ou em pe) com o carimbo dela.</summary>
+    private (CarimboFoto? Carimbo, int Largura, int Altura, string Url) Exemplo()
+    {
+        var foto = Fotos.FirstOrDefault(f => App.Rascunho.TamanhoGirado(f) is var t && (_verEmPe ? t.Altura > t.Largura : t.Largura >= t.Altura)) ?? Fotos.FirstOrDefault();
+        if (foto is null)
+        {
+            _exemploSemData = false;
+            var d = App.Rascunho.Dados;
+            var semFoto = CarimboFoto.Montar(Ajuste, d.Unidade, d.Endereco, App.Agora().LocalDateTime);
+            return _verEmPe ? (semFoto, 1200, 1600, "") : (semFoto, 1600, 1200, "");
+        }
+
+        var (l, a) = App.Rascunho.TamanhoGirado(foto);
+        _exemploSemData = foto.CapturadaEm is null;
+        var c = CarimboFoto.Montar(Ajuste, App.Rascunho.Dados.Unidade, App.Rascunho.Dados.Endereco, foto.CapturadaEm);
+        return (c, l, a, App.Rascunho.Miniatura(foto));
+    }
+
+    [JSInvokable]
+    public void CarimboSolto(double x, double y, double largura, double altura)
+    {
+        var (_, l, a, _) = Exemplo();
+        App.Carimbar(aj => aj.Soltar(x, y, largura, altura, l, a));
+        _versaoCarimbo++;
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public void CarimboTamanho(double fator)
+    {
+        if (!double.IsFinite(fator) || fator <= 0) return;
+        App.Carimbar(aj => aj with { Tamanho = aj.Tamanho * fator });
+        _versaoCarimbo++;
+        StateHasChanged();
+    }
+
+    private void MudarTamanho(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int milesimos))
+        {
+            App.Carimbar(aj => aj with { Tamanho = milesimos / 1000.0 });
+            _versaoCarimbo++;
+        }
+    }
+
+    // ---- Fotos que nao foram salvas ----
+    private long? _naoSalva;
+
+    private async Task TentarDeNovo(long id)
+    {
+        _naoSalva = null;
+        bool voltou = false;
+        try
+        {
+            _moduloCamera ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
+            App.Rascunho.SalvarDeNovo(id);
+            voltou = await _moduloCamera.InvokeAsync<bool>("tentarDeNovo", id, App.Camera.Referencia(JS));
+        }
+        catch (JSException)
+        {
+        }
+
+        if (!voltou)
+        {
+            App.Rascunho.EsquecerSalvando(id);
+            _avisoLegenda = null;
+            Erro = "A foto não estava mais na memória do celular. Tire a foto de novo.";
+        }
+    }
+
+    private async Task TirarNaoSalva(long id)
+    {
+        _naoSalva = null;
+        App.Rascunho.EsquecerSalvando(id);
+        try
+        {
+            _moduloCamera ??= await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
+            await _moduloCamera.InvokeVoidAsync("esquecer", id);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private IJSObjectReference? _moduloCamera;
 
     [JSInvokable]
     public void ReordenarFoto(int de, int para)
@@ -216,6 +451,9 @@
                 await _arrastar.InvokeVoidAsync("desligar", _grade);
                 await _arrastar.DisposeAsync();
             }
+
+            if (_moduloCarimbo is not null) await _moduloCarimbo.DisposeAsync();
+            if (_moduloCamera is not null) await _moduloCamera.DisposeAsync();
         }
         catch (JSDisconnectedException) { }
         _referencia?.Dispose();
@@ -433,14 +671,16 @@
     {
         get
         {
+            int salvando = App.Rascunho.SalvandoAgora;
+            string mais = salvando > 0 ? $" · {salvando} salvando" : "";
             if (Fotos.Count == 0)
             {
-                return "Nenhuma foto ainda";
+                return salvando > 0 ? $"{Formato.Plural(salvando, "foto", "fotos")} salvando" : "Nenhuma foto ainda";
             }
 
             int porPagina = Math.Max(1, App.Rascunho.Opcoes().Capacidade);
             int paginas = (Fotos.Count + porPagina - 1) / porPagina;
-            return $"{Formato.Plural(Fotos.Count, "foto", "fotos")} · cerca de {Formato.Plural(paginas, "página", "páginas")}";
+            return $"{Formato.Plural(Fotos.Count, "foto", "fotos")}{mais} · cerca de {Formato.Plural(paginas, "página", "páginas")}";
         }
     }
 

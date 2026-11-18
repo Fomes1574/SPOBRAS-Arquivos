@@ -53,6 +53,9 @@ public static class Cenarios
             File.WriteAllText(Path.Combine(p.Raiz, "grande.ok"), "");
         }
 
+        // GPS de mentira: uma leitura precisa, com um instante de espera para aparecer o "Procurando sinal".
+        p.Pontos.Add(new Spobras.Core.Relatorio.PontoGps(-23.5505, -46.6333, 12, agora()));
+        p.AtrasoDoGps = TimeSpan.FromMilliseconds(1200);
         App = new AppCelular(p, agora);
         if (cenario == "novo")
         {

@@ -128,14 +128,22 @@ jobs:
           dotnet publish src/Spobras.Celular -c Release -f net10.0-android
           -p:AndroidSdkDirectory="$ANDROID_HOME" $ASSINATURA -o publish/celular
 
-      - name: Nome do APK
+      # Um APK por tipo de processador: 64 bits (quase todos os celulares) e 32 bits (celular simples, Android Go).
+      - name: Nome dos APKs
         run: |
-          apk=$(ls publish/celular/*-Signed.apk | head -1)
-          cp "$apk" "publish/ArquivosSPOBRAS.apk"
-          ls -la publish/celular publish/ArquivosSPOBRAS.apk
+          ls -la publish/celular
+          a64=$(ls publish/celular/*arm64-v8a*-Signed.apk | head -1)
+          a32=$(ls publish/celular/*armeabi-v7a*-Signed.apk | head -1)
+          test -n "$a64" && test -n "$a32"
+          cp "$a64" "publish/ArquivosSPOBRAS-64bits.apk"
+          cp "$a32" "publish/ArquivosSPOBRAS-32bits.apk"
+          ls -la publish/*.apk
+          for f in publish/*.apk; do echo "$f: $(du -m "$f" | cut -f1) MB"; done >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ArquivosSPOBRAS-Android
-          path: publish/ArquivosSPOBRAS.apk
+          path: |
+            publish/ArquivosSPOBRAS-64bits.apk
+            publish/ArquivosSPOBRAS-32bits.apk
           if-no-files-found: error

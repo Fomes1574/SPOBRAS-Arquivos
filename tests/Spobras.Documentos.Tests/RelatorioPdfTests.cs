@@ -130,7 +130,7 @@ public class RelatorioPdfTests : IDisposable
             var pagina = doc.GetPage(i + 1);
             var planejada = plano.Paginas[i];
             var palavras = pagina.GetWords().ToList();
-            Assert.All(palavras, w => Assert.Contains("Carlito", w.Letters[0].FontName));
+            Assert.All(palavras, w => Assert.Contains("SPOBRAS Relatorio", w.Letters[0].FontName));
             foreach (var w in palavras)
             {
                 // PdfPig mede de baixo para cima; o plano, de cima para baixo.

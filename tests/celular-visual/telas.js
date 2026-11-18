@@ -128,8 +128,8 @@ async function ir(page, url, rota) {
 }
 
 // Espera a tela chegar ao estado esperado; se nao chegar em 4 s, registra o problema.
-async function esperar(page, condicao, arg, problema) {
-  try { await page.waitForFunction(condicao, arg, { timeout: 4000 }); } catch { problemas.push(problema); }
+async function esperar(page, condicao, arg, problema, ms = 4000) {
+  try { await page.waitForFunction(condicao, arg, { timeout: ms }); } catch { problemas.push(problema); }
 }
 
 async function texto(page, seletor, contem) {
@@ -316,9 +316,9 @@ async function texto(page, seletor, contem) {
     await page.locator('.topo-cam .bt-cam', { hasText: '⚡' }).click();
     await page.locator('.folha .btn', { hasText: 'Desligado' }).click();
     await page.locator('.folha .btn.primario').click(); await page.waitForTimeout(300);
-    const contaAntes = await page.locator('.pronto-cam span').textContent();
+    const contaAntes = await page.locator('.pronto-cam .pronto-n').textContent();
     await page.locator('.disparo').click();
-    await page.waitForFunction(t => document.querySelector('.pronto-cam span').textContent !== t, contaAntes, { timeout: 5000 });
+    await page.waitForFunction(t => document.querySelector('.pronto-cam .pronto-n').textContent !== t, contaAntes, { timeout: 5000 });
     const tempoQuadro = await page.evaluate(() => window.__spobrasTempoDoQuadro);
     if (!(tempoQuadro < 150)) problemas.push(`${w}x${h} do toque ate pegar a foto: ${tempoQuadro} ms`);
     if (!(await page.locator('.pronto-cam img.ultima').isVisible())) problemas.push(`${w}x${h} miniatura da ultima foto nao apareceu na camera`);
@@ -588,6 +588,185 @@ async function texto(page, seletor, contem) {
     await ir(p, urlGrande, 'base'); await ir(p, urlGrande, 'relatorio');
     if (await p.getByRole('textbox', { name: 'Fiscal' }).inputValue() !== 'Fiscal digitado') problemas.push('dados: digitar e ir para outra tela perdeu o texto');
     await p.context().close();
+  }
+
+  // Fotos "Salvando…", fila cheia, foto que nao salvou, carimbo (editor, foto, paginas), endereco pelo GPS e diagnostico
+  if (urlGrande) {
+    for (const [w, h] of [[412, 915], [360, 640]]) {
+      const p = await abrir(browser, urlGrande, w, h);
+      const grande = w === 412;
+      const tela = `${w}x${h}`;
+      const reais = () => p.locator('button.foto[data-foto]').count();
+      const abrirCamera = async () => { await ir(p, urlGrande, 'relatorio/camera'); await p.waitForSelector('.camera'); await p.waitForTimeout(1500); };
+      const lento = ms => p.evaluate(ms => {
+        const orig = window.__toBlobOriginal || (window.__toBlobOriginal = HTMLCanvasElement.prototype.toBlob);
+        HTMLCanvasElement.prototype.toBlob = function (cb, ...r) { setTimeout(() => orig.call(this, cb, ...r), ms); };
+      }, ms);
+      const normal = () => p.evaluate(() => { if (window.__toBlobOriginal) HTMLCanvasElement.prototype.toBlob = window.__toBlobOriginal; });
+      await ir(p, urlGrande, 'relatorio/fotos'); await p.waitForTimeout(800);
+      let n = await reais();
+
+      // 1) tres fotos seguidas com a gravacao lenta: a lista ja mostra as tres no lugar, com "Salvando…"
+      await abrirCamera();
+      await lento(1800);
+      for (let k = 0; k < 3; k++) await p.locator('.disparo').click();
+      await p.waitForFunction(() => (document.querySelector('.salvando-cam')?.textContent || '').includes('Salvando'), null, { timeout: 4000 })
+        .catch(() => problemas.push(`${tela} camera: contador "Salvando" nao apareceu`));
+      await p.waitForFunction(t => (document.querySelector('.pronto-cam .pronto-n')?.textContent || '').includes(t), `(${n + 3})`, { timeout: 4000 })
+        .catch(async () => problemas.push(`${tela} camera: "Pronto" nao contou as fotos salvando (${await p.locator('.pronto-cam .pronto-n').textContent()}, esperava ${n + 3})`));
+      await foto(p, '45-camera-salvando', w, h, grande);
+      await p.locator('.pronto-cam').click(); await p.waitForTimeout(400);
+      const naHora = await p.evaluate(() => ({ salvando: document.querySelectorAll('.foto.salvando').length, reais: document.querySelectorAll('button.foto[data-foto]').length, sub: document.querySelector('.barra')?.textContent || '' }));
+      if (naHora.salvando + naHora.reais !== n + 3) problemas.push(`${tela} lista: logo depois da camera mostrou ${naHora.reais} + ${naHora.salvando} salvando (esperava ${n + 3})`);
+      if (naHora.salvando > 0 && !naHora.sub.includes('salvando')) problemas.push(`${tela} lista: o topo nao disse quantas estao salvando`);
+      if (naHora.salvando > 0) {
+        await p.locator('.foto.salvando').last().scrollIntoViewIfNeeded();
+        await foto(p, '46-lista-salvando', w, h, grande);
+      }
+      await esperar(p, n => document.querySelectorAll('button.foto[data-foto]').length === n && !document.querySelector('.foto.salvando'), n + 3, `${tela} lista: as 3 fotos nao terminaram de salvar`, 15000);
+      n += 3;
+
+      // 2) fila cheia: com a gravacao bem lenta, o setimo toque espera ("Aguarde…") e nenhuma foto se perde
+      await abrirCamera();
+      await lento(2500);
+      for (let k = 0; k < 7; k++) await p.locator('.disparo').click({ force: true });
+      if (await p.locator('.disparo.cheia').count() !== 1) problemas.push(`${tela} camera: com 6 salvando o botao nao pediu para esperar`);
+      if (!((await p.locator('.salvando-cam').textContent()) || '').includes('Aguarde')) problemas.push(`${tela} camera: fila cheia sem "Aguarde…"`);
+      await foto(p, '47-camera-fila-cheia', w, h, grande);
+      await p.locator('.pronto-cam').click();
+      await esperar(p, n => document.querySelectorAll('button.foto[data-foto]').length === n && !document.querySelector('.foto.salvando'), n + 6, `${tela} fila cheia: esperava 6 fotos novas`, 30000);
+      n += 6;
+      await normal();
+
+      // 3) foto que nao salvou: fica com aviso, "Tentar de novo" salva
+      await abrirCamera();
+      await p.evaluate(() => {
+        const orig = window.__toBlobOriginal || (window.__toBlobOriginal = HTMLCanvasElement.prototype.toBlob);
+        let falhar = true;
+        HTMLCanvasElement.prototype.toBlob = function (cb, ...r) { if (falhar && this.width > 300) { falhar = false; cb(null); return; } orig.call(this, cb, ...r); };
+      });
+      await p.locator('.disparo').click(); await p.waitForTimeout(800);
+      if (await p.locator('.aviso', { hasText: 'não foi salva' }).count() === 0) problemas.push(`${tela} camera: foto que falhou sem aviso`);
+      await p.locator('.pronto-cam').click(); await p.waitForTimeout(500);
+      if (await p.locator('.foto.nao-salva').count() !== 1) problemas.push(`${tela} lista: a foto que falhou sumiu`);
+      else {
+        await p.locator('.foto.nao-salva').scrollIntoViewIfNeeded();
+        await foto(p, '48-lista-nao-salva', w, h, grande);
+        await p.locator('.foto.nao-salva').click(); await p.waitForTimeout(300);
+        await foto(p, '49-folha-nao-salva', w, h, grande);
+        await normal();
+        await p.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
+        await esperar(p, n => document.querySelectorAll('button.foto[data-foto]').length === n && !document.querySelector('.foto.nao-salva, .foto.salvando'), n + 1, `${tela} tentar de novo nao salvou a foto`, 8000);
+        n++;
+      }
+      await normal();
+
+      // 4) editor do carimbo: liga, itens, arrastar para o canto de cima a direita, tamanho, foto em pe
+      await ir(p, urlGrande, 'relatorio/fotos'); await p.waitForTimeout(500);
+      await p.getByRole('button', { name: /^Carimbo nas fotos/ }).click();
+      await p.locator('.folha').waitFor();
+      if (await p.locator('.folha .opcao.on', { hasText: 'Carimbar as fotos' }).count() === 0) await p.locator('.folha .opcao', { hasText: 'Carimbar as fotos' }).click();
+      await p.locator('.folha svg.previa-carimbo g.carimbo').waitFor({ timeout: 5000 }).catch(() => problemas.push(`${tela} carimbo: a previa nao mostrou o carimbo`));
+      const dentro = () => p.evaluate(() => {
+        const s = document.querySelector('.folha svg.previa-carimbo'), g = s?.querySelector('g.carimbo');
+        if (!s || !g) return null;
+        const a = s.getBoundingClientRect(), b = g.getBBox(), l = +s.dataset.largura, h = +s.dataset.altura;
+        const letra = parseFloat(g.querySelector('text')?.getAttribute('font-size') || '0');
+        return { ok: b.x >= 0 && b.y >= 0 && b.x + b.width <= l + 1 && b.y + b.height <= h + 1, x: +g.dataset.x, y: +g.dataset.y, w: +g.dataset.w, l, h, letra, tela: a.width > 0 };
+      });
+      let d = await dentro();
+      if (!d?.ok) problemas.push(`${tela} carimbo: saiu da foto na previa`);
+      await foto(p, '50-carimbo-editor', w, h, grande);
+      // arrasta com o mouse para o canto de cima a direita
+      const g = p.locator('.folha svg.previa-carimbo g.carimbo rect').first();
+      const caixa = await g.boundingBox(), svgCaixa = await p.locator('.folha svg.previa-carimbo').boundingBox();
+      if (caixa && svgCaixa) {
+        await p.mouse.move(caixa.x + caixa.width / 2, caixa.y + caixa.height / 2);
+        await p.mouse.down();
+        await p.mouse.move(svgCaixa.x + svgCaixa.width - caixa.width / 2 - 4, svgCaixa.y + caixa.height / 2 + 4, { steps: 8 });
+        await p.mouse.up();
+        await p.waitForTimeout(600);
+        d = await dentro();
+        if (!d || !(d.x + d.w / 2 > d.l / 2 && d.y < d.h / 2)) problemas.push(`${tela} carimbo: arrastar para o canto de cima a direita nao grudou la (${JSON.stringify(d)})`);
+        if (!d?.ok) problemas.push(`${tela} carimbo: depois de arrastar saiu da foto`);
+      }
+      const letraAntes = d?.letra || 0, larguraAntes = d?.w || 0;
+      await p.locator('#tamanho-carimbo').fill('80'); await p.locator('#tamanho-carimbo').dispatchEvent('change'); await p.waitForTimeout(400);
+      d = await dentro();
+      // maior, ou ja no limite de 60% da largura da foto (ai a letra nao cresce mais)
+      if (!(d && (d.letra > letraAntes || larguraAntes >= 0.59 * d.l))) problemas.push(`${tela} carimbo: a barra de tamanho nao aumentou o carimbo (${letraAntes} -> ${d?.letra})`);
+      if (!d?.ok) problemas.push(`${tela} carimbo: no tamanho maximo saiu da foto`);
+      if (await p.getByRole('button', { name: 'Ver em pé', exact: true }).count() > 0) {
+        await p.getByRole('button', { name: 'Ver em pé', exact: true }).click(); await p.waitForTimeout(400);
+        d = await dentro();
+        if (!(d && d.h > d.l)) problemas.push(`${tela} carimbo: "Ver em pé" nao mostrou foto em pé`);
+        if (!d?.ok) problemas.push(`${tela} carimbo: na foto em pé saiu da foto`);
+        await p.locator('.folha svg.previa-carimbo').scrollIntoViewIfNeeded();
+        if (grande) await p.screenshot({ path: path.join(pasta, '51-carimbo-em-pe.png') }); // folha rolada: a conferencia de botoes cobertos nao se aplica
+      }
+      await p.locator('#tamanho-carimbo').fill('45'); await p.locator('#tamanho-carimbo').dispatchEvent('change'); await p.waitForTimeout(300);
+      await p.getByRole('button', { name: 'Padrão', exact: true }).click(); await p.waitForTimeout(300);
+      await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await p.waitForTimeout(300);
+
+      // 5) ficha da foto: previa com carimbo e "Carimbo nesta foto"
+      await p.locator('button.foto[data-foto]').first().click(); await p.waitForTimeout(400);
+      if (await p.locator('.folha .previa-foto-carimbo svg g.carimbo').count() !== 1) problemas.push(`${tela} ficha da foto sem o carimbo na previa`);
+      if (await p.locator('.folha .opcao', { hasText: 'Carimbo nesta foto' }).count() !== 1) problemas.push(`${tela} ficha da foto sem "Carimbo nesta foto"`);
+      await foto(p, '52-foto-com-carimbo', w, h, grande);
+      await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click(); await p.waitForTimeout(300);
+
+      // 6) endereco pelo GPS nos dados: procurando sinal, lido, editar
+      await ir(p, urlGrande, 'relatorio'); await p.waitForTimeout(400);
+      const cartao = p.locator('.cartao-endereco');
+      if (await cartao.count() !== 1) problemas.push(`${tela} dados: sem o cartao do endereco com o carimbo ligado`);
+      else {
+        await cartao.scrollIntoViewIfNeeded();
+        const ler = cartao.getByRole('button', { name: /Ler pelo GPS|Ler de novo|Tentar de novo|Permitir e ler/ });
+        if (await ler.count()) {
+          await ler.click();
+          await p.waitForTimeout(400);
+          if (await cartao.locator('.lendo-endereco').count() === 1) await foto(p, '53-endereco-procurando', w, h, grande);
+        }
+        await esperar(p, () => !!document.querySelector('.cartao-endereco .endereco-atual'), null, `${tela} dados: o endereco do GPS nao apareceu`, 8000);
+        await foto(p, '54-endereco-lido', w, h, grande);
+        await cartao.getByRole('button', { name: 'Editar', exact: true }).click();
+        const campo = cartao.locator('input[type=text]').first();
+        await campo.fill('Rua Digitada pelo Fiscal, 45 – Vila Teste'); await campo.blur(); await p.waitForTimeout(300);
+        await cartao.getByRole('button', { name: 'Pronto', exact: true }).click(); await p.waitForTimeout(300);
+        if (!((await cartao.locator('.endereco-atual').textContent()) || '').includes('Rua Digitada')) problemas.push(`${tela} dados: editar o endereco nao guardou`);
+      }
+
+      // 7) camera com o selo do endereco (sem cobrir botoes) e as paginas com o carimbo
+      await abrirCamera();
+      const selo = p.locator('.selo-endereco');
+      if (await selo.count() !== 1 || !((await selo.textContent()) || '').includes('Rua Digitada')) problemas.push(`${tela} camera: selo do endereco ausente ou errado`);
+      else {
+        const sobrepoe = await p.evaluate(() => {
+          const s = document.querySelector('.selo-endereco').getBoundingClientRect();
+          return [...document.querySelectorAll('.camera button, .camera .pronto-cam')].some(b => { const r = b.getBoundingClientRect(); return r.width && !(r.right <= s.left || r.left >= s.right || r.bottom <= s.top || r.top >= s.bottom); });
+        });
+        if (sobrepoe) problemas.push(`${tela} camera: o selo do endereco cobre um botao`);
+      }
+      await foto(p, '55-camera-endereco', w, h, grande);
+      await p.locator('.pronto-cam').click(); await p.waitForTimeout(300);
+      await ir(p, urlGrande, 'relatorio/conferir');
+      await esperar(p, () => document.querySelectorAll('.previa-pagina svg rect[fill="#000"]').length > 0, null, `${tela} conferir: as paginas nao mostram o carimbo`, 10000);
+      await foto(p, '56-conferir-carimbo', w, h, grande);
+
+      // 8) diagnostico da camera nas configuracoes
+      await ir(p, urlGrande, 'config'); await p.waitForTimeout(300);
+      await p.getByRole('button', { name: 'Diagnóstico da câmera', exact: true }).click(); await p.waitForTimeout(300);
+      if (await p.locator('.tabela-diagnostico tbody tr').count() !== 4) problemas.push(`${tela} diagnostico: tabela sem os 4 passos`);
+      await foto(p, '57-diagnostico-camera', w, h, grande);
+      await p.locator('.folha .btn.primario').click();
+
+      // deixa o carimbo desligado como estava (o proximo tamanho comeca do mesmo estado)
+      await ir(p, urlGrande, 'relatorio/fotos'); await p.waitForTimeout(400);
+      await p.getByRole('button', { name: /^Carimbo nas fotos/ }).click();
+      await p.locator('.folha .opcao.on', { hasText: 'Carimbar as fotos' }).click(); await p.waitForTimeout(300);
+      await p.locator('.folha .btn.primario', { hasText: 'Pronto' }).click();
+      await p.context().close();
+    }
   }
 
   await browser.close();

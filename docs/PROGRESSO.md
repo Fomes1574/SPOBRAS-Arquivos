@@ -1,5 +1,48 @@
 # Progresso
 
+## Carimbo nas fotos, endereço pelo GPS, fotos "Salvando…" e app mais leve em 18/11/2026
+
+Implementado o plano `docs/PLANO_CARIMBO_E_LEVEZA.md` (decisões do usuário na seção 8). Carimbo e GPS só no celular.
+
+- **Fotos seguidas sem susto:**
+  - Cada foto entra na lista no toque, com a imagem do visor e "Salvando…". A câmera mostra "Salvando 3…" e depois "✓ Salvas", e o topo da lista mostra "12 fotos · 2 salvando".
+  - A câmera salva uma foto por vez, na ordem dos toques. Com 6 salvando (3 em celular com pouca memória), o botão fica em "Aguarde…".
+  - Fechar a câmera não espera a fila: as fotos chegam à lista sozinhas.
+  - Foto que não salvou fica com borda vermelha. O toque abre "Tentar de novo" ou "Tirar da lista"; ela nunca some sem aviso.
+  - "Gerar" e "Começar um relatório novo" esperam as que estão salvando.
+  - Em Configurações › "Diagnóstico da câmera" ficam os tempos de cada passo das últimas 20 fotos, para medir num celular de verdade.
+- **Carimbo (escola, endereço, data e hora):**
+  - O cartão "Carimbo nas fotos" no passo 2 abre o editor: itens que ligam e desligam, arrastar com um dedo (gruda no canto mais perto), dois dedos ou a barra para o tamanho, "Ver em pé" e "Padrão".
+  - Posição e tamanho são frações do lado menor da foto, então o carimbo fica igual em foto em pé, deitada e girada.
+  - Vai **gravado na cópia** que entra no Excel e no PDF. A cópia é feita em segundo plano junto com a cópia reduzida, então a geração não fica mais lenta. A original nunca muda.
+  - Cada foto pode sair sem carimbo ("Carimbo nesta foto").
+  - O passo 3 avisa foto sem data de captura, carimbo pequeno para o número de fotos por página (menos de 5 pt) e carimbo sem endereço.
+  - As prévias das páginas mostram o carimbo.
+  - Com "Guardar também na galeria" e o carimbo ligado, a galeria recebe a foto carimbada em tamanho cheio, por uma fila em segundo plano. A fila espera até 30 s pelo endereço que ainda está sendo lido.
+- **Endereço pelo GPS:**
+  - Lido uma vez por relatório, quando a câmera abre e só com o carimbo usando o endereço. A espera vai até 15 s ou até uma leitura de 30 m; depois, o serviço do próprio Android transforma o ponto em endereço.
+  - Fica num texto curto ("Rua, nº – Bairro") e é guardado em `enderecos.json` por **escola + contrato**, porque na planilha duas escolas diferentes podem ter o mesmo nome e até o mesmo código. Mesmo nome com outro contrato nunca é usado sozinho: o app pergunta "É o mesmo local?".
+  - Aviso de distância só acima de 300 m mais a margem de erro das duas leituras, com "Atualizar" e "Manter".
+  - Sem permissão, sem sinal, sem internet (o ponto fica guardado e "Tentar de novo" busca só o endereço) e sem serviço (digitar): cada caso tem a sua mensagem.
+  - Os dados do relatório têm o cartão "Endereço das fotos", e a câmera mostra o selo "📍 Rua…".
+- **Leveza:**
+  - Um APK para cada tipo de processador, `ArquivosSPOBRAS-64bits.apk` e `ArquivosSPOBRAS-32bits.apk`, no lugar do APK único de 83 MB. O tamanho de cada um sai no resumo do CI.
+  - A fonte do relatório agora é um subconjunto da Carlito com outro nome, como a licença pede (`Fontes/reduzir-fonte.py`): passou de 2,6 MB para 0,15 MB, com as mesmas larguras de letra (teste).
+  - Celular com pouca memória prepara 1 ou 2 fotos por vez.
+- **Testes:**
+  - Unidade: conta do carimbo em 7 formatos × 4 cantos × 3 tamanhos, chave da escola, distância, endereço.
+  - Gravação com conferência de pixels e giro, cache, Excel e PDF com a foto carimbada, fonte reduzida.
+  - Endereço com GPS e serviço simulados: mesma escola, mesmo nome com outro contrato, longe, sem permissão, sem sinal, sem internet, troca de escola durante a leitura, arquivo danificado e mil escolas.
+  - Salvando, galeria e segurança dos arquivos: impressão das fotos e legendas antes e depois de cada ação.
+  - Visual do celular em 412 e 360 px: Salvando, fila cheia, foto não salva, editor (arrastar, tamanho, em pé), ficha da foto, endereço, selo na câmera, páginas e diagnóstico.
+  - Estresse com 300 fotos chegando juntas, carimbo, galeria e troca do canto: as originais ficaram idênticas e sobrou uma cópia por foto. Gerar Excel e PDF com as cópias prontas levou 2,2 s.
+  - Custo do carimbo medido em 300 fotos: o mesmo tempo e a mesma memória que sem carimbo (cerca de 73 ms por foto).
+- **Beta tester:** achou e corrigiu:
+  - a fileira de botões do passo 2 passava da tela em 360 px (o carimbo virou cartão próprio);
+  - endereço e data largos estouravam a faixa em foto estreita (a letra agora diminui até caber);
+  - trocar de escola não fazia a conferência de distância na escola nova;
+  - o tamanho padrão do carimbo dava letra de 4,5 pt com 6 fotos por página e cabeçalho completo (o padrão subiu para 6% do lado menor).
+
 ## Cabeçalho em todas as páginas e mover fotos em 18/11/2026
 
 - **Cabeçalho completo em todas as páginas** (saiu o cabeçalho reduzido), no PDF, no Excel e nas prévias. Os nomes dos campos ficam sem fundo cinza, separados do valor por uma linha fina, e os dados saem em letra normal, como antes.
@@ -289,7 +332,7 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Testes: 12 de lógica (`Spobras.Celular.Tests`) e o teste visual em dois tamanhos de tela, 4 cenários. O teste visual achou e já corrigiu: a folha de opções da câmera ficava por baixo da câmera, a ferramenta de PDF guardava o resultado da anterior e o ícone de busca saía enorme.
 - O C# do app Android compila aqui (com um SDK falso só para compilar); o APK de verdade sai no CI (job `celular`, artefato `ArquivosSPOBRAS-Android`). CI 54: tudo verde (Windows, lógica e visual do celular, APK de 83 MB sem corte de código).
 - **Primeiro teste no aparelho (13/11/2026): o app ficava parado em "Abrindo…".** Causa: a página do app chamava `Blazor.start()` e o BlazorWebView do Android também chama, então as telas nunca se ligavam (no navegador de teste isso não aparece, a página é outra). Corrigido, com teste que impede voltar. Na mesma revisão: respeita a barra de status e o teclado (Android 15 desenha atrás deles), ícones da barra de status claros, erro antes de abrir aparece na tela em vez de travar, erro numa tela mostra a mensagem e "Voltar ao início", trocar a planilha durante uma leitura não perde a troca, voltar ao app em menos de 2 minutos não baixa a planilha de novo, seletor de arquivos sempre aberto na linha principal do Android, e negrito do PDF simulado quando a fonte do aparelho (Roboto variável) não tem arquivo próprio de negrito.
-- Instalar no celular: baixar o artefato `ArquivosSPOBRAS-Android` da última execução do CI, abrir o `ArquivosSPOBRAS.apk` no Android e permitir "instalar apps desconhecidos" para o navegador ou o gerenciador de arquivos. No primeiro uso: escolher a planilha mestra no OneDrive/SharePoint, a pasta de saída e o logo (Configurações).
+- Instalar no celular: baixar o artefato `ArquivosSPOBRAS-Android` da última execução do CI, abrir o `ArquivosSPOBRAS-64bits.apk` no Android (se o celular recusar, é um aparelho de 32 bits: use o `ArquivosSPOBRAS-32bits.apk`) e permitir "instalar apps desconhecidos" para o navegador ou o gerenciador de arquivos. No primeiro uso: escolher a planilha mestra no OneDrive/SharePoint, a pasta de saída e o logo (Configurações).
 - Conferência no celular (pelo usuário): 1) escolher a planilha e ver o total de obras; 2) fechar e abrir o app, ver "relida"; 3) ficha de uma obra em andamento e de uma concluída; 4) relatório: escola com dois contratos, 3 fotos pela câmera (testar 16:9 e flash), 2 da galeria, legenda, girar, fechar o app no meio e voltar; 5) gerar Excel e PDF numa pasta do OneDrive com pasta por escola; 6) abrir o PDF e compartilhar no WhatsApp; 7) juntar dois PDFs; 8) modo avião: abrir o app e ver o aviso de sem internet.
 
 ## Testado (automático, Linux e CI Windows)
@@ -346,8 +389,6 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 - Artefatos do CI não podem ser baixados do ambiente do Claude Code (rede bloqueada); por isso o teste das telas confere o layout por medidas e publica as imagens para o usuário ver no GitHub.
 
 ## Pendências com o usuário
-
-- **Carimbo nas fotos, endereço pelo GPS e leveza (em projeto, 18/11/2026):** plano completo em `docs/PLANO_CARIMBO_E_LEVEZA.md`, decisões do usuário na seção 8. Nada implementado.
 
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 

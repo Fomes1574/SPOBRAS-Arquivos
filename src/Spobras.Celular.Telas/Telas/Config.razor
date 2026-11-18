@@ -40,8 +40,33 @@
         <button class="btn linha pequeno" style="margin-left:auto;flex:none" @onclick="EscolherLogo">@(App.Config.Logo is null ? "Escolher" : "Trocar")</button>
     </div>
     <p class="mini" style="margin:4px 2px">Use o mesmo logo do computador (a imagem fica guardada só no celular). O app só lê a planilha mestra; nunca grava nela. Versão @(typeof(Config).Assembly.GetName().Version?.ToString(3)).</p>
+    <button class="link" style="margin:8px 2px 0" @onclick="() => _diagnostico = true">Diagnóstico da câmera</button>
 </div>
 <Nav Ativo="inicio" />
+
+<Folha Aberta="_diagnostico" Titulo="Diagnóstico da câmera" AoFechar="() => _diagnostico = false">
+    @{ var tempos = App.Camera.Tempos; }
+    <p class="texto2" style="margin:0 0 10px">Tempo de cada passo nas últimas @Formato.Plural(tempos.Count, "foto", "fotos") tiradas pelo app, em milissegundos. Serve para achar o passo lento neste celular.</p>
+    @if (tempos.Count == 0)
+    {
+        <p class="texto2">Nenhuma foto tirada desde que o app abriu.</p>
+    }
+    else
+    {
+        <table class="tabela-diagnostico">
+            <thead><tr><th>Passo</th><th>Média</th><th>Pior</th></tr></thead>
+            <tbody>
+                @foreach (var (nome, valor) in Passos)
+                {
+                    var valores = tempos.Select(valor).ToList();
+                    <tr><td>@nome</td><td>@valores.Average().ToString("0", Formato.PtBr)</td><td>@valores.Max().ToString("0", Formato.PtBr)</td></tr>
+                }
+            </tbody>
+        </table>
+        <p class="mini" style="margin:8px 0 12px">Última foto: @tempos[^1].Largura × @tempos[^1].Altura px, @tempos[^1].Kb KB. Preparo de fotos: @Spobras.Documentos.Relatorio.PreparoDeFotos.Paralelo por vez.</p>
+    }
+    <button class="btn primario" @onclick="() => _diagnostico = false">Fechar</button>
+</Folha>
 
 @code {
     private (string Classe, string Texto) Selo => App.Base.Estado switch
@@ -61,4 +86,14 @@
     }
 
     private async Task EscolherLogo() => Erro = await App.EscolherLogoAsync();
+
+    private bool _diagnostico;
+
+    private static readonly (string Nome, Func<TempoDaFoto, int> Valor)[] Passos =
+    [
+        ("Pegar a imagem do visor", t => t.Quadro),
+        ("Transformar em JPEG", t => t.Codificar),
+        ("Passar para o app e gravar", t => t.Enviar),
+        ("Gravar no rascunho", t => t.Gravar),
+    ];
 }

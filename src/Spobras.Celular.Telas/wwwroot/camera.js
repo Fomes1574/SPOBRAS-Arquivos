@@ -2,8 +2,13 @@
 // o que estava no visor no instante do toque e o que fica. So depois a tela pisca e a foto vai para o rascunho.
 let stream = null, track = null, captura = null, video = null, frente = false;
 let alvo = 4 / 3, flash = "auto", dotnet = null, botao = null, miniatura = null, visor = null, aviso = null;
-let fotografando = false, salvando = 0;
-const pendentes = new Set();   // fotos pegas que ainda estao indo para o rascunho
+let fotografando = false;
+const pendentes = new Set();   // toques que ainda estao pegando a imagem (com flash, o sensor demora)
+// Fotos pegas que ainda estao sendo salvas, uma por vez, na ordem dos toques. Cada uma ja aparece na lista do relatorio
+// no toque ("Salvando…"); fechar a camera nao espera a fila (ela continua aqui e termina sozinha).
+const fila = [];
+const guardadas = new Map();   // id -> foto que falhou ao salvar (para "Tentar de novo" enquanto esta na memoria)
+let processando = false, maximoNaFila = 6, contador = null, relogioSalvas = 0, ultimoId = 0;
 const PRAZO_DO_SENSOR = 4000;  // com flash, se o Android nao registrar nesse tempo, vale o quadro do toque
 let gx = 0, gy = 0;            // gravidade (celular deitado com a rotacao automatica desligada)
 function aoMover(e) { const g = e.accelerationIncludingGravity; if (g && g.x != null) { gx = g.x; gy = g.y; } }
@@ -45,13 +50,17 @@ export async function iniciar(elemento, usarFrente) {
 }
 
 // Liga o botao de disparo direto aqui (o toque nao passa pelo .NET antes de pegar a foto).
-export function ligarDisparo(elBotao, elMiniatura, elVisor, elAviso, ref) {
+export function ligarDisparo(elBotao, elMiniatura, elVisor, elAviso, ref, elContador, maximo) {
   botao = elBotao; miniatura = elMiniatura; visor = elVisor; aviso = elAviso; dotnet = ref;
+  contador = elContador || null;
+  maximoNaFila = maximo > 0 ? maximo : 6;
   botao.addEventListener("click", tocar);
   window.addEventListener("devicemotion", aoMover);
+  atualizarContador();
 }
 
 function tocar() {
+  if (fila.length >= maximoNaFila) return; // fila cheia: o botao fica em "Aguarde…" ate uma terminar
   const p = disparar();
   pendentes.add(p);
   p.finally(() => pendentes.delete(p));
@@ -61,11 +70,13 @@ async function esperarPendentes() {
   while (pendentes.size) await Promise.allSettled([...pendentes]);
 }
 
-// Saiu da camera (Pronto, fechar ou voltar): as fotos ja pegas terminam de gravar antes de a camera desligar.
+// Saiu da camera (Pronto, fechar ou voltar): o toque que ainda pega a imagem termina; as fotos ja pegas continuam
+// salvando na fila depois que a camera desliga.
 export async function encerrar() {
   if (botao) botao.removeEventListener("click", tocar);
   window.removeEventListener("devicemotion", aoMover);
   botao = null;
+  contador = null;
   await esperarPendentes();
   parar();
 }
@@ -139,26 +150,100 @@ async function disparar() {
       segurar(false);
     }
   }
-  window.__spobrasTempoDoQuadro = performance.now() - inicio; // do toque ate a imagem pega (conferido nos testes)
+  const tempoQuadro = Math.round(performance.now() - inicio);
+  window.__spobrasTempoDoQuadro = tempoQuadro; // do toque ate a imagem pega (conferido nos testes)
   piscar();
-  salvando++;
+  // O lugar da foto na lista aparece agora, com a imagem pequena do visor; a foto inteira vai salvando na fila.
+  const id = novoId();
+  const previa = reduzir(quadro, 240);
+  if (miniatura) { miniatura.src = previa; miniatura.hidden = false; }
+  try { dotnet.invokeMethodAsync("FotoPega", id, previa); } catch (e) { /* a foto continua na fila */ }
+  fila.push({ id, quadro, tempoQuadro });
+  atualizarContador();
+  processar();
+}
+
+function novoId() {
+  ultimoId = Math.max(ultimoId + 1, Date.now() * 10); // unico mesmo entre aberturas da camera
+  return ultimoId;
+}
+
+// Copia pequena (para a lista e a miniatura da camera): leve e rapida.
+function reduzir(fonte, lado) {
+  const escala = Math.min(1, lado / Math.max(fonte.width, fonte.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(fonte.width * escala));
+  c.height = Math.max(1, Math.round(fonte.height * escala));
+  c.getContext("2d").drawImage(fonte, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.7);
+}
+
+async function processar() {
+  if (processando) return;
+  processando = true;
   try {
-    const blob = await new Promise(r => quadro.toBlob(r, "image/jpeg", 0.88));
-    if (miniatura) {
-      const antigo = miniatura.dataset.url;
-      miniatura.dataset.url = URL.createObjectURL(blob);
-      miniatura.src = miniatura.dataset.url;
-      miniatura.hidden = false;
-      if (antigo) URL.revokeObjectURL(antigo);
+    while (fila.length) {
+      await salvar(fila[0]);
+      fila.shift();
+      atualizarContador();
     }
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    await dotnet.invokeMethodAsync("FotoTirada", bytes);
-  } catch (e) {
-    try { await dotnet.invokeMethodAsync("FalhaAoTirar", String(e && e.message || e)); } catch (x) { }
   } finally {
-    salvando--;
+    processando = false;
   }
 }
+
+async function salvar(item) {
+  const ref = dotnet;
+  try {
+    const t0 = performance.now();
+    const blob = await new Promise((ok, erro) => item.quadro.toBlob(b => b ? ok(b) : erro(new Error("o celular não conseguiu gerar a imagem")), "image/jpeg", 0.88));
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const t1 = performance.now();
+    await ref.invokeMethodAsync("FotoTirada", item.id, bytes, item.tempoQuadro, Math.round(t1 - t0));
+    try { ref.invokeMethodAsync("Enviado", item.id, Math.round(performance.now() - t1)); } catch (e) { }
+  } catch (e) {
+    guardadas.set(item.id, item);
+    try { await ref.invokeMethodAsync("FalhaAoTirar", item.id, String(e && e.message || e)); } catch (x) { }
+  }
+}
+
+function atualizarContador() {
+  const n = fila.length;
+  if (botao) {
+    const cheia = n >= maximoNaFila;
+    botao.classList.toggle("cheia", cheia);
+    botao.setAttribute("aria-label", cheia ? "Aguarde, fotos salvando" : "Tirar foto");
+  }
+  if (!contador) return;
+  clearTimeout(relogioSalvas);
+  if (n > 0) {
+    contador.textContent = n >= maximoNaFila ? `Aguarde… ${n} salvando` : `Salvando ${n}…`;
+    contador.classList.remove("ok");
+    contador.style.display = "";
+  } else if (contador.dataset.teve === "1") {
+    contador.textContent = "✓ Salvas";
+    contador.classList.add("ok");
+    contador.style.display = "";
+    relogioSalvas = setTimeout(() => { if (contador) contador.style.display = "none"; }, 1000);
+  } else {
+    contador.style.display = "none";
+  }
+  if (n > 0) contador.dataset.teve = "1";
+}
+
+// "Tentar de novo" na lista: a foto que falhou volta para a fila (so enquanto ainda esta na memoria).
+export function tentarDeNovo(id, ref) {
+  const item = guardadas.get(id);
+  if (!item) return false;
+  guardadas.delete(id);
+  if (ref) dotnet = ref;
+  fila.push(item);
+  atualizarContador();
+  processar();
+  return true;
+}
+
+export function esquecer(id) { guardadas.delete(id); }
 
 // Recorte central no formato do visor, com o maior lado limitado (o relatorio usa ate 1600 px).
 function recortar(fonte, largura, altura, girar, lado) {
@@ -189,7 +274,7 @@ function recortar(fonte, largura, altura, girar, lado) {
   return deitada;
 }
 
-export function emAndamento() { return salvando + (fotografando ? 1 : 0); }
+export function emAndamento() { return fila.length + (fotografando ? 1 : 0); }
 
 export function desligar() {
   if (botao) botao.removeEventListener("click", tocar);

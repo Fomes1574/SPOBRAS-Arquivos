@@ -17,8 +17,11 @@ public sealed class FontesPdf : IFontResolver
     /// </summary>
     public const string FamiliaDoRelatorio = "SPOBRAS Relatorio";
 
-    private static readonly Lazy<byte[]> CarlitoRegular = new(() => Embutida("Carlito-Regular.ttf"));
-    private static readonly Lazy<byte[]> CarlitoNegrito = new(() => Embutida("Carlito-Bold.ttf"));
+    private static readonly Lazy<byte[]> CarlitoRegular = new(() => Embutida("SpobrasRelatorio-Regular.ttf"));
+    private static readonly Lazy<byte[]> CarlitoNegrito = new(() => Embutida("SpobrasRelatorio-Bold.ttf"));
+
+    /// <summary>Arquivo da fonte do relatorio (o carimbo das fotos usa a mesma).</summary>
+    internal static byte[] FonteDoRelatorio(bool negrito) => negrito ? CarlitoNegrito.Value : CarlitoRegular.Value;
 
     private static byte[] Embutida(string nome)
     {

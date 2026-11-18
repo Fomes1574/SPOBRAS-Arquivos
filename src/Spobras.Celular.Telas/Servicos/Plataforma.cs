@@ -6,6 +6,24 @@ public sealed record Escolhido(string Id, string Nome, string? Local = null);
 /// <summary>Arquivo salvo na pasta do usuario.</summary>
 public sealed record Salvo(string Id, string Nome, string Onde, long Tamanho);
 
+/// <summary>Por que o endereco nao veio.</summary>
+public enum FalhaEndereco
+{
+    Nenhuma,
+
+    /// <summary>Sem internet: o ponto do GPS fica guardado e o endereco e buscado depois.</summary>
+    SemInternet,
+
+    /// <summary>O celular nao tem o servico que transforma o ponto em endereco (ex.: sem os servicos do Google).</summary>
+    SemServico,
+
+    /// <summary>O servico respondeu, mas sem nenhum endereco para o ponto.</summary>
+    NaoAchou,
+}
+
+/// <summary>Endereco de um ponto do GPS, ja no texto curto, ou o motivo de nao ter vindo.</summary>
+public sealed record ResultadoEndereco(string? Texto, FalhaEndereco Falha = FalhaEndereco.Nenhuma);
+
 public enum Copia
 {
     Ok,
@@ -62,4 +80,24 @@ public interface IPlataforma
 
     /// <summary>Pede a permissao da camera (no Android); falso se o usuario negar.</summary>
     Task<bool> PermitirCameraAsync();
+
+    /// <summary>Pede a permissao de localizacao "durante o uso"; falso se o usuario negar ou o aparelho nao tiver GPS.</summary>
+    Task<bool> PermitirLocalizacaoAsync() => Task.FromResult(false);
+
+    /// <summary>
+    /// Uma leitura do GPS (uma vez so, nada fica rodando): espera ate <paramref name="limite"/> por uma leitura com a
+    /// precisao desejada e devolve a melhor que tiver. <paramref name="aoMelhorar"/> recebe a precisao de cada leitura.
+    /// Nulo se nenhuma leitura chegou (sem sinal, GPS desligado).
+    /// </summary>
+    Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<double>? aoMelhorar = null, CancellationToken cancelar = default) =>
+        Task.FromResult<Spobras.Core.Relatorio.PontoGps?>(null);
+
+    /// <summary>Transforma o ponto em endereco pelo servico do proprio sistema (precisa de internet).</summary>
+    Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude) => Task.FromResult(new ResultadoEndereco(null, FalhaEndereco.SemServico));
+
+    /// <summary>
+    /// Quantas fotos o app prepara ao mesmo tempo: celular com pouca memoria prepara uma (ou duas) por vez para nao ser
+    /// fechado pelo sistema.
+    /// </summary>
+    int FotosAoMesmoTempo => 4;
 }

@@ -10,8 +10,9 @@
     <PackageReference Include="PdfPig" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Carlito (SIL Open Font License 1.1, ver Fontes/OFL.txt): a fonte do relatorio fotografico. -->
-    <EmbeddedResource Include="Fontes/Carlito-Regular.ttf" LogicalName="Spobras.Documentos.Fontes.Carlito-Regular.ttf" />
-    <EmbeddedResource Include="Fontes/Carlito-Bold.ttf" LogicalName="Spobras.Documentos.Fontes.Carlito-Bold.ttf" />
+    <!-- Fonte do relatorio fotografico: subconjunto da Carlito (SIL Open Font License 1.1, ver Fontes/OFL.txt), so com as letras
+         que o relatorio aceita e com outro nome, como a licenca pede para versao modificada (Fontes/reduzir-fonte.py). -->
+    <EmbeddedResource Include="Fontes/SpobrasRelatorio-Regular.ttf" LogicalName="Spobras.Documentos.Fontes.SpobrasRelatorio-Regular.ttf" />
+    <EmbeddedResource Include="Fontes/SpobrasRelatorio-Bold.ttf" LogicalName="Spobras.Documentos.Fontes.SpobrasRelatorio-Bold.ttf" />
   </ItemGroup>
 </Project>

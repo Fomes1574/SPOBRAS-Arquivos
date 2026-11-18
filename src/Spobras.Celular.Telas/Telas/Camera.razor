@@ -6,7 +6,7 @@
 <div class="camera">
     <div class="topo-cam">
         <a class="bt-cam" href="relatorio/fotos" aria-label="Fechar a câmera" style="text-decoration:none;display:grid;place-items:center">✕</a>
-        <span style="font-size:13px;text-align:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Foto @(App.Rascunho.Dados.Fotos.Count + 1)@(string.IsNullOrWhiteSpace(App.Rascunho.Dados.Unidade) ? "" : " · " + App.Rascunho.Dados.Unidade)</span>
+        <span style="font-size:13px;text-align:center;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Foto @(Total + 1)@(string.IsNullOrWhiteSpace(App.Rascunho.Dados.Unidade) ? "" : " · " + App.Rascunho.Dados.Unidade)</span>
         <button class="bt-cam flash-atual" @onclick="() => _opcoes = true" aria-label="Flash: @NomeFlash(App.Config.Flash). Abrir configurações da câmera">⚡ @NomeFlash(App.Config.Flash)</button>
         <button class="bt-cam engrenagem-cam" @onclick="() => _opcoes = true" aria-label="Configurações da câmera">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
@@ -24,6 +24,10 @@
             <div class="flashou"></div>
             <div class="segure" @ref="_segure" hidden>Segure firme…</div>
         </div>
+        @if (TextoEndereco is { } local)
+        {
+            <a class="selo-endereco @(App.Endereco.Lendo ? "lendo" : "")" href="relatorio" aria-label="Endereço das fotos: @local. Abrir os dados do relatório">📍 @local</a>
+        }
         @if (_erroCamera is not null)
         {
             <div class="erro-cam" style="position:absolute;inset:0;display:grid;place-items:center"><div>@_erroCamera<br /><br /><button class="bt-cam" @onclick="Abrir">Tentar de novo</button></div></div>
@@ -34,9 +38,10 @@
         }
     </div>
     <div class="rodape-cam">
-        <a class="pronto-cam" href="relatorio/fotos" aria-label="Pronto, @Formato.Plural(App.Rascunho.Dados.Fotos.Count, "foto", "fotos")">
+        <a class="pronto-cam" href="relatorio/fotos" aria-label="Pronto, @Formato.Plural(Total, "foto", "fotos")">
             <img @ref="_miniatura" class="ultima" alt="" hidden="@(_inicial is null)" src="@_inicial" />
-            <span>Pronto (@App.Rascunho.Dados.Fotos.Count)</span>
+            <span class="pronto-n">Pronto (@Total)</span>
+            <span class="salvando-cam" @ref="_contador" style="display:none" role="status" aria-live="polite"></span>
         </a>
         <button class="disparo" @ref="_disparo" aria-label="Tirar foto" disabled="@(_erroCamera is not null)"></button>
         <button class="btn linha pequeno" style="background:none;color:#fff;border-color:#666" aria-label="Virar câmera" @onclick="Virar">⟲</button>
@@ -44,6 +49,10 @@
     @if (Erro is not null)
     {
         <div style="position:absolute;left:12px;right:12px;bottom:120px"><Aviso Tipo="erro">@Erro</Aviso></div>
+    }
+    else if (NaoSalvas > 0)
+    {
+        <div style="position:absolute;left:12px;right:12px;bottom:120px"><Aviso Tipo="erro">@(NaoSalvas == 1 ? "Uma foto não foi salva." : $"{NaoSalvas} fotos não foram salvas.") Toque em Pronto para tentar de novo na lista.</Aviso></div>
     }
 </div>
 
@@ -72,9 +81,33 @@
 </Folha>
 
 @code {
-    private ElementReference _video, _visor, _disparo, _miniatura, _segure;
+    private ElementReference _video, _visor, _disparo, _miniatura, _segure, _contador;
     private IJSObjectReference? _modulo;
-    private DotNetObjectReference<Camera>? _ref;
+
+    /// <summary>Fotos ja no rascunho mais as que ainda estao salvando.</summary>
+    private int Total => App.Rascunho.Dados.Fotos.Count + App.Rascunho.Salvando.Count(s => s.Erro is null);
+
+    private int NaoSalvas => App.Rascunho.Salvando.Count(s => s.Erro is not null);
+
+    /// <summary>Selo do endereco (so com o carimbo usando o endereco).</summary>
+    private string? TextoEndereco
+    {
+        get
+        {
+            if (!EnderecoCelular.Usa(App.Config.Carimbo)) return null;
+            var d = App.Rascunho.Dados;
+            return App.Endereco.Estado switch
+            {
+                EstadoEndereco.Lendo => App.Endereco.Precisao is { } p ? $"lendo endereço… precisão {p:0} m" : "lendo endereço…",
+                _ when d.Endereco.Length > 0 => d.Endereco,
+                EstadoEndereco.SemPermissao => "sem permissão de localização",
+                EstadoEndereco.SemSinal => "sem sinal do GPS",
+                EstadoEndereco.SemInternet => "sem internet: endereço depois",
+                EstadoEndereco.SemServico => "digite o endereço nos dados",
+                _ => null,
+            };
+        }
+    }
     private string? _erroCamera;
     private bool _opcoes, _frente, _temLanterna, _semFlash;
     private double _proporcaoVisor = 3.0 / 4.0;
@@ -124,6 +157,8 @@
 
     protected override void Iniciar()
     {
+        App.Rascunho.Mudou += Redesenhar;
+        App.Endereco.Mudou += Redesenhar;
         if (App.Rascunho.Dados.Fotos.Count > 0 && App.Rascunho.Miniatura(App.Rascunho.Dados.Fotos[^1]) is { Length: > 0 } url)
         {
             _inicial = url;
@@ -151,8 +186,8 @@
         if (_modulo is null)
         {
             _modulo = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Spobras.Celular.Telas/camera.js");
-            _ref = DotNetObjectReference.Create(this);
-            await _modulo.InvokeVoidAsync("ligarDisparo", _disparo, _miniatura, _visor, _segure, _ref);
+            await _modulo.InvokeVoidAsync("ligarDisparo", _disparo, _miniatura, _visor, _segure, App.Camera.Referencia(JS), _contador, App.Camera.MaximoNaFila);
+            _ = App.Endereco.AoAbrirCameraAsync(App.Config.Carimbo); // em segundo plano: a camera nao espera o GPS
         }
 
         var r = await _modulo.InvokeAsync<InicioCamera>("iniciar", _video, _frente);
@@ -199,28 +234,24 @@
         await Abrir();
     }
 
-    /// <summary>A foto ja foi pega no toque; aqui ela so e gravada no rascunho (e na galeria, se pedido).</summary>
-    [JSInvokable]
-    public async Task FotoTirada(byte[] jpeg)
-    {
-        Erro = null;
-        string caminho = await Task.Run(() => App.Rascunho.AdicionarFoto(jpeg));
-        await InvokeAsync(StateHasChanged);
-        if (App.Config.FotosNaGaleria)
-        {
-            _ = Task.Run(() => App.Plataforma.GuardarNaGaleriaAsync(caminho));
-        }
-    }
+    // As fotos chegam ao rascunho por App.Camera (fica no app inteiro): aqui so redesenha o contador e o selo.
+    private int _redesenho;
 
-    [JSInvokable]
-    public Task FalhaAoTirar(string motivo) => InvokeAsync(() =>
+    private void Redesenhar()
     {
-        Erro = "Não foi possível tirar a foto: " + motivo;
-        StateHasChanged();
-    });
+        if (Interlocked.Exchange(ref _redesenho, 1) == 1) return;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(100);
+            Volatile.Write(ref _redesenho, 0);
+            StateHasChanged();
+        });
+    }
 
     public async ValueTask DisposeAsync()
     {
+        App.Rascunho.Mudou -= Redesenhar;
+        App.Endereco.Mudou -= Redesenhar;
         Dispose(); // o Blazor so chama o DisposeAsync quando os dois existem
         if (_modulo is not null)
         {
@@ -234,7 +265,6 @@
             }
         }
 
-        _ref?.Dispose();
     }
 
     private sealed record InicioCamera(bool Ok, string? Erro, bool Lanterna, bool Flash);

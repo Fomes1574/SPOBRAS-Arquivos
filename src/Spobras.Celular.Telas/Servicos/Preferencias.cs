@@ -42,6 +42,9 @@ public sealed record Preferencias
     public bool FlashEscolhido { get; init; }
     public bool FotosNaGaleria { get; init; }
 
+    /// <summary>Carimbo nas fotos (escola, endereco, data, hora): vale para o relatorio e fica para os proximos.</summary>
+    public Spobras.Core.Relatorio.AjusteCarimbo Carimbo { get; init; } = new();
+
     /// <summary>Copia do logo dentro do app (o usuario escolhe a imagem uma vez).</summary>
     public string? Logo { get; init; }
 
@@ -98,6 +101,7 @@ public sealed class ArquivoPreferencias(string pasta)
         UltimosGerados = p.UltimosGerados ?? [],
         Mapeamento = p.Mapeamento ?? new(),
         RegrasStatus = p.RegrasStatus ?? new Dictionary<string, Spobras.Core.Base.SituacaoContrato>(),
+        Carimbo = (p.Carimbo ?? new()).Normalizado(),
     };
 
     public void Gravar(Preferencias p)

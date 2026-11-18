@@ -184,4 +184,56 @@ public sealed class EstresseTests : IDisposable
         var (msPronto, picoPronto) = await ComMemoria(async () => await app.Rascunho.GerarAsync(p, app.Config with { Formato = FormatoGerado.ExcelEPdf, PastaPorEscola = false }));
         Anotar($"gerar Excel e PDF com as fotos já preparadas: {msPronto / 1000.0:0.0} s, memória no pico: {picoPronto} MB");
     }
+
+    [Fact]
+    public async Task Trezentas_fotos_com_carimbo_e_galeria_carimbada_sem_mexer_nas_originais()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("SPOBRAS_ESTRESSE") == "1", "Só roda com SPOBRAS_ESTRESSE=1.");
+
+        var p = new PlataformaDeTeste(_raiz);
+        p.Pontos.Add(new Spobras.Core.Relatorio.PontoGps(-23.5505, -46.6333, 12, Hoje));
+        AmostraCelular.GravarMestra(p.Mestra);
+        var app = new AppCelular(p, () => Hoje);
+        Assert.True(await app.Base.EscolherPlanilhaAsync());
+        app.Rascunho.AplicarObra(app.Base.Buscar(new FiltroObras { Contrato = ["044/EX/2026"] }, 1).Obras[0]);
+        app.Configurar(c => c with { Pasta = new Escolhido("pasta:" + p.Saida, "Relatórios"), FotosNaGaleria = true });
+        app.Carimbar(a => a with { Ligado = true });
+        await app.Endereco.AoAbrirCameraAsync(app.Config.Carimbo);
+        Assert.NotEmpty(app.Rascunho.Dados.Endereco);
+
+        string galeria = Path.Combine(_raiz, "modelos");
+        var modelos = Enumerable.Range(0, 12).Select(i => File.ReadAllBytes(FotoDeCamera(galeria, $"m{i}.jpg", i % 4 == 3, i))).ToList();
+
+        // 300 fotos da camera chegando juntas (como toques seguidos): todas entram, na ordem dos toques, sem lugar fantasma
+        var tempo = Stopwatch.StartNew();
+        for (long id = 1; id <= Total; id++) app.Camera.FotoPega(id, "");
+        await Task.WhenAll(Enumerable.Range(1, Total).Select(i => app.Camera.FotoTirada(i, modelos[i % modelos.Count], 1, 1)));
+        Assert.Equal(Total, app.Rascunho.Dados.Fotos.Count);
+        Assert.Empty(app.Rascunho.Salvando);
+        Anotar($"300 fotos da camera salvas ao mesmo tempo: {tempo.ElapsedMilliseconds} ms");
+        var originais = app.Rascunho.Dados.Fotos.Select(f => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(app.Rascunho.Caminho(f))))).ToList();
+
+        tempo.Restart();
+        await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromMinutes(15));
+        Anotar($"300 miniaturas e copias carimbadas em segundo plano: {tempo.ElapsedMilliseconds / 1000.0:0.0} s");
+        var preparadas = Directory.GetFiles(app.Rascunho.PastaDasPreparadas, "*.jpg");
+        Assert.Equal(Total, preparadas.Length);
+        Assert.All(preparadas, a => Assert.Matches("c[0-9a-f]{10}\\.jpg$", a));
+
+        tempo.Restart();
+        await app.Galeria.VaziaAsync(TimeSpan.FromMinutes(15));
+        Assert.Equal(Total, p.NaGaleria.Count);
+        Anotar($"galeria com 300 fotos carimbadas em tamanho cheio: {tempo.ElapsedMilliseconds / 1000.0:0.0} s");
+
+        // mudar o carimbo refaz so as copias, uma por vez; nunca sobram duas versoes
+        tempo.Restart();
+        app.Carimbar(a => a with { Canto = Spobras.Core.Relatorio.CantoCarimbo.SuperiorDireito });
+        await app.Rascunho.MiniaturasProntasAsync(TimeSpan.FromMinutes(15));
+        Assert.Equal(Total, Directory.GetFiles(app.Rascunho.PastaDasPreparadas, "*.jpg").Length);
+        Anotar($"mudar o canto do carimbo e refazer as 300 copias: {tempo.ElapsedMilliseconds / 1000.0:0.0} s");
+
+        var (ms, pico) = await ComMemoria(async () => await app.Rascunho.GerarAsync(p, app.Config with { Formato = FormatoGerado.ExcelEPdf, PastaPorEscola = false }));
+        Anotar($"gerar Excel e PDF com carimbo (copias prontas): {ms / 1000.0:0.0} s, memória no pico: {pico} MB");
+        Assert.Equal(originais, app.Rascunho.Dados.Fotos.Select(f => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(app.Rascunho.Caminho(f))))));
+    }
 }

@@ -122,11 +122,58 @@ public sealed class PlataformaDeTeste : IPlataforma
         return new Salvo("arquivo:" + destino, nome, "Relatórios" + (subpasta is null ? "" : " › " + subpasta), new FileInfo(destino).Length);
     }
 
+    /// <summary>Pasta que faz o papel da galeria: cada foto guardada e copiada para ca.</summary>
+    public string Galeria => Path.Combine(Raiz, "galeria");
+
     public Task GuardarNaGaleriaAsync(string foto)
     {
-        NaGaleria.Add(foto);
+        Directory.CreateDirectory(Galeria);
+        string destino = Path.Combine(Galeria, NomeArquivo.Livre(Path.GetFileName(foto), n => File.Exists(Path.Combine(Galeria, n))));
+        File.Copy(foto, destino);
+        lock (NaGaleria)
+        {
+            NaGaleria.Add(destino);
+        }
+
         return Task.CompletedTask;
     }
+
+    // ---- GPS e endereco (simulados) ----
+
+    public bool LocalizacaoPermitida { get; set; } = true;
+
+    /// <summary>Leituras que o GPS devolve, uma por vez, na ordem (a ultima se repete). Vazio = sem sinal.</summary>
+    public List<Spobras.Core.Relatorio.PontoGps> Pontos { get; } = [];
+
+    /// <summary>Espera antes de responder (para ver o "Procurando sinal").</summary>
+    public TimeSpan AtrasoDoGps { get; set; }
+
+    public int Leituras { get; private set; }
+
+    /// <summary>Endereco de cada ponto; sem entrada, o servico nao acha nada.</summary>
+    public Func<double, double, ResultadoEndereco> Endereco { get; set; } = (_, _) => new ResultadoEndereco("Rua Exemplo, 123 – Vila Exemplo");
+
+    public int Buscas { get; private set; }
+
+    public Task<bool> PermitirLocalizacaoAsync() => Task.FromResult(LocalizacaoPermitida);
+
+    public async Task<Spobras.Core.Relatorio.PontoGps?> LocalizarAsync(TimeSpan limite, double precisaoDesejada, Action<double>? aoMelhorar = null, CancellationToken cancelar = default)
+    {
+        int n = Leituras++;
+        if (AtrasoDoGps > TimeSpan.Zero) await Task.Delay(AtrasoDoGps, cancelar);
+        if (Pontos.Count == 0) return null;
+        var p = Pontos[Math.Min(n, Pontos.Count - 1)];
+        aoMelhorar?.Invoke(p.Precisao);
+        return p;
+    }
+
+    public Task<ResultadoEndereco> EnderecoAsync(double latitude, double longitude)
+    {
+        Buscas++;
+        return Task.FromResult(SemConexao ? new ResultadoEndereco(null, FalhaEndereco.SemInternet) : Endereco(latitude, longitude));
+    }
+
+    public int FotosAoMesmoTempo { get; set; } = 4;
 
     public Task CompartilharAsync(IReadOnlyList<string> arquivos)
     {

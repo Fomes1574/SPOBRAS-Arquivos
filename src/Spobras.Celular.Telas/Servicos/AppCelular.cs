@@ -13,7 +13,13 @@ public sealed class AppCelular
         Directory.CreateDirectory(plataforma.PastaDoApp);
         Preferencias = new ArquivoPreferencias(plataforma.PastaDoApp);
         Base = new BaseCelular(plataforma, Preferencias, Agora);
-        Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora);
+        // Celular com pouca memoria prepara uma (ou duas) fotos por vez: mais devagar, mas sem o sistema fechar o app.
+        Spobras.Documentos.Relatorio.PreparoDeFotos.Limite = Math.Clamp(plataforma.FotosAoMesmoTempo, 1, 4);
+        Rascunho = new RascunhoRelatorio(plataforma.PastaDoApp, Agora, () => Preferencias.Ler().Carimbo);
+        Enderecos = new EnderecosGuardados(plataforma.PastaDoApp);
+        Endereco = new EnderecoCelular(plataforma, Rascunho, Enderecos, Agora);
+        Camera = new FotosDaCamera(this);
+        Galeria = new FilaDaGaleria(this);
         Pdf = new PdfCelular(plataforma, Preferencias);
         ResumoPdf = new ResumoPdfCelular(this);
     }
@@ -24,6 +30,10 @@ public sealed class AppCelular
     public BaseCelular Base { get; }
     public RascunhoRelatorio Rascunho { get; }
     public PdfCelular Pdf { get; }
+    public EnderecosGuardados Enderecos { get; }
+    public EnderecoCelular Endereco { get; }
+    public FotosDaCamera Camera { get; }
+    public FilaDaGaleria Galeria { get; }
 
     /// <summary>Filtro da tela Base (continua igual ao voltar da ficha).</summary>
     public Spobras.Core.Base.FiltroObras FiltroBase { get; set; } = new();
@@ -36,6 +46,16 @@ public sealed class AppCelular
     public Preferencias Config => Preferencias.Ler();
 
     public void Configurar(Func<Preferencias, Preferencias> mudar) => Preferencias.Gravar(mudar(Preferencias.Ler()));
+
+    /// <summary>Muda o carimbo: as copias carimbadas antigas saem e as novas sao feitas em segundo plano.</summary>
+    public void Carimbar(Func<Spobras.Core.Relatorio.AjusteCarimbo, Spobras.Core.Relatorio.AjusteCarimbo> mudar)
+    {
+        var antes = Config.Carimbo;
+        var depois = mudar(antes).Normalizado();
+        if (depois == antes) return;
+        Configurar(p => p with { Carimbo = depois });
+        Rascunho.CarimboMudou();
+    }
 
     /// <summary>Guarda os ultimos arquivos gerados (para a tela inicial).</summary>
     public void Registrar(IEnumerable<Salvo> salvos) =>
