@@ -347,7 +347,7 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
-- **Carimbo nas fotos, endereço pelo GPS e leveza (em projeto, 18/11/2026):** plano completo em `docs/PLANO_CARIMBO_E_LEVEZA.md`, com 4 perguntas na seção 7. Nada implementado.
+- **Carimbo nas fotos, endereço pelo GPS e leveza (em projeto, 18/11/2026):** plano completo em `docs/PLANO_CARIMBO_E_LEVEZA.md`, decisões do usuário na seção 8. Nada implementado.
 
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 

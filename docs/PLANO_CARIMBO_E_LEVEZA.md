@@ -43,7 +43,10 @@ Na planilha, duas escolas diferentes podem ter exatamente o mesmo nome e até o 
 - **Mesma chave:** o endereço aparece direto, mesmo sem internet.
 - **Mesmo nome, contrato diferente:** o app nunca reaproveita sozinho. Ele pergunta: "Já existe um endereço guardado para uma unidade com este nome (contrato X): Rua Exemplo, 123. É o mesmo local?", com os botões "Usar este" e "Ler pelo GPS".
 - **Relatório sem contrato** (unidade digitada à mão): a chave é só o nome, e o app sempre pede para confirmar.
-- **Distância:** cada endereço guarda o ponto do GPS. Se uma leitura nova cair a mais de 300 m dele, o app avisa: "Você está a 1,2 km do endereço guardado desta escola. Atualizar?". Isso também pega a escolha da escola errada.
+- **Distância (só aviso):** cada endereço guarda o ponto do GPS. O aviso aparece quando uma leitura nova fica mais longe que **300 m + a margem de erro das duas leituras**: "Você está a 1,2 km do endereço guardado desta escola. Atualizar?", com "Atualizar" e "Manter". "Manter" não pergunta de novo naquele relatório.
+- **A distância não escolhe a escola.** Quem separa as escolas é a chave escola + contrato, escolhida pelo fiscal:
+  - Num CEU do tamanho de um quarteirão, o endereço guardado não muda com o fiscal andando pelo terreno. Os 300 m mais a margem cobrem andar pelo terreno sem aviso falso.
+  - Escolas pequenas vizinhas podem receber o mesmo endereço do GPS. O fiscal corrige uma vez, e a correção fica guardada para aquele contrato.
 
 ### Armazenamento
 
@@ -97,16 +100,23 @@ Rua Exemplo, 123 – Vila Exemplo
 - **Tamanho máximo:** 60% da largura e 35% da altura da foto. O endereço quebra em até 2 linhas; o que passar disso termina em "…".
 - **Limites:** a faixa nunca sai da área da foto nem encosta na borda (margem mínima de 2% do lado menor).
 
-### Sem custo para as fotos (otimização principal)
+### Gravado na cópia da foto, sem atrasar a geração (decidido em 18/11/2026)
 
-O carimbo **não é gravado na foto**. Ele é desenhado por cima, na hora de montar a página, como mais uma peça do desenho do relatório (`DesenhoRelatorio`), assim como a legenda. Com isso:
+O carimbo é **gravado na cópia reduzida** (1.600 px) que vai para o relatório. Essa mesma cópia serve ao Excel e ao PDF, então os dois saem iguais e ninguém consegue mover ou apagar o carimbo no Excel. A original no rascunho continua sem carimbo.
 
-- **Arquivos:** a foto preparada (1.600 px) não é refeita nem recomprimida. Mudar o carimbo não gasta memória nem tempo de processamento das fotos.
-- **Mesma imagem em todo lugar:** PDF, prévia do PC e prévia do celular desenham a mesma peça, então o que se vê na tela é o que sai no papel.
-- **Nitidez:** no PDF o texto fica vetorial, nítido na impressão, e pode ser selecionado.
-- **Excel:** uma caixa de texto posicionada sobre a foto, como os quadros, que já são formas.
-- **Ponto a decidir:** no Excel, quem editar a planilha pode mover ou apagar essa caixa. Se o usuário preferir o carimbo "colado", ele pode ser gravado só na cópia da foto que vai para o Excel. O custo seria cerca de 50 ms por foto na geração e nenhuma alteração na original.
-- **Galeria:** continua recebendo a foto original, sem carimbo. Uma cópia carimbada na galeria fica para depois, se o usuário pedir.
+- **Na tela:** enquanto o fiscal arrasta e muda o tamanho, a prévia desenha o carimbo por cima da foto, sem gravar nada. Por isso a resposta ao dedo é instantânea. A conta da posição e a fonte são as mesmas da gravação, então o que se vê é o que sai.
+- **Sem passo a mais na geração:** a cópia carimbada é feita junto com a cópia reduzida, em segundo plano, assim que a foto entra, e no mesmo passo, enquanto a imagem já está na memória. Na hora de gerar, ela já está pronta.
+- **Mudou o carimbo:** só a cópia carimbada é refeita, a partir da cópia reduzida sem carimbo (que é pequena), uma foto por vez, em segundo plano. A versão antiga sai: é arquivo interno, e o app refaz quando precisar.
+- **Custo:** estimativa de 40 a 80 ms por foto num celular simples, gastos enquanto o fiscal escreve as legendas. Medir no estresse.
+
+### Galeria com carimbo (decidido em 18/11/2026)
+
+- **Carimbo ligado:** com "Guardar também na galeria" ligado, a galeria recebe a foto **com carimbo**. Com o carimbo desligado, a galeria recebe a original, como hoje.
+- **Original sem carimbo:** fica só no rascunho, até o "Novo relatório".
+- **Configuração usada:** a do momento em que a foto foi tirada. Mudar o carimbo depois não altera o que já foi para a galeria.
+- **Em tamanho cheio:** a foto da galeria não é reduzida. Para não travar a câmera, a gravação na galeria entra numa fila separada, uma foto por vez, em segundo plano. A foto aparece na galeria alguns segundos depois, enquanto a câmera continua livre.
+- **Endereço ainda em leitura:** a fila espera o endereço até 30 s. Sem endereço até lá, a foto vai para a galeria com o carimbo sem a linha do endereço.
+- **Memória:** decodificar uma foto de 12 MP ocupa cerca de 48 MB. Com uma foto por vez, o pico fica controlado mesmo num celular de 2 GB.
 
 ## 3. Leveza do app
 
@@ -195,11 +205,42 @@ Já existe e continua:
 | Android 8 e 9 (antigos, muitas vezes 32 bits e 2 GB) | Funciona hoje. | APK de 32 bits; preparar 1 foto por vez; permissão de localização simples. Já anotado: nessas versões, "Guardar também na galeria" não grava (falta a permissão de armazenamento). |
 | Android 10 a 12 | Funciona hoje. | Permissão de localização "só durante o uso". |
 | Android 13 em diante | Funciona hoje. | A localização pode ser concedida só como "aproximada". Nesse caso o app avisa que o endereço pode sair errado e pede a precisa. |
-| iPhone | Não existe ainda. | As telas e a câmera (que roda dentro da página) podem ser reaproveitadas. Galeria, arquivos, compartilhar e GPS precisam de código próprio. Exige conta de desenvolvedor da Apple (paga, por ano) e distribuição por TestFlight ou App Store. Daqui não dá para testar num iPhone de verdade. |
+| iPhone | Fora por enquanto (18/11/2026: sem conta de desenvolvedor da Apple). | Sem a conta não há como instalar no iPhone de outras pessoas. Se um dia houver conta, as telas e a câmera podem ser reaproveitadas; galeria, arquivos, compartilhar e GPS precisam de código próprio. |
 
-## 7. Perguntas ao usuário
+## 7. Câmera: várias fotos seguidas
 
-1. **Carimbo no Excel:** caixa de texto sobre a foto (leve, mas editável) ou gravado na cópia da foto do Excel?
-2. **Distância do aviso:** 300 m está bom?
-3. **iPhone:** existe ou pode existir conta de desenvolvedor da Apple?
-4. **Galeria com carimbo:** só a original, sem carimbo (proposta), ou também uma cópia carimbada?
+### O que acontece hoje
+
+Já é possível tirar várias fotos seguidas. Com o flash desligado, cada toque pega a foto na hora. Com o flash ligado ou automático, aparece "Segure firme" enquanto o sensor ajusta a luz.
+
+O problema relatado em 18/11/2026: depois de 3 fotos seguidas, o relatório apareceu vazio e as fotos surgiram uns 2 segundos depois. **Nenhuma foto se perde**, mas a tela assusta. A causa está na ordem dos passos:
+
+1. **No toque:** a imagem do visor é pega na hora.
+2. **Depois do toque:** ela é transformada em JPEG em tamanho cheio (até 4096 × 3072), o passo mais lento num celular simples. Em seguida vai da câmera para o app, é gravada no rascunho e só então entra na lista.
+3. **Ao fechar a câmera:** a lista abre na hora e mostra só as fotos que já terminaram o passo 2. As outras aparecem quando terminam.
+
+### Melhorias
+
+1. **A foto entra na lista no toque.** O app reserva o lugar dela na hora, com a imagem pequena do visor e o selo "gravando…". A lista nunca aparece vazia nem com menos fotos do que foram tiradas. Se a gravação falhar, o lugar vira um aviso claro em vez de sumir.
+2. **Selo na câmera:** "3 gravando" perto do botão. Fechar a câmera continua seguro, porque o app já espera as gravações terminarem, e agora a pessoa vê isso.
+3. **Fila na câmera:** os toques nunca esperam a gravação da foto anterior. Cada foto entra numa fila; a câmera só pede para esperar se a fila passar de 6 fotos, para não estourar a memória do celular simples.
+4. **Medir antes de otimizar:** uma tela de diagnóstico (escondida nas Configurações) mostra o tempo de cada passo nas últimas fotos: pegar a imagem, transformar em JPEG, passar para o app, gravar e miniatura. Com os números de um celular de verdade, otimizar o passo mais lento. Candidatos:
+   - transformar em JPEG fora da tela principal (worker), sem travar os toques;
+   - passar a foto da câmera para o app sem a conversão em texto que a ponte entre página e app faz hoje (verificar no .NET 10).
+5. **Carimbo e galeria fora do caminho da câmera:** a cópia carimbada e a gravação na galeria (seção 2) correm em filas separadas, depois que a foto já está segura no rascunho. Elas nunca atrasam o próximo toque.
+
+### Testes
+
+- **Visual (Playwright):** 3, 10 e 30 toques seguidos, fechando a câmera logo depois. A lista deve mostrar o número certo de fotos desde o primeiro instante, com "gravando…" nas que ainda não terminaram e as fotos na ordem dos toques.
+- **Robustez:**
+  - app fechado com fotos na fila: as que já tinham virado arquivo entram, nenhuma pela metade;
+  - falha na gravação de uma foto;
+  - fila cheia.
+- **Segurança dos arquivos (seção 0):** depois de toques seguidos, o número de fotos no rascunho é igual ao número de toques.
+
+## 8. Decisões do usuário (18/11/2026)
+
+1. **Carimbo no Excel:** gravado na cópia da foto (seção 2).
+2. **Distância do aviso:** 300 m mais a margem de erro do GPS, só como aviso (seção 1).
+3. **iPhone:** sem conta de desenvolvedor da Apple, fica fora por enquanto.
+4. **Galeria:** recebe a foto com carimbo quando o carimbo está ligado (seção 2).
