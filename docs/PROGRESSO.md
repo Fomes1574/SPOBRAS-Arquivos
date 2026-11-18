@@ -26,7 +26,7 @@ Implementado o plano `docs/PLANO_CARIMBO_E_LEVEZA.md` (decisões do usuário na 
   - Sem permissão, sem sinal, sem internet (o ponto fica guardado e "Tentar de novo" busca só o endereço) e sem serviço (digitar): cada caso tem a sua mensagem.
   - Os dados do relatório têm o cartão "Endereço das fotos", e a câmera mostra o selo "📍 Rua…".
 - **Leveza:**
-  - Um APK para cada tipo de processador, `ArquivosSPOBRAS-64bits.apk` e `ArquivosSPOBRAS-32bits.apk`, no lugar do APK único de 83 MB. O tamanho de cada um sai no resumo do CI.
+  - Um APK para cada tipo de processador, `ArquivosSPOBRAS-64bits.apk` e `ArquivosSPOBRAS-32bits.apk`, no lugar do APK único de 84 MB. Cada um ficou com cerca de 45 MB (CI 92: 46,6 MB e 45,7 MB). O CI confere que cada APK leva só o código do seu processador.
   - A fonte do relatório agora é um subconjunto da Carlito com outro nome, como a licença pede (`Fontes/reduzir-fonte.py`): passou de 2,6 MB para 0,15 MB, com as mesmas larguras de letra (teste).
   - Celular com pouca memória prepara 1 ou 2 fotos por vez.
 - **Testes:**
