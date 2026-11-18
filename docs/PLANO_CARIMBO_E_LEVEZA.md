@@ -348,6 +348,72 @@ Para o endereço, até 50 m costuma acertar a rua; o número pode sair aproximad
 
   Em cada caso, anotar o tempo e a precisão mostrados no diagnóstico.
 
+## 10. Segundo teste do GPS (fase de projeto, 18/11/2026)
+
+### O que o usuário viu
+
+- **Endereço errado:**
+  - No prédio da SIURB (Rua XV de Novembro, 165, Centro Histórico), o app deu "Rua da Quitanda, 64 – Centro Histórico de São Paulo", com precisão de 100 m.
+  - No mesmo momento, o Google Maps também não soube dizer onde ele estava: respondeu só "região do Triângulo Histórico".
+- **Endereço que não sai:** depois de desligar "Usar o endereço pelo GPS", o endereço continuou aparecendo na câmera e iria para as fotos.
+
+### Diagnóstico
+
+1. **A leitura funcionou, mas veio imprecisa.**
+   - Dentro de um prédio, num centro de prédios altos, o GPS não vê os satélites, e a posição sai do Wi-Fi e das antenas.
+   - Nesse caso o próprio celular só sabe a região. Por isso o Google Maps respondeu só "Triângulo Histórico".
+   - Uma margem de 100 m quer dizer que o ponto real pode estar a 100 m ou mais. A Rua da Quitanda fica justamente a essa distância da XV de Novembro.
+   - Estudos com celulares dão erros típicos de 3 a 30 m na rua entre prédios altos, e mediana de dezenas de metros para a posição só por Wi-Fi.
+2. **O app aceitou um endereço impreciso sem perguntar.** Com 100 m de margem, o endereço do ponto é só um palpite e não deveria ir para as fotos sem o fiscal confirmar.
+3. **Erro de regra no app:** o interruptor controlava só o GPS, não o endereço. Com ele desligado, o endereço já lido continuava valendo no carimbo.
+
+### O que outros apps fazem
+
+- **Timemark:** grava o ponto do GPS no toque e avisa que o endereço pode sair errado se o celular ainda não tiver um sinal forte. Recomenda esperar alguns segundos e ir para área aberta.
+- **Apps de câmera com mapa (GPS Map Camera, MapCam, GeoMap):** oferecem localização automática ou manual. No modo manual, o usuário marca o lugar num mapa ou procura o endereço.
+- **Google Maps:** mostra um círculo de margem em volta do ponto, em vez de fingir precisão.
+
+### Métodos estudados
+
+| Método | Resultado esperado | Avaliação |
+|---|---|---|
+| GPS na rua | 3 a 30 m | Ótimo fora do prédio. Dentro, quase nada |
+| Wi-Fi e antenas (o que o app usa hoje junto com o GPS) | dezenas a centenas de metros | Funciona dentro do prédio, mas impreciso no centro |
+| Wi-Fi RTT (802.11mc) | 1 a 2 m | Precisa de roteadores especiais, que quase não existem: fora |
+| Marcar no mapa | exato | Precisa de mapa: OpenStreetMap restringe o uso por apps e Google Maps exige chave paga. Fica para depois, se for necessário |
+| Endereço de cada escola por cadastro (dados abertos da Prefeitura) | exato, sem GPS | O conjunto "Cadastro de escolas municipais, conveniadas e privadas" existe no portal de dados abertos. Não foi possível abrir daqui (endereço bloqueado nesta sessão). Precisa do arquivo ou da liberação do endereço `dados.prefeitura.sp.gov.br` |
+| Confirmar uma vez e guardar por escola + contrato | exato a partir da 2ª visita | Já existe. É o caminho mais seguro junto com a confirmação |
+
+### Proposta
+
+**A. Um controle só para o endereço**
+- **"Endereço nas fotos", ligado ou desligado:** é o mesmo controle do item "Endereço" do carimbo; os dois mudam juntos.
+- **Desligado:** nenhum endereço aparece na câmera, no carimbo, na galeria, nas prévias e no relatório. O texto fica guardado, sem apagar, para quando for religado.
+- **Ligado, de onde vem o endereço:** "Digitar" (padrão) ou "Pelo GPS".
+
+**B. GPS que não engana**
+1. **Margem até 30 m:** o endereço vale direto, como hoje.
+2. **Margem acima de 30 m:** o endereço vira sugestão e só entra nas fotos depois de um toque.
+   - Texto: "Perto de: Rua da Quitanda, 64 (margem de 100 m). Está certo?"
+   - Botões: "Usar este", "Editar" e "Ler de novo".
+   - Até o fiscal confirmar, o carimbo sai sem endereço e o passo 3 avisa.
+3. **Mais tempo quando a leitura é ruim:** se depois de 20 s a margem ainda passar de 30 m, o app continua ouvindo o GPS até 45 s e mostra "Para mais precisão, vá para perto de uma janela ou para fora do prédio".
+4. **Satélites no diagnóstico:** quantos satélites o celular vê e quantos usa. Com 0, fica claro que é falta de céu, não defeito do app.
+5. **Confirmou uma vez, fica:** a confirmação vale para a escola + contrato. Nas próximas visitas não precisa de GPS, que só confere a distância.
+
+**C. Cadastro de endereços das escolas (opcional)**
+- **Como funcionaria:** com o arquivo de escolas da Prefeitura, o app preenche o endereço pelo nome da escola, sem GPS e sem internet.
+- **Peso:** o arquivo reduzido ficaria em poucas centenas de KB.
+- **O que falta:** o arquivo ou a liberação do endereço `dados.prefeitura.sp.gov.br` para estudar as colunas.
+
+**D. Testes**
+- Desligado não aparece em lugar nenhum: câmera, cópia carimbada, galeria, prévia, Excel e PDF.
+- Margem de 100 m vira sugestão, e só entra depois de "Usar este".
+- 45 s com o GPS melhorando.
+- Diagnóstico com satélites.
+- Teste visual dos estados.
+- Roteiro de campo no prédio da SIURB: dentro, na janela e na calçada.
+
 ## 8. Decisões do usuário (18/11/2026)
 
 1. **Carimbo no Excel:** gravado na cópia da foto (seção 2).

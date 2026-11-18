@@ -434,6 +434,11 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
+- **GPS, segundo teste (18/11/2026):**
+  - No prédio da SIURB o endereço saiu na rua vizinha, com margem de 100 m (o Google Maps também só achou a região).
+  - O interruptor desligado não tirava o endereço das fotos.
+  - Proposta na seção 10 de `docs/PLANO_CARIMBO_E_LEVEZA.md`, aguardando as decisões do usuário.
+
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 
 - **Resumo por contrato:** confirmar o nome sugerido para vários contratos, `Resumo dos contratos - AAAA-MM-DD.pdf`.
