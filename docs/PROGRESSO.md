@@ -8,7 +8,7 @@ A pedido do usuário, a tela Modelos Excel saiu do app (só existia no computado
 - **Continuam iguais:** Cronograma padrão, Relatório fotográfico, logo, "Usar no relatório fotográfico" e "Usar no cronograma" da Base.
 - **Dados antigos:** as cópias internas de modelos que o app tenha guardado ficam onde estão e não são mais lidas. Nenhum arquivo do usuário foi tocado.
 
-**Testes:** 465 passando no Linux, mais 2 de estresse que só rodam sob pedido; os testes de tela do Windows rodam no CI. Há um teste novo: o menu não tem mais Modelos Excel, e a Base continua levando ao cronograma e ao relatório).
+**Testes:** 465 passando no Linux, mais 2 de estresse que só rodam sob pedido; os testes de tela do Windows rodam no CI. Há um teste novo: o menu não tem mais Modelos Excel, e a Base continua levando ao cronograma e ao relatório.
 
 As seções abaixo sobre Modelos Excel ficam só como histórico.
 
