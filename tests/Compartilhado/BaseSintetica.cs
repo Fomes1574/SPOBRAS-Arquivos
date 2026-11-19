@@ -26,6 +26,12 @@ public sealed class PlanilhaFalsa : ILeitorPlanilha
         TabelasPorNome[nome] = new TabelaLida(nome, nome, colunas, linhas);
         return this;
     }
+
+    public PlanilhaFalsa Aba(string nome, List<object?[]> grade)
+    {
+        AbasPorNome[nome] = grade;
+        return this;
+    }
 }
 
 public static class BaseSintetica
@@ -101,7 +107,38 @@ public static class BaseSintetica
             Medicao("999/OUTRO/2020", "00001", 5m, null, "Obra de outro programa"))
         .Tabela("contratos_VW_EMPENHOS_SOF", ColunasEmpenhos,
             Empenho("015/EX/2025", "100001", 5000m),
-            Empenho("015/EX/2025", "100002", 2500.5m));
+            Empenho("015/EX/2025", "100002", 2500.5m))
+        .Aba("Em licitação", EmLicitacao())
+        .Aba("A Licitar", ALicitar());
+
+    /// <summary>
+    /// Aba "Em licitação" sintetica, como a real: titulo, linha de totais, cabecalho na 4a linha com espacos no fim
+    /// dos nomes, uma licitacao publicada sem empresa e "Recursos" = valor x 1,1. EMEF Alfa tambem esta em andamento.
+    /// LOTE 01 existe em andamento com outra modalidade (o cronograma nao pode juntar).
+    /// </summary>
+    public static List<object?[]> EmLicitacao() =>
+    [
+        ["Obras em Licitação", null, null, null, null, null, null, null, null, null, null],
+        ["↩ VOLTAR", null, null, null, null, null, null, null, null, null, null],
+        ["UNIDADES EM LICITAÇÃO: 3", null, null, null, null, null, null, "TOTAIS", 3600000m, 3960000m, null],
+        ["Portaria ", "Contrato Receita", "Dotação ", "Lote", "Modalidade", "Nome da Obra", "Empresa", "STATUS", "Valor do Contrato com ADM", "Recursos para 2027", "Processo "],
+        [4m, "015/EX/2025", 3364m, "LOTE 01", "Manutenção CEU", "CEU Épsilon", "Construtora Exemplo Ltda", "Homologação", 1000000m, 1100000m, "7910.2026/0000010-0"],
+        [3m, "Sem Contrato Receita", 2878m, "LOTE 64", "Reforma e Manutenção", "EMEF Alfa", null, "Publicada", 2000000m, 2200000m, "7910.2026/0000011-0"],
+        [null, null, null, null, null, null, null, null, null, null, null],
+        ["3 (2025)", "016/EX/2026", 3360m, "LOTE 64", "Reforma e Manutenção", "CEI Zeta", "Outra Empresa Exemplo", "Homologação", 600000m, 660000m, "7910.2026/0000012-0"],
+    ];
+
+    /// <summary>Aba "A Licitar" sintetica: Processo opcional (vazio em uma), lote que e um agrupamento, um sem lote e duas colunas sem nome no fim.</summary>
+    public static List<object?[]> ALicitar() =>
+    [
+        ["Obras a Licitar", null, null, null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null, null, null, null],
+        ["UNIDADES A LICITAR: 3", null, null, null, null, null, null, "TOTAIS", 1500000m, 1650000m, null, null],
+        ["Portaria ", "Contrato Receita", "Dotação ", "Lote", "Modalidade", "Nome da Obra", "Processo", "STATUS", "Valor do Contrato", "Valor com ADM", null, null],
+        [3m, "015/EX/2025", 3359m, "LOTE 09", "Pista de Skate", "EMEF Alfa", "", "A Licitar Obras", 500000m, 550000m, null, null],
+        [3m, "Não tem", 2878m, "PREVISÃO DE MUROS – EMEF'S – PORTARIA 03", "Muro de Arrimo", "EMEI Gama", "7910.2026/0000020-0", "A Licitar Obras", 800000m, 880000m, null, null],
+        [6m, "015/EX/2025", 3364m, null, "Construção", "CEU Teta", null, "A Licitar Obras", 200000m, 220000m, null, null],
+    ];
 
     /// <summary>Dotações Completas sintetica, com cabecalhos fora da primeira linha e um espaco no lugar do ponto.</summary>
     public static PlanilhaFalsa Dotacoes()

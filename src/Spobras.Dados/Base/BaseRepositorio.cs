@@ -82,6 +82,8 @@ public sealed partial class BaseRepositorio(BancoApp banco)
             }
         }
 
+        GravarPrevistas(conexao, tx, BaseDeObras.EmLicitacao, dados.EmLicitacao);
+        GravarPrevistas(conexao, tx, BaseDeObras.ALicitar, dados.ALicitar);
         GravarFonte(conexao, tx, fonte);
         AplicarEdicoesDeObras(conexao, tx, releitura: true);
         tx.Commit();
@@ -514,6 +516,7 @@ public sealed partial class BaseRepositorio(BancoApp banco)
         {
             _opcoesGerais = null;
             _statusContrato = null;
+            _previstas.Clear();
         }
     }
 

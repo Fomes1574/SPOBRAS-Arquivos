@@ -189,6 +189,40 @@ public sealed class BancoApp
         """
         alter table Medicao add column protocolo text null;
         """,
+
+        // 9: obras sem contrato, cada base na sua tabela (abas "Em licitação" e "A Licitar"; docs/PLANO_LICITACOES.md)
+        """
+        create table ObraLicitacao (
+            id integer primary key,
+            linha integer not null,
+            nome text not null,
+            portaria text null,
+            contrato_receita text null,
+            dotacao text null,
+            lote text null,
+            modalidade text null,
+            empresa text null,
+            status text null,
+            processo text null,
+            valor_obra integer null,
+            valor_com_remuneracao integer null
+        );
+        create table ObraALicitar (
+            id integer primary key,
+            linha integer not null,
+            nome text not null,
+            portaria text null,
+            contrato_receita text null,
+            dotacao text null,
+            lote text null,
+            modalidade text null,
+            empresa text null,
+            status text null,
+            processo text null,
+            valor_obra integer null,
+            valor_com_remuneracao integer null
+        );
+        """,
     ];
 
     private const string SufixoRestaurar = ".restaurar";

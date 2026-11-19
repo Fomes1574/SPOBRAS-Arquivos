@@ -8,7 +8,14 @@ public sealed class ImportacaoInvalidaException(string mensagem) : Exception(men
 
 public sealed record MestraImportada(
     IReadOnlyList<ObraLida> Obras, IReadOnlyList<MedicaoLida> Medicoes, IReadOnlyList<EmpenhoLido> Empenhos,
-    IReadOnlyDictionary<long, string?> DotacoesOriginais, IReadOnlyList<string> Avisos);
+    IReadOnlyDictionary<long, string?> DotacoesOriginais, IReadOnlyList<string> Avisos)
+{
+    /// <summary>Aba "Em licitação"; null = nao lida (os dados anteriores ficam).</summary>
+    public IReadOnlyList<ObraPrevista>? EmLicitacao { get; init; }
+
+    /// <summary>Aba "A Licitar"; null = nao lida (os dados anteriores ficam).</summary>
+    public IReadOnlyList<ObraPrevista>? ALicitar { get; init; }
+}
 
 /// <summary>
 /// Le a planilha mestra por nome de tabela e de coluna (docs/FONTES.md). Valida tudo antes de devolver:
@@ -42,7 +49,12 @@ public static class ImportadorMestra
             throw new ImportacaoInvalidaException("A tabela de contratos veio sem nenhuma linha. A base anterior foi mantida.");
         }
 
-        return new MestraImportada(obras, medicoes, empenhos, originais, avisos);
+        // As bases sem contrato nunca impedem a leitura das obras em andamento: so avisam.
+        var licitacao = ImportadorLicitacoes.Ler(planilha, BaseDeObras.EmLicitacao);
+        var aLicitar = ImportadorLicitacoes.Ler(planilha, BaseDeObras.ALicitar);
+        avisos.AddRange(licitacao.Avisos);
+        avisos.AddRange(aLicitar.Avisos);
+        return new MestraImportada(obras, medicoes, empenhos, originais, avisos) { EmLicitacao = licitacao.Obras, ALicitar = aLicitar.Obras };
     }
 
     private static (List<ObraLida>, Dictionary<long, string?>) Obras(TabelaLida t, List<MedicaoLida> medicoes, List<string> avisos, MapeamentoMestra mapa)

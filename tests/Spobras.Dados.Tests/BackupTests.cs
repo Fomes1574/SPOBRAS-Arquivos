@@ -31,7 +31,7 @@ public class BackupTests : IDisposable
         new ConfigRepositorio(banco).Gravar("teste", "valor antigo");
         Assert.Empty(banco.Backups()); // banco novo: nada para guardar
         // Simula um banco da versao anterior do app
-        Sql(banco, "alter table Medicao drop column protocolo; "
+        Sql(banco, "drop table ObraLicitacao; drop table ObraALicitar; "
                    + $"pragma user_version = {BancoApp.VersaoAtual - 1};");
 
         var atualizado = new BancoApp(Db);
@@ -39,7 +39,7 @@ public class BackupTests : IDisposable
         var copia = Assert.Single(atualizado.Backups());
         Assert.Contains($"antes de atualizar (versão {BancoApp.VersaoAtual - 1})", copia.Name);
         Assert.Equal("valor antigo", new ConfigRepositorio(atualizado).Ler<string>("teste"));
-        Sql(atualizado, "select count(*) from AjusteObra"); // migracao aplicada
+        Sql(atualizado, "select count(*) from ObraLicitacao; select count(*) from ObraALicitar"); // migracao aplicada
 
         using var c = new SqliteConnection($"Data Source={copia.FullName};Mode=ReadOnly;Pooling=False");
         c.Open();
