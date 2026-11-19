@@ -1,6 +1,6 @@
 # Plano: cronograma mais claro (tela do app e formatação da planilha)
 
-Fase de projeto (19/11/2026). Nada implementado.
+Implementado em 19/11/2026 (ver `PROGRESSO.md`).
 
 ## 1. Defeito: "035" não mostra os contratos
 

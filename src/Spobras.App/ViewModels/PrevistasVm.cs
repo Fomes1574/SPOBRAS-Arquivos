@@ -135,11 +135,12 @@ public sealed partial class PrevistasVm : ObservableObject
 
     private void Buscar()
     {
-        long? antes = Selecionada?.Obra.Id;
+        // A ficha aberta continua so se for a mesma obra: depois de reler a planilha, a mesma linha pode ser outra escola.
+        var antes = Selecionada?.Obra;
         var achadas = Previstas.Filtrar(_todas, Filtro());
         Obras.Clear();
         foreach (var o in achadas) Obras.Add(new PrevistaVm(o));
-        Selecionada = antes is { } id ? Obras.FirstOrDefault(o => o.Obra.Id == id) : null;
+        Selecionada = antes is null ? null : Obras.FirstOrDefault(o => o.Obra.Id == antes.Id && ProcuraObras.MesmaEscola(o.Nome, antes.Nome));
         var (n, valor, com10) = Previstas.Totais(achadas);
         string nome = Qual == BaseDeObras.EmLicitacao ? "obra em licitação" : "obra a licitar";
         string plural = Qual == BaseDeObras.EmLicitacao ? "obras em licitação" : "obras a licitar";

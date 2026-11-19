@@ -52,3 +52,35 @@ public class DinheiroAoDigitarTests
         Assert.Equal(2_500_000m, Normalizacao.LerReais("2.500.000"));
     }
 }
+
+/// <summary>Estresse da máscara de dinheiro: milhares de digitações aleatórias, colagens e apagamentos.</summary>
+public class DinheiroAoDigitarEstresseTests
+{
+    [Fact]
+    public void Nunca_quebra_nunca_perde_digito_e_o_cursor_fica_dentro_do_texto()
+    {
+        var sorte = new Random(1574);
+        const string teclas = "0123456789,.R$ a-";
+        for (int rodada = 0; rodada < 20_000; rodada++)
+        {
+            int tamanho = sorte.Next(0, 18);
+            string texto = new([.. Enumerable.Range(0, tamanho).Select(_ => teclas[sorte.Next(teclas.Length)])]);
+            int cursor = sorte.Next(0, texto.Length + 1);
+            var (novo, pos) = DinheiroAoDigitar.Formatar(texto, cursor);
+            Assert.InRange(pos, 0, novo.Length);
+            Assert.Equal(novo, DinheiroAoDigitar.Formatar(novo, pos).Texto); // formatar de novo não muda nada
+
+            int virgula = texto.IndexOf(',');
+            string inteiros = new([.. (virgula < 0 ? texto : texto[..virgula]).Where(char.IsAsciiDigit)]);
+            string centavos = virgula < 0 ? "" : new string([.. texto[(virgula + 1)..].Where(char.IsAsciiDigit)]);
+            if (inteiros.Length + centavos.Length == 0)
+            {
+                continue;
+            }
+
+            decimal esperado = (inteiros.TrimStart('0') is { Length: > 0 } i ? decimal.Parse(i, System.Globalization.CultureInfo.InvariantCulture) : 0m)
+                + (centavos.Length == 0 ? 0m : decimal.Parse("0." + centavos[..Math.Min(2, centavos.Length)], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(esperado, Normalizacao.LerReais(novo.EndsWith(',') ? novo + "0" : novo));
+        }
+    }
+}

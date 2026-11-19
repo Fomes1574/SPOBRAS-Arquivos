@@ -58,7 +58,10 @@ public static class ImportadorLicitacoes
         var avisos = new List<string>();
         var obras = new List<ObraPrevista>();
         string? Valor(object?[] l, string campo) => indices.TryGetValue(campo, out int i) && i < l.Length ? ImportadorMestra.Texto(l[i]) : null;
-        decimal? Reais(object?[] l, string campo) => indices.TryGetValue(campo, out int i) && i < l.Length ? ImportadorMestra.Reais(l[i]) : null;
+        // Numero da celula; valor escrito como texto ("R$ 1.000,00") tambem vale.
+        decimal? Reais(object?[] l, string campo) => indices.TryGetValue(campo, out int i) && i < l.Length
+            ? ImportadorMestra.Reais(l[i]) ?? (l[i] is string t && Normalizacao.LerReais(t) is { } v ? Math.Round(v, 2, MidpointRounding.AwayFromZero) : null)
+            : null;
         long id = qual == BaseDeObras.EmLicitacao ? 1_000_000 : 2_000_000;
 
         for (int r = linhaCab + 1; r < grade.Count; r++)

@@ -78,6 +78,18 @@ public class LicitacoesTests : IDisposable
     }
 
     [Fact]
+    public void Valor_escrito_como_texto_tambem_vale_e_texto_que_nao_e_valor_avisa()
+    {
+        var p = BaseSintetica.Mestra();
+        p.AbasPorNome["A Licitar"][4][8] = "R$ 500.000,00";
+        p.AbasPorNome["A Licitar"][5][8] = "a definir";
+        var dados = Gravar(p);
+        Assert.Equal(500_000m, _base.Previstas(BaseDeObras.ALicitar)[0].ValorObra);
+        Assert.Null(_base.Previstas(BaseDeObras.ALicitar)[1].ValorObra);
+        Assert.Contains(DasBases(dados), a => a.Contains("linha 6") && a.Contains("\"a definir\" não é um número"));
+    }
+
+    [Fact]
     public void Coluna_Processo_e_opcional_e_o_ano_dos_Recursos_pode_mudar()
     {
         var p = BaseSintetica.Mestra();

@@ -56,12 +56,14 @@ else
 
     protected override void OnParametersSet() => Carregar();
 
-    protected override void BaseMudou() => Carregar();
+    // Depois de reler a planilha, a mesma linha pode ser outra escola: nesse caso a ficha diz que a obra saiu.
+    protected override void BaseMudou() => Carregar(_obra?.Nome);
 
-    private void Carregar()
+    private void Carregar(string? mesmaEscola = null)
     {
         var qual = BasesDeObras.DoId(BaseId);
         _obra = qual == BaseDeObras.EmAndamento ? null : App.Base.Prevista(qual, Id);
+        if (_obra is not null && mesmaEscola is not null && !ProcuraObras.MesmaEscola(_obra.Nome, mesmaEscola)) _obra = null;
         _outras = _obra is { } o ? App.Base.TambemEm(o.Nome, qual, o.Id) : [];
         if (_obra is not null) App.BaseAtual = qual; // voltar leva para a lista desta base
     }

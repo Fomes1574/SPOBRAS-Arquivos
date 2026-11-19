@@ -1,6 +1,6 @@
 # Plano: botão "Adicionar contrato" no cronograma e obras em licitação e a licitar
 
-Fase de projeto (19/11/2026). Nada implementado.
+Implementado em 19/11/2026 (ver `PROGRESSO.md`). Ainda falta: a aba própria das duas bases nas Configurações da base.
 
 ## 1. Botão "Adicionar contrato" no Cronograma (PC)
 

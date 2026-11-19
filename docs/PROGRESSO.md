@@ -1,5 +1,70 @@
 # Progresso
 
+## Bases Em licitação e A licitar, cronograma e formatação (19/11/2026)
+
+Implementado o que estava em `PLANO_LICITACOES.md` e `PLANO_CRONOGRAMA.md`.
+
+**Bases sem contrato (PC e celular)**
+- **Leitura:** as abas "Em licitação" e "A Licitar" da mestra são lidas pelo nome das colunas (sem acento, caixa e espaços nas pontas), em tabelas próprias (migração 9).
+  - Título, linha de totais, linhas vazias e colunas sem nome são ignorados.
+  - `Processo` é opcional; o ano de "Recursos para 2027" pode mudar.
+  - Valor escrito como texto também vale.
+- **Avisos:** aba ou coluna que falta só avisa daquela base e mantém os dados anteriores; a leitura das obras em andamento continua.
+- **Regra dos 10%:**
+  - O valor da obra é sempre a coluna antes dos 10%.
+  - A coluna com os 10% só confere: se não for o valor × 1,1, avisa.
+  - No cronograma, o total fica igual à coluna da planilha (teste).
+- **Tela Base:** seletor "Em andamento · Em licitação · A licitar", cada uma com a sua lista, filtros, ficha e exportação.
+  - A ficha mostra "Valor da obra" e "Com os 10% (recursos)".
+  - O contrato de receita aparece com a portaria, e "Sem vencedora ainda" quando não há empresa.
+  - "Também está em" abre a mesma escola na outra base, sem juntar dados.
+  - A exportação usa um modelo por base, só com as colunas que ela tem.
+  - No celular, a exportação é em planilha (salvar e compartilhar).
+- **Mesma escola:** nome igual, sem acento e caixa. Na vista oculta vwSGCOE cada nome tem um único `idEmpreendimento`, então o nome já separa escolas como "EMEF José Olympio" e "EMEF - José Olympio".
+- **Planilha real (19/11):** 115 em licitação e 218 a licitar, sem aviso de 10%; as somas batem com a linha TOTAIS.
+
+**Cronograma (tela do PC)**
+- **"035" não aparecia:** o estilo `BotaoLink` só desenhava texto simples, e os resultados (título + detalhe) ficavam invisíveis. O mesmo acontecia na lista "Escolas do mesmo contrato". Corrigido no estilo, para todas as telas.
+- **Botão "Adicionar contrato":**
+  - Ordem: primeiro os contratos que começam com o texto, do ano mais novo; depois os que têm o texto no meio; depois lote, modalidade ou portaria.
+  - Mostra também os grupos em licitação e a licitar, sempre base + lote + modalidade, cada um com o selo da base.
+  - Aviso "N escolas adicionadas; M já estavam" e Desfazer.
+  - A busca começa com 2 caracteres, não 3 como no plano: lotes de 2 dígitos (64) precisam aparecer.
+- **Obra sem contrato no cronograma:**
+  - Entra com o selo da base e o valor antes dos 10%, sem datas.
+  - A portaria pega o ano pela base de dotações (mesmo número e mesmo contrato de receita); se a base não decidir, fica só "Nº 03".
+  - "Usar no cronograma" na ficha da Base leva a obra direto.
+- **Valor:** aparece formatado enquanto digita (2.500.000) e vira R$ 2.500.000,00 ao sair do campo.
+- **Aviso de início diferente da OS:** retirado (o início é livre).
+- **Distribuição:** só em cada obra (Linear ou Curva S), com "Usar esta distribuição em todas". A distribuição geral saiu; rascunho antigo abre igual.
+- **Obras em cartões:** nome inteiro em cima, dados embaixo.
+- **"Como fica":** miniatura da planilha, com uma linha por obra, os meses e o TOTAL.
+
+**Cronograma (planilha gerada)**
+- **Estrutura:** a mesma de antes.
+- **Título automático:** como no modelo de fórmulas ("Portaria Nº 06 (2022) / Lote 161 - 4 unidades"; uma obra = o nome dela).
+- **Coluna Lote:** do tamanho do conteúdo (letra menor para nome comprido).
+- **Linhas:** com a mesma altura.
+- **Cores e letras:** corpo em 10, cabeçalho azul-marinho com letra branca 11, linha TOTAL em azul claro.
+
+**Testes:** 516 passando no Linux, com estresse ligado. O teste visual do celular não achou nenhum problema. O Android compila (com o SDK falso). Os testes de tela do Windows ganharam as fotos 39a, 39b, 43a e 43b.
+- **Novos testes:**
+  - leitura das abas, regra dos 10%, abas que somem e releitura;
+  - peso: 1.200 em licitação e 2.000 a licitar;
+  - busca do "035" e grupos que não misturam bases;
+  - portaria pelo contrato de receita;
+  - Base no PC e no celular, exportação e dois toques;
+  - cronograma com grupos, Desfazer e rascunho antigo;
+  - máscara de dinheiro, com 20.000 digitações aleatórias;
+  - planilha com lote comprido.
+- **Beta tester:**
+  - Depois de reler a planilha, a ficha aberta não pode mostrar outra escola que caiu na mesma linha: agora ela fecha (PC) ou diz que a obra saiu (celular).
+  - Valor escrito como texto numa célula agora é aceito.
+
+**Pendente:**
+- **Configurações da base:** a engrenagem ainda não tem uma aba própria para "Em licitação" e "A licitar". Hoje as colunas são achadas pelo nome e, se faltar uma, a base avisa.
+- **Antes:** conferir no PC do trabalho o fitToWidth do Excel com quebra de página e o nome "Resumo dos contratos - AAAA-MM-DD.pdf".
+
 ## Modelos Excel retirado em 19/11/2026
 
 A pedido do usuário, a tela Modelos Excel saiu do app (só existia no computador; o celular não tinha):

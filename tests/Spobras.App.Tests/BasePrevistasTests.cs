@@ -132,6 +132,19 @@ public class BasePrevistasTests : ComApp
     }
 
     [Fact]
+    public async Task Releitura_que_muda_as_linhas_de_lugar_nao_deixa_a_ficha_mostrar_outra_escola()
+    {
+        var tela = await Abrir();
+        tela.Licitacao.Selecionada = tela.Licitacao.Obras.Single(o => o.Nome == "EMEF Alfa"); // linha 6 da aba
+        var p = Spobras.Testes.BaseSintetica.Mestra();
+        var aba = p.AbasPorNome["Em licitação"];
+        (aba[4], aba[5]) = (aba[5], aba[4]); // agora a linha 6 é o CEU Épsilon
+        await Fontes.DefinirAsync(Spobras.Core.Base.Fontes.Mestra, GravarMestra(p));
+        Assert.Null(tela.Licitacao.Selecionada);
+        Assert.Equal(3, tela.Licitacao.Obras.Count);
+    }
+
+    [Fact]
     public async Task Base_vazia_explica_de_onde_vem_e_releitura_atualiza()
     {
         var p = Spobras.Testes.BaseSintetica.Mestra();
