@@ -152,3 +152,56 @@ public static class Previstas
         return (lista.Count, lista.Sum(o => o.ValorObra ?? 0m), lista.Sum(o => o.ValorComRemuneracao ?? 0m));
     }
 }
+
+/// <summary>Ficha e exportacao das bases sem contrato: so os campos que cada aba tem, com nomes claros.</summary>
+public static class FichaPrevista
+{
+    private static readonly System.Globalization.CultureInfo PtBr = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+
+    public static string Reais(decimal? v) => v is { } x ? x.ToString("C2", PtBr) : "Sem informação";
+
+    /// <summary>"015/SIURB/2025 (Portaria 3)": o contrato de receita, separado do contrato da obra.</summary>
+    public static string ContratoReceita(ObraPrevista o) =>
+        o.ContratoReceita is null ? "Sem informação"
+        : o.SemContratoReceita ? o.ContratoReceita
+        : o.ContratoReceita + (o.PortariaTexto is { } p ? $" ({p})" : "");
+
+    public static string Empresa(ObraPrevista o) => string.IsNullOrWhiteSpace(o.Empresa) ? FiltroPrevistas.SemEmpresa : o.Empresa!;
+
+    /// <summary>Segunda linha da lista: lote, modalidade e situacao (e a empresa, na licitacao).</summary>
+    public static string Detalhe(ObraPrevista o) => string.Join(" · ", new[]
+    {
+        o.Lote ?? "sem lote", o.Modalidade, o.Status,
+        o.Base == BaseDeObras.EmLicitacao ? Empresa(o) : null,
+    }.Where(v => !string.IsNullOrWhiteSpace(v)));
+
+    public static IReadOnlyList<KeyValuePair<string, string>> Campos(ObraPrevista o)
+    {
+        var c = new List<KeyValuePair<string, string>>();
+        void Add(string rotulo, string? valor) => c.Add(new(rotulo, string.IsNullOrWhiteSpace(valor) ? "Sem informação" : valor!));
+        Add("Situação", o.Status);
+        if (o.Base == BaseDeObras.EmLicitacao)
+        {
+            Add("Empresa", Empresa(o));
+        }
+
+        Add(o.Base == BaseDeObras.ALicitar ? "Valor da obra (estimado)" : "Valor da obra", Reais(o.ValorObra));
+        Add("Com os 10% (recursos)", Reais(o.ValorComRemuneracao));
+        Add(o.Base == BaseDeObras.ALicitar ? "Lote ou agrupamento" : "Lote", o.Lote);
+        Add("Modalidade", o.Modalidade);
+        Add("Portaria", o.PortariaTexto);
+        Add("Dotação", o.Dotacao);
+        Add("Contrato de receita", ContratoReceita(o));
+        Add("Processo SEI", o.Processo);
+        return c;
+    }
+
+    /// <summary>Colunas da exportacao de cada base (modelo proprio, so com o que a base tem).</summary>
+    public static IReadOnlyList<string> Titulos(BaseDeObras qual) => qual == BaseDeObras.EmLicitacao
+        ? ["Nome da obra", "Portaria", "Contrato de receita", "Dotação", "Lote", "Modalidade", "Empresa", "Situação", "Valor da obra (antes dos 10%)", "Com os 10% (recursos)", "Processo SEI"]
+        : ["Nome da obra", "Portaria", "Contrato de receita", "Dotação", "Lote ou agrupamento", "Modalidade", "Processo SEI", "Situação", "Valor da obra (estimado, antes dos 10%)", "Com os 10%"];
+
+    public static object?[] Linha(ObraPrevista o) => o.Base == BaseDeObras.EmLicitacao
+        ? [o.Nome, o.PortariaTexto, o.ContratoReceita, o.Dotacao, o.Lote, o.Modalidade, o.Empresa ?? FiltroPrevistas.SemEmpresa, o.Status, o.ValorObra, o.ValorComRemuneracao, o.Processo]
+        : [o.Nome, o.PortariaTexto, o.ContratoReceita, o.Dotacao, o.Lote, o.Modalidade, o.Processo, o.Status, o.ValorObra, o.ValorComRemuneracao];
+}

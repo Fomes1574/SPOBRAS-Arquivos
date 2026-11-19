@@ -330,6 +330,15 @@ public class TelasDeVerdadeTests
             baseDados.ValorDe = "abc";
             baseDados.Contrato = ["002/EX/2024"];
             Fotografar(janela, saida, "39-base-avisos");
+            // Bases sem contrato: seletor, ficha da licitação sem vencedora, "também está em" e a licitar
+            baseDados.BaseAtual = Spobras.Core.Base.BaseDeObras.EmLicitacao;
+            baseDados.Licitacao.Selecionada = baseDados.Licitacao.Obras.Single(o => o.Nome == "EMEF Alfa");
+            Assert.True(baseDados.Licitacao.TemTambemEm);
+            Fotografar(janela, saida, "39a-base-em-licitacao");
+            baseDados.BaseAtual = Spobras.Core.Base.BaseDeObras.ALicitar;
+            baseDados.ALicitar.Selecionada = baseDados.ALicitar.Obras.First();
+            Fotografar(janela, saida, "39b-base-a-licitar");
+            baseDados.BaseAtual = Spobras.Core.Base.BaseDeObras.EmAndamento;
             baseDados.LimparFiltrosCommand.Execute(null);
             baseDados.Selecionada = baseDados.Obras.First();
             Assert.False(baseDados.EditarObraCommand.CanExecute(null)); // a Base e so consulta

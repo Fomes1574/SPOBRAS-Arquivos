@@ -22,6 +22,41 @@
             <StackPanel>
                 <TextBlock Text="Base de dados" Style="{StaticResource TituloPagina}" />
                 <TextBlock Text="{Binding EstadoDaBase}" Style="{StaticResource Texto2}" Margin="0,4,0,0" />
+                <!-- Seletor das tres bases: cada uma com a sua lista, filtros e ficha -->
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,0" AutomationProperties.Name="Qual base mostrar">
+                    <StackPanel.Resources>
+                        <Style TargetType="RadioButton">
+                            <Setter Property="FocusVisualStyle" Value="{StaticResource FocoVisivel}" />
+                            <Setter Property="Cursor" Value="Hand" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <Border x:Name="Fundo" CornerRadius="8" Padding="16,8" Margin="0,0,8,0" MinHeight="40" BorderThickness="1"
+                                                BorderBrush="{StaticResource Borda}" Background="{StaticResource Branco}">
+                                            <ContentPresenter VerticalAlignment="Center" TextElement.FontWeight="SemiBold" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Fundo" Property="Background" Value="{StaticResource Azul}" />
+                                                <Setter TargetName="Fundo" Property="BorderBrush" Value="{StaticResource Azul}" />
+                                                <Setter Property="Foreground" Value="{StaticResource Branco}" />
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Fundo" Property="BorderBrush" Value="{StaticResource Azul}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Resources>
+                    <RadioButton Content="Em andamento" GroupName="BaseDeObras" ToolTip="Obras contratadas"
+                                 IsChecked="{Binding BaseAtual, Converter={StaticResource EnumIgual}, ConverterParameter=EmAndamento}" />
+                    <RadioButton Content="Em licitação" GroupName="BaseDeObras" ToolTip="Aba “Em licitação” da planilha mestra: publicadas e em homologação"
+                                 IsChecked="{Binding BaseAtual, Converter={StaticResource EnumIgual}, ConverterParameter=EmLicitacao}" />
+                    <RadioButton Content="A licitar" GroupName="BaseDeObras" ToolTip="Aba “A Licitar” da planilha mestra"
+                                 IsChecked="{Binding BaseAtual, Converter={StaticResource EnumIgual}, ConverterParameter=ALicitar}" />
+                </StackPanel>
                 <Border CornerRadius="8" Padding="12,6" Margin="0,8,0,0" Background="{StaticResource LaranjaClaro}" HorizontalAlignment="Left"
                         Visibility="{Binding TemPendencias, Converter={StaticResource Visivel}}">
                     <DockPanel>
@@ -35,8 +70,19 @@
             </StackPanel>
         </DockPanel>
 
+        <!-- Obras em licitacao ou a licitar: painel proprio, com a base escolhida no seletor -->
+        <t:PrevistasPainel Grid.Row="1" Grid.RowSpan="3" DataContext="{Binding Prevista}"
+                           Visibility="{Binding DataContext.EmAndamento, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource VisivelSeNao}}" />
+
+        <!-- Obras em andamento (contratadas) -->
+        <Grid Grid.Row="1" Grid.RowSpan="3" Visibility="{Binding EmAndamento, Converter={StaticResource Visivel}}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="200" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
         <!-- Filtros recolhidos: uma linha so, com o que esta filtrado -->
-        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,10"
+        <Border Grid.Row="0" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,10"
                 Visibility="{Binding FiltrosRecolhidos, Converter={StaticResource Visivel}}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Mostrar filtros" MinHeight="36" Command="{Binding AlternarFiltrosCommand}" />
@@ -46,7 +92,7 @@
         </Border>
 
         <!-- Filtros: cada escolha atualiza o resultado e as opcoes dos outros campos -->
-        <Border Grid.Row="1" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14"
+        <Border Grid.Row="0" Style="{StaticResource Painel}" Margin="0,16,0,0" Padding="20,14"
                 Visibility="{Binding FiltrosRecolhidos, Converter={StaticResource VisivelSeNao}}">
             <StackPanel>
                 <DockPanel Margin="0,0,0,12" Visibility="{Binding PodeSalvarConsultas, Converter={StaticResource Visivel}}">
@@ -136,7 +182,7 @@
             </StackPanel>
         </Border>
 
-        <Grid Grid.Row="2" Margin="0,16,0,0">
+        <Grid Grid.Row="1" Margin="0,16,0,0">
         <Grid.RowDefinitions>
             <RowDefinition MaxHeight="320">
                 <RowDefinition.Style>
@@ -310,6 +356,21 @@
                                     ToolTip="Acrescenta esta obra ao cronograma, com o início na Data da OS" />
                             <Button Style="{StaticResource BotaoLinha}" Content="Buscar o contrato nos arquivos" Margin="0,8,0,0" MinHeight="44" Command="{Binding BuscarNosArquivosCommand}" CommandParameter="contrato"
                                     ToolTip="Procura o número do contrato dentro das planilhas, PDFs e documentos das suas pastas" />
+                            <Border CornerRadius="8" Padding="12,8" Margin="0,12,0,0" Background="{StaticResource AzulClaro}"
+                                    Visibility="{Binding TemTambemEm, Converter={StaticResource Visivel}}">
+                                <StackPanel>
+                                    <TextBlock Text="Esta escola também está em:" FontSize="13" FontWeight="SemiBold" />
+                                    <ItemsControl ItemsSource="{Binding TambemEm}" Focusable="False">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource BotaoLink}" Content="{Binding Texto}" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                                        Command="{Binding DataContext.AbrirOutraCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"
+                                                        ToolTip="Abre a escola na outra base; os dados não se juntam" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                             <!-- Valores (como na planilha) -->
                             <Border BorderBrush="{StaticResource BordaClara}" BorderThickness="0,1,0,0" Padding="0,10,0,4">
@@ -468,7 +529,7 @@
         </Grid>
         </Grid>
 
-        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+        <StackPanel Grid.Row="2" Margin="0,12,0,0">
             <DockPanel>
                 <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Conferir uma planilha" Margin="12,0,0,0" MinHeight="44" Command="{Binding ConferirPlanilhaCommand}"
                         ToolTip="Aponta portarias e dotações escritas fora do padrão numa planilha sua e propõe corrigir numa cópia" />
@@ -486,5 +547,6 @@
             </DockPanel>
             <ItemsControl ItemsSource="{Binding Avisos}" ItemTemplate="{StaticResource AvisoModelo}" Margin="0,8,0,-8" Focusable="False" />
         </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

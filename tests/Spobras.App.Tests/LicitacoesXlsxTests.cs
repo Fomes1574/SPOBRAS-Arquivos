@@ -17,10 +17,10 @@ public class LicitacoesXlsxTests
             var dados = ImportadorMestra.Importar(leitor);
             Assert.Empty(DasBases(dados));
             Assert.Equal(["CEU Épsilon", "EMEF Alfa", "CEI Zeta"], dados.EmLicitacao!.Select(o => o.Nome));
-            Assert.Equal(1_000_000m, dados.EmLicitacao[0].ValorObra);
-            Assert.Equal("4", dados.EmLicitacao[0].Portaria);
+            Assert.Equal(1_000_000m, dados.EmLicitacao![0].ValorObra);
+            Assert.Equal("4", dados.EmLicitacao![0].Portaria);
             Assert.Equal(3, dados.ALicitar!.Count);
-            Assert.Null(dados.ALicitar[0].Processo);
+            Assert.Null(dados.ALicitar![0].Processo);
         }
         finally
         {

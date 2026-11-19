@@ -234,9 +234,83 @@ public sealed partial class BaseVm : TelaVm
         _usarNoRelatorio = usarNoRelatorio;
         CamposDeValor = [.. Enum.GetValues<CampoValor>().Select(c => new CampoValorVm(c))];
         _valorFiltrado = CamposDeValor.First(c => c.Campo == CampoValor.SaldoAPagar);
-        fontes.Mudou += () => _interface.Executar(Buscar); // a fonte foi relida: reaplica os filtros ativos
+        Licitacao = new PrevistasVm(@base, BaseDeObras.EmLicitacao, apoio) { Logo = () => Logo?.Invoke(), AoAbrirOutra = IrPara };
+        ALicitar = new PrevistasVm(@base, BaseDeObras.ALicitar, apoio) { Logo = () => Logo?.Invoke(), AoAbrirOutra = IrPara };
+        fontes.Mudou += () => _interface.Executar(() =>
+        {
+            Buscar(); // a fonte foi relida: reaplica os filtros ativos
+            Licitacao.Carregar();
+            ALicitar.Carregar();
+        });
         RecarregarConsultas();
         Buscar();
+        Licitacao.Carregar();
+        ALicitar.Carregar();
+    }
+
+    /// <summary>Obras em licitacao (aba "Em licitação" da mestra).</summary>
+    public PrevistasVm Licitacao { get; }
+
+    /// <summary>Obras a licitar (aba "A Licitar" da mestra).</summary>
+    public PrevistasVm ALicitar { get; }
+
+    /// <summary>Base mostrada: as tres nunca se misturam na lista, nos filtros ou na ficha.</summary>
+    [ObservableProperty]
+    private BaseDeObras _baseAtual = BaseDeObras.EmAndamento;
+
+    public bool EmAndamento => BaseAtual == BaseDeObras.EmAndamento;
+    public PrevistasVm? Prevista => BaseAtual switch
+    {
+        BaseDeObras.EmLicitacao => Licitacao,
+        BaseDeObras.ALicitar => ALicitar,
+        _ => null,
+    };
+
+    partial void OnBaseAtualChanged(BaseDeObras value)
+    {
+        OnPropertyChanged(nameof(EmAndamento));
+        OnPropertyChanged(nameof(Prevista));
+    }
+
+    [RelayCommand]
+    private void MostrarBase(string? id) => BaseAtual = BasesDeObras.DoId(id);
+
+    /// <summary>Atalho "também está em": abre a mesma escola na outra base, sem juntar os dados.</summary>
+    public void IrPara(OutraBase outra)
+    {
+        BaseAtual = outra.Base;
+        if (Prevista is { } prevista)
+        {
+            prevista.Mostrar(outra.Id);
+            return;
+        }
+
+        if (_base.Obra(outra.Id) is { } obra)
+        {
+            _atualizando = true;
+            Portaria = Contrato = Lote = Empresa = ContratoReceita = Dotacao = Status = [];
+            Texto = ValorDe = ValorAte = OsDe = OsAte = "";
+            ValorSemInformacao = SemDataOs = false;
+            Escola = [obra.Empreendimento];
+            _atualizando = false;
+            _mostrando = Pagina;
+            Buscar();
+            Selecionada = Obras.FirstOrDefault(o => o.Obra.Id == obra.Id) ?? new ObraVm(obra);
+        }
+    }
+
+    /// <summary>A obra em andamento tambem aparece em outra base (so o aviso com atalho).</summary>
+    public ObservableCollection<OutraBase> TambemEm { get; } = [];
+
+    public bool TemTambemEm => TambemEm.Count > 0;
+
+    [RelayCommand]
+    private void AbrirOutra(OutraBase? outra)
+    {
+        if (outra is not null)
+        {
+            IrPara(outra);
+        }
     }
 
     public ObservableCollection<PerfilGuardado> Consultas { get; } = [];
@@ -617,6 +691,13 @@ public sealed partial class BaseVm : TelaVm
                 break;
             case nameof(Selecionada):
                 if (Selecionada is null) FichaAmpliada = false;
+                TambemEm.Clear();
+                if (Selecionada is { } escolhida)
+                {
+                    foreach (var outra in _base.TambemEm(escolhida.Escola, BaseDeObras.EmAndamento)) TambemEm.Add(outra);
+                }
+
+                OnPropertyChanged(nameof(TemTambemEm));
                 OnPropertyChanged(nameof(PodeUsarNoRelatorio));
                 OnPropertyChanged(nameof(PodeUsarNoCronograma));
                 AtualizarMedicoes();
