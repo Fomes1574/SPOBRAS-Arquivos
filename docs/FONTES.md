@@ -69,6 +69,13 @@ Aba `STATUS` (oculta), cerca de 401 linhas, 4 colunas:
 
 `CONTRATO` · `STATUS` · `OBSERVAÇÃO` · `DATA`
 
+### Abas `Em licitação` e `A Licitar` (sem tabela nomeada; cabeçalho na 4ª linha)
+
+Viram fonte de importação (decisão de 19/11/2026, ver `PLANO_LICITACOES.md`). O app acha o cabeçalho pelo nome das colunas.
+
+- `Em licitação`: `Portaria` · `Contrato Receita` · `Dotação` · `Lote` · `Modalidade` · `Nome da Obra` · `Empresa` · `STATUS` · `Valor do Contrato com ADM` · `Recursos para 2027` · `Processo`
+- `A Licitar`: `Portaria` · `Contrato Receita` · `Dotação` · `Lote` · `Modalidade` · `Nome da Obra` · `Processo` · `STATUS` · `Valor do Contrato` · `Valor com ADM`
+
 ### Abas sem tabela nomeada
 
 Resumos, relatórios e tabelas dinâmicas montados pelo próprio Excel. Não são fonte de importação enquanto não houver decisão em contrário.

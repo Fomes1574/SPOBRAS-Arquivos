@@ -93,8 +93,26 @@ Na planilha de 18/11, 10 lotes de Em licitação e 9 de A licitar têm o mesmo n
 - **Uso:** só para ligar a mesma escola entre as bases (o aviso "também está em…") e para separar escolas de nomes iguais.
 - **O que não se usa dela:** a situação dessa vista ("Elaborando RD", "Elaborando Material Técnico"…) é diferente da situação das abas. As abas mandam, e nada da vista sobrescreve o que elas dizem.
 
-## 6. Perguntas ao usuário
+## 6. Planilha atual (enviada em 19/11/2026)
 
-1. **Valores:** confirmar a regra do cronograma da seção 4 (valor da obra sem os 10%, e a remuneração somada pelo próprio cronograma).
-2. **Planilha atual:** enviar a planilha atual, com a coluna de processo SEI em "A Licitar", para conferir o nome do cabeçalho dessa coluna.
-3. **Liberação:** liberar a implementação.
+**Em licitação**
+- Cabeçalho na 4ª linha: `Portaria` · `Contrato Receita` · `Dotação` · `Lote` · `Modalidade` · `Nome da Obra` · `Empresa` · `STATUS` · `Valor do Contrato com ADM` · `Recursos para 2027` · `Processo`. Alguns nomes vêm com espaço no fim; o app ignora esses espaços.
+- 115 linhas.
+
+**A Licitar**
+- Cabeçalho na 4ª linha: `Portaria` · `Contrato Receita` · `Dotação` · `Lote` · `Modalidade` · `Nome da Obra` · `Processo` · `STATUS` · `Valor do Contrato` · `Valor com ADM`.
+- 218 linhas.
+- A coluna `Processo` é nova: 90 linhas têm SEI e 128 estão vazias. As duas últimas colunas não têm nome e estão vazias; o app ignora.
+
+**Regra dos 10% (confirmada nas fórmulas da planilha)**
+- **Em licitação:** `Recursos para 2027` = `Valor do Contrato com ADM` × 1,1 (fórmula `=I*1.1` nas 115 linhas). Apesar do nome, `Valor do Contrato com ADM` é o valor **antes** dos 10%.
+- **A Licitar:** `Valor com ADM` = `Valor do Contrato` × 1,1 (fórmula `=I*1.1` nas 218 linhas).
+
+**No app**
+- **Valor da obra:** sempre a coluna antes dos 10% (`Valor do Contrato com ADM` em Em licitação; `Valor do Contrato` em A Licitar). O cronograma soma a remuneração uma vez só e chega exatamente ao valor da coluna com os 10%.
+- **A coluna com os 10% nunca entra como valor da obra.** Ela serve só para conferir: se em alguma linha ela não for o valor × 1,1, a conferência da base avisa ("Em licitação, linha 12: o valor com os 10% não confere") e o app não tenta adivinhar.
+- **Ficha:** mostra os dois valores com nomes claros, "Valor da obra" e "Com os 10% (recursos)", para não repetir a confusão do nome da planilha.
+
+## 7. Pendente
+
+- Liberação da implementação.
