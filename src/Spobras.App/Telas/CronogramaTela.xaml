@@ -22,7 +22,7 @@
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Limpar tudo" Margin="8,0,0,0" MinHeight="44" Command="{Binding LimparCommand}"
                             Visibility="{Binding Linhas.Count, Converter={StaticResource VisivelSe}}" />
-                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Importar de uma planilha" Margin="8,0,0,0" MinHeight="44" Command="{Binding ImportarPlanilhaCommand}"
+                    <Button DockPanel.Dock="Right" Style="{StaticResource BotaoLinha}" Content="Importar planilha" Margin="8,0,0,0" MinHeight="44" Command="{Binding ImportarPlanilhaCommand}"
                             ToolTip="Lê as obras de uma planilha sua, achando as colunas pelos títulos" />
                     <Button DockPanel.Dock="Right" Style="{StaticResource BotaoSecundario}" Content="Colar do Excel" Margin="8,0,0,0" Command="{Binding ColarDoExcelCommand}"
                             ToolTip="Copie no Excel as colunas Portaria, Lote, Dotação, Nome da Obra, Breve escopo, Valor, Início e Fim, e clique aqui" />
