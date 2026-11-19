@@ -1,4 +1,4 @@
-# Plano: cronograma mais claro (tela e planilha)
+# Plano: cronograma mais claro (tela do app e formatação da planilha)
 
 Fase de projeto (19/11/2026). Nada implementado.
 
@@ -20,18 +20,15 @@ Fase de projeto (19/11/2026). Nada implementado.
 - **Script "Novo cronograma":** limpava só os campos digitados. No app: "Limpar tudo".
 - **Script "Cronograma pronto":** ocultava linhas sem obra, pares vazios do resumo e meses sem valor. O app já gera só o que tem valor.
 
-## 3. Planilha gerada: proposta
+## 3. Planilha gerada: mesma estrutura, só a formatação
 
-Comparando com o cronograma do lote 161 (feito pelo modelo) e o gerado pelo app (Safra + Redondinhos):
+Decisão do usuário (19/11/2026): a proposta de agrupar por lote em faixas, com subtotal, foi recusada. A planilha mantém a estrutura atual: uma linha por obra, com as colunas Portaria, Lote, Dotação, Nome da Obra, Breve escopo, valores, Início, Fim, meses, totais por ano e resumo por dotação. Muda só a formatação:
 
-- **Título e subtítulo:** "Cronograma SPOBRAS" e, embaixo, o resumo automático ("Lote 161 · Portaria Nº 06 · 4 unidades" ou "2 lotes · 5 unidades"), como o título do modelo.
-- **Lote numa faixa, e não numa coluna estreita:** as obras ficam agrupadas por lote. Cada grupo abre com uma faixa clara na largura da tabela: "Lote 161 · Portaria Nº 06 (2023) · 4 unidades". Nome comprido ("CONSTRUÇÃO CENTRO EDUCACIONAL – …") cabe na faixa sem espremer a linha. Lote curto fica igual de limpo.
-- **Subtotal por lote** na própria faixa, quando houver mais de um lote.
-- **Linhas com a mesma altura** e nome da obra em até 2 linhas.
-- **Mantém:** meses, total por ano, total solicitado, resumo por dotação, paisagem em uma página de largura, cabeçalho repetido na impressão.
-- **Pergunta ao usuário:** tirar as colunas Portaria e Lote das linhas (já estão na faixa) ou mantê-las com o número curto.
-
-Exemplo com dados fictícios gerado fora do repositório para o usuário comparar.
+- **Coluna Lote do tamanho do conteúdo:** estreita quando os lotes são números ("161"); mais larga, com letra um pouco menor, quando há um nome comprido ("CONSTRUÇÃO CENTRO EDUCACIONAL – …"). Assim o nome não vira uma coluna de 6 linhas.
+- **Altura das linhas:** pela linha mais alta do texto quebrado, e igual em todas as obras.
+- **Título automático**, como no modelo: "Cronograma SPOBRAS - Portaria Nº 06 / Lote 161 - 4 unidades"; com uma obra, o nome dela.
+- **Letras e cores:** cabeçalho azul-marinho com letra branca em negrito, corpo um ponto menor, linha TOTAL destacada, colunas de total por ano com fundo leve.
+- **Não muda:** colunas, ordem, resumo por dotação, impressão em paisagem com uma página de largura.
 
 ## 4. Tela do cronograma: proposta
 

@@ -116,3 +116,4 @@ Na planilha de 18/11, 10 lotes de Em licitação e 9 de A licitar têm o mesmo n
 ## 7. Pendente
 
 - Liberação da implementação.
+- Celular: as bases Em licitação e A licitar vão obrigatoriamente para o celular também (decisão de 19/11/2026), com a mesma Tela Base da seção 3.
