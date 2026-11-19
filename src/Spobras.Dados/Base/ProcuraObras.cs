@@ -10,13 +10,37 @@ public static class ProcuraObras
 {
     public sealed record Sugestao(string Valor, string Detalhe);
 
-    public static IReadOnlyList<OpcaoContratoResumo> ContratosComDetalhes(BaseRepositorio base_, string texto, int maximo = 12)
+    /// <summary>
+    /// Contratos para a busca do cronograma, na ordem de quem digita o numero: primeiro os que comecam pelo texto
+    /// ("035" acha 035/SPOBRAS/2026, 035/SPOBRAS/2025...), do ano mais novo para o mais antigo; depois os que tem o
+    /// texto no meio do codigo; por ultimo os que batem pelo lote, modalidade ou portaria.
+    /// </summary>
+    public static IReadOnlyList<OpcaoContratoResumo> ContratosComDetalhes(BaseRepositorio base_, string texto, int maximo = 20)
     {
-        string alvo = Normalizacao.Busca(texto.Trim());
-        return [.. base_.OpcoesGerais().ContratosDetalhados.Where(o =>
-            Normalizacao.Busca($"{o.Contrato} {o.Lote} {o.Modalidade} {o.Portaria}").Contains(alvo, StringComparison.Ordinal))
-            .Take(maximo)];
+        string alvo = Normalizacao.Busca(texto.Trim().Replace('-', '/').Replace('\\', '/'));
+        if (alvo.Length == 0)
+        {
+            return [];
+        }
+
+        int Grupo(OpcaoContratoResumo o)
+        {
+            string codigo = Normalizacao.Busca(o.Contrato.Trim());
+            return codigo.StartsWith(alvo, StringComparison.Ordinal) ? 0
+                : codigo.Contains(alvo, StringComparison.Ordinal) ? 1
+                : Normalizacao.Busca($"{o.Lote} {o.Modalidade} {o.Portaria}").Contains(alvo, StringComparison.Ordinal) ? 2
+                : 3;
+        }
+
+        return [.. base_.OpcoesGerais().ContratosDetalhados.Select(o => (o, g: Grupo(o))).Where(x => x.g < 3)
+            .OrderBy(x => x.g).ThenByDescending(x => AnoDoContrato(x.o.Contrato)).ThenBy(x => x.o.Contrato, StringComparer.OrdinalIgnoreCase)
+            .Take(maximo).Select(x => x.o)];
     }
+
+    /// <summary>Ano do codigo do contrato (044/EX/2026 = 2026); 0 se nao tiver.</summary>
+    public static int AnoDoContrato(string codigo) => int.TryParse(
+        System.Text.RegularExpressions.Regex.Match(codigo, @"(?<![0-9])[0-9]{4}(?![0-9])", System.Text.RegularExpressions.RegexOptions.RightToLeft).Value,
+        out int ano) ? ano : 0;
 
     public static IReadOnlyList<Sugestao> SugestoesDeEscola(BaseRepositorio base_, string texto, int max = 8)
     {

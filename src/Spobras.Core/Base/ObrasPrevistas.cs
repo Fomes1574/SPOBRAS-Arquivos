@@ -205,3 +205,90 @@ public static class FichaPrevista
         ? [o.Nome, o.PortariaTexto, o.ContratoReceita, o.Dotacao, o.Lote, o.Modalidade, o.Empresa ?? FiltroPrevistas.SemEmpresa, o.Status, o.ValorObra, o.ValorComRemuneracao, o.Processo]
         : [o.Nome, o.PortariaTexto, o.ContratoReceita, o.Dotacao, o.Lote, o.Modalidade, o.Processo, o.Status, o.ValorObra, o.ValorComRemuneracao];
 }
+
+/// <summary>
+/// Grupo de obras sem contrato para o cronograma: sempre base + lote + modalidade (o mesmo numero de lote pode ser
+/// outra obra em outra base ou com outra modalidade, ex.: LOTE 64 Manutencao contratado e LOTE 64 Manutencao CEU em licitacao).
+/// </summary>
+public sealed record GrupoPrevisto(BaseDeObras Base, string? Lote, string? Modalidade, IReadOnlyList<ObraPrevista> Obras)
+{
+    public string Titulo => string.Join(" · ", new[] { Lote ?? "Sem lote", Modalidade }.Where(v => !string.IsNullOrWhiteSpace(v)));
+
+    public string Detalhe => string.Join(" · ", new[]
+    {
+        string.Join(", ", Obras.Select(o => o.Status).Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase)),
+        Obras.Count == 1 ? Obras[0].Nome : $"{Obras.Count} escolas",
+    }.Where(v => v.Length > 0));
+
+    public static IReadOnlyList<GrupoPrevisto> Montar(IEnumerable<ObraPrevista> obras, string texto, int maximo = 20)
+    {
+        string alvo = Normalizacao.Busca(texto.Trim());
+        if (alvo.Length == 0)
+        {
+            return [];
+        }
+
+        static string Chave(string? v) => Normalizacao.Busca((v ?? "").Trim());
+        return [.. obras
+            .GroupBy(o => (o.Base, Lote: Chave(o.Lote), Modalidade: Chave(o.Modalidade)))
+            .Select(g => new GrupoPrevisto(g.Key.Base, g.First().Lote, g.First().Modalidade, [.. g]))
+            .Select(g => (g, nota: Nota(g, alvo)))
+            .Where(x => x.nota < 3)
+            .OrderBy(x => x.nota).ThenBy(x => x.g.Base).ThenBy(x => Previstas.ChaveDoLote(x.g.Lote)).ThenBy(x => x.g.Titulo, StringComparer.OrdinalIgnoreCase)
+            .Take(maximo).Select(x => x.g)];
+    }
+
+    // 0: o lote comeca pelo texto (com ou sem a palavra LOTE); 1: lote ou modalidade contem; 2: alguma escola do grupo contem.
+    private static int Nota(GrupoPrevisto g, string alvo)
+    {
+        string lote = Normalizacao.Busca(g.Lote ?? "");
+        string numero = System.Text.RegularExpressions.Regex.Replace(lote, @"^lote\s*", "");
+        string alvoSemLote = System.Text.RegularExpressions.Regex.Replace(alvo, @"^lote\s*", "");
+        if (lote.StartsWith(alvo, StringComparison.Ordinal) || (alvoSemLote.Length > 0 && numero.TrimStart('0').StartsWith(alvoSemLote.TrimStart('0'), StringComparison.Ordinal) && alvoSemLote.TrimStart('0').Length > 0))
+        {
+            return 0;
+        }
+
+        if (lote.Contains(alvo, StringComparison.Ordinal) || Normalizacao.Busca(g.Modalidade ?? "").Contains(alvo, StringComparison.Ordinal))
+        {
+            return 1;
+        }
+
+        return g.Obras.Any(o => Normalizacao.Busca(o.Nome).Contains(alvo, StringComparison.Ordinal)) ? 2 : 3;
+    }
+}
+
+/// <summary>Obra sem contrato no formato do cronograma.</summary>
+public static class PrevistaNoCronograma
+{
+    /// <summary>
+    /// Portaria "Nº 03 (2021)". A aba traz so o numero ("3") ou numero e ano ("3 (2025)"); sem ano, o ano vem da base de
+    /// dotacoes: a portaria com esse numero ligada ao mesmo contrato de receita. Se a base nao decidir, fica so "Nº 03".
+    /// </summary>
+    public static string Portaria(ObraPrevista o, IReadOnlyList<VinculoBase> vinculos)
+    {
+        string texto = Cronograma.ColagemCronograma.Portaria(o.Portaria ?? "");
+        var lida = Normalizacao.Portaria("Portaria " + System.Text.RegularExpressions.Regex.Replace(texto, @"^N[ºo°.]?\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        if (lida.Numero is not { } numero || lida.Ano is not null)
+        {
+            return texto;
+        }
+
+        var doNumero = vinculos.Select(v => (v, p: Normalizacao.Portaria(v.Portaria))).Where(x => x.p.Numero == numero && x.p.Ano is not null).ToList();
+        var anos = doNumero.Where(x => string.Equals(x.v.ContratoReceita.Trim(), (o.ContratoReceita ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.p.Ano!.Value).Distinct().ToList();
+        if (anos.Count == 0)
+        {
+            anos = [.. doNumero.Select(x => x.p.Ano!.Value).Distinct()];
+        }
+
+        return anos.Count == 1 ? $"Nº {numero:00} ({anos[0]})" : texto;
+    }
+
+    /// <summary>Lote como no cronograma: sem a palavra LOTE ("LOTE 64" = "64"); agrupamentos ficam inteiros.</summary>
+    public static string Lote(string? lote)
+    {
+        string l = (lote ?? "").Trim();
+        return l.StartsWith("LOTE ", StringComparison.OrdinalIgnoreCase) ? l["LOTE ".Length..].Trim() : l;
+    }
+}

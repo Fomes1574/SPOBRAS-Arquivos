@@ -131,11 +131,6 @@ public static class ValidadorCronograma
                     Info("Início previsto (a obra não tem Data da OS na base).");
                     break;
             }
-
-            if (mesDaOs is { } mes && o.Inicio is { } inicio && inicio != mes)
-            {
-                Conferir($"O início ({ColagemCronograma.Mes(inicio)}) é diferente do mês da Data da OS da base ({ColagemCronograma.Mes(mes)}). A base não é alterada.");
-            }
         }
 
         int validas = obras.Count(o => !o.Vazia);

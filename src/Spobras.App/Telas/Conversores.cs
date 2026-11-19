@@ -16,6 +16,14 @@ public sealed class EnumIgual : IValueConverter
         value is true && parameter is not null ? Enum.Parse(targetType, parameter.ToString()!) : Binding.DoNothing;
 }
 
+/// <summary>True quando o conteudo e texto (ou vazio): o BotaoLink mostra texto sublinhavel; senao, o conteudo montado.</summary>
+public sealed class EhTexto : IValueConverter
+{
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value is null or string;
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => Binding.DoNothing;
+}
+
 /// <summary>Visivel quando o valor e false (ou texto vazio, ou zero).</summary>
 public sealed class VisivelSeNao : IValueConverter
 {

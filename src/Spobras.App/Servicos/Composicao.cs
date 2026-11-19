@@ -87,6 +87,8 @@ public sealed class Composicao : IDisposable
         cronograma.ObrasDaEscola = ObrasDaEscola;
         cronograma.ObrasDoContrato = ObrasDoContrato;
         cronograma.BuscarContratos = texto => Spobras.Dados.Base.ProcuraObras.ContratosComDetalhes(Base, texto);
+        cronograma.BuscarPrevistas = texto => Spobras.Core.Base.GrupoPrevisto.Montar(
+            Base.Previstas(Spobras.Core.Base.BaseDeObras.EmLicitacao).Concat(Base.Previstas(Spobras.Core.Base.BaseDeObras.ALicitar)), texto);
         telas[BaseVm.Modulo] = new BaseVm(Base, Fontes, @interface, id => Principal!.Navegar(id), obra =>
         {
             // Leva os dados da obra escolhida para o relatorio; o usuario confere e edita la.
@@ -97,6 +99,15 @@ public sealed class Composicao : IDisposable
             ((CronogramaVm)telas[CronogramaVm.Modulo]).AdicionarDaBase(obra);
             Principal!.Navegar(CronogramaVm.Modulo);
         }, apoio: new ApoioConsultas(dialogos, new PerfilRepositorio(banco), Operacoes, Preferencias, relogio));
+        foreach (var prevista in new[] { ((BaseVm)telas[BaseVm.Modulo]).Licitacao, ((BaseVm)telas[BaseVm.Modulo]).ALicitar })
+        {
+            prevista.AoUsarNoCronograma = obra =>
+            {
+                cronograma.AdicionarPrevista(obra);
+                Principal!.Navegar(CronogramaVm.Modulo);
+            };
+        }
+
         ((BaseVm)telas[BaseVm.Modulo]).AoBuscarNosArquivos = termo =>
         {
             ((FerramentasVm)telas[FerramentasVm.Modulo]).BuscarPor(termo);

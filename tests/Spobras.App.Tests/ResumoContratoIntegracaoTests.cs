@@ -73,13 +73,16 @@ public sealed class ResumoContratoIntegracaoTests : ComApp
         cronograma.BuscarContratos = _ => escolas.DistinctBy(e => e.Contrato)
             .Select(o => new OpcaoContratoResumo(o.Contrato, o.Lote, o.Modalidade, o.Portaria, escolas.Count(e => e.Contrato == o.Contrato))).ToArray();
         cronograma.PesquisaContrato = "14";
-        Assert.Equal(3, cronograma.ContratosEncontrados.Count);
-        var escolhido = cronograma.ContratosEncontrados[0];
+        Assert.Equal(3, cronograma.ItensBusca.Count);
+        var escolhido = cronograma.ItensBusca[0];
+        Assert.Equal(BaseDeObras.EmAndamento, escolhido.Base);
         cronograma.AdicionarDaBase(escolas[0]);
         Assert.Equal("EMEI Beta", Assert.Single(cronograma.SugestoesDoContrato).Obra.Empreendimento);
-        cronograma.AdicionarEscolasDoContratoCommand.Execute(escolhido);
-        cronograma.AdicionarEscolasDoContratoCommand.Execute(escolhido);
+        cronograma.AdicionarItemBuscaCommand.Execute(escolhido);
+        Assert.Equal("1 escola adicionada; 1 já estava no cronograma.", cronograma.Resultado);
+        cronograma.AdicionarItemBuscaCommand.Execute(escolhido);
+        Assert.Equal("Nenhuma escola nova: 2 já estavam no cronograma.", cronograma.Resultado);
         Assert.Equal(["EMEI Alfa", "EMEI Beta"], cronograma.Linhas.Select(l => l.Nome));
-        Assert.All(cronograma.Linhas, l => Assert.Equal(escolhido.Contrato, l.ContratoOrigem));
+        Assert.All(cronograma.Linhas, l => Assert.Equal(escolhido.Contrato!.Contrato, l.ContratoOrigem));
     }
 }

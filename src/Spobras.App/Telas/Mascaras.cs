@@ -7,7 +7,7 @@ namespace Spobras.App.Telas;
 
 /// <summary>
 /// Campos de data: barras automaticas enquanto digita e ano completado ao sair (Mascaras.Data="True").
-/// Campos de dinheiro: ao sair, 50000 vira R$ 50.000,00 (Mascaras.Dinheiro="True").
+/// Campos de dinheiro: enquanto digita, 50000 aparece como 50.000; ao sair, vira R$ 50.000,00 (Mascaras.Dinheiro="True").
 /// </summary>
 public static class Mascaras
 {
@@ -26,10 +26,41 @@ public static class Mascaras
         }
 
         caixa.LostFocus -= AoSairDoDinheiro;
+        caixa.TextChanged -= AoDigitarDinheiro;
         if (e.NewValue is true)
         {
             caixa.LostFocus += AoSairDoDinheiro;
+            caixa.TextChanged += AoDigitarDinheiro;
             AoSairDoDinheiro(caixa, new RoutedEventArgs());
+        }
+    }
+
+    private static bool _formatando;
+
+    /// <summary>Enquanto digita: 2500000 aparece como 2.500.000 (o cursor fica onde a pessoa estava).</summary>
+    private static void AoDigitarDinheiro(object sender, TextChangedEventArgs e)
+    {
+        var caixa = (TextBox)sender;
+        if (_formatando || !caixa.IsKeyboardFocusWithin || !GetDinheiro(caixa))
+        {
+            return;
+        }
+
+        var (texto, cursor) = Spobras.Core.Base.DinheiroAoDigitar.Formatar(caixa.Text, caixa.CaretIndex);
+        if (texto == caixa.Text)
+        {
+            return;
+        }
+
+        _formatando = true;
+        try
+        {
+            caixa.Text = texto;
+            caixa.CaretIndex = cursor;
+        }
+        finally
+        {
+            _formatando = false;
         }
     }
 

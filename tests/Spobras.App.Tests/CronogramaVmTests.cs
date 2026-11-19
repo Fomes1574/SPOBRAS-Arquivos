@@ -134,7 +134,7 @@ public class CronogramaVmTests : ComApp
         Assert.DoesNotContain("diferente", a.Avisos);
 
         a.Inicio = "dez/26";
-        Assert.Contains("O início (dez/26) é diferente do mês da Data da OS da base (nov/26)", a.Avisos);
+        Assert.DoesNotContain("Data da OS", a.Avisos); // o início é livre: não precisa bater com a OS
     }
 
     [Fact]
@@ -208,11 +208,14 @@ public class CronogramaVmTests : ComApp
         vm.Remuneracao = "0";
         Assert.Equal("R$ 16.666,68", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // linear: 2 x 8.333,34
 
-        vm.Distribuicao = 1; // curva S para todas
+        Assert.DoesNotContain(vm.Linhas, l => l.IndiceDistribuicao != 0); // obra nova começa linear
+        vm.Linhas[0].IndiceDistribuicao = 1; // curva S na primeira...
+        vm.UsarDistribuicaoEmTodasCommand.Execute(vm.Linhas[0]); // ...e em todas
+        Assert.All(vm.Linhas, l => Assert.Equal(2, l.Distribuicao));
         Assert.Equal("R$ 9.866,68", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // 2 x 4.933,34
         Assert.Equal("R$ 22.351,56", vm.Meses[2].Valor.Replace('\u00A0', ' ')); // pico no meio
 
-        vm.Linhas[1].Distribuicao = 1; // so a CEI Dois volta a linear
+        vm.Linhas[1].IndiceDistribuicao = 0; // so a CEI Dois volta a linear
         Assert.Equal("R$ 13.266,68", vm.Meses[0].Valor.Replace('\u00A0', ' '));
 
         // Ajuste por cima da curva, escolhendo o mes na lista.
@@ -223,6 +226,6 @@ public class CronogramaVmTests : ComApp
         Assert.Equal("R$ 18.333,34", vm.Meses[0].Valor.Replace('\u00A0', ' ')); // 10.000 + 8.333,34
 
         var reaberto = NovoCronograma();
-        Assert.Equal((1, 1), (reaberto.Distribuicao, reaberto.Linhas[1].Distribuicao));
+        Assert.Equal((2, 1), (reaberto.Linhas[0].Distribuicao, reaberto.Linhas[1].Distribuicao));
     }
 }

@@ -338,6 +338,17 @@ public class TelasDeVerdadeTests
             baseDados.BaseAtual = Spobras.Core.Base.BaseDeObras.ALicitar;
             baseDados.ALicitar.Selecionada = baseDados.ALicitar.Obras.First();
             Fotografar(janela, saida, "39b-base-a-licitar");
+            // Cronograma: "Adicionar contrato" com resultados visiveis (contratos e grupos em licitacao) e o grupo incluido
+            principal.Navegar(CronogramaVm.Modulo);
+            var cronoBusca = (CronogramaVm)principal.PaginaAtual!;
+            cronoBusca.LimparCommand.Execute(null);
+            cronoBusca.AlternarBuscaContratoCommand.Execute(null);
+            cronoBusca.PesquisaContrato = "lote 01";
+            Esperar(() => cronoBusca.TemItensBusca);
+            Fotografar(janela, saida, "43a-cronograma-adicionar-contrato");
+            cronoBusca.AdicionarItemBuscaCommand.Execute(cronoBusca.ItensBusca.First(i => i.Base == Spobras.Core.Base.BaseDeObras.EmLicitacao));
+            Fotografar(janela, saida, "43b-cronograma-obra-em-licitacao");
+            principal.Navegar(BaseVm.Modulo);
             baseDados.BaseAtual = Spobras.Core.Base.BaseDeObras.EmAndamento;
             baseDados.LimparFiltrosCommand.Execute(null);
             baseDados.Selecionada = baseDados.Obras.First();

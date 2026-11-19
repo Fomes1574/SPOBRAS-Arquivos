@@ -171,7 +171,7 @@ public class CronogramaTests : IDisposable
         Assert.Contains("PrecisaConferir: Valor zero ou negativo", Da(6));
         Assert.Contains("PrecisaConferir: Sem dotação", Da(6));
         Assert.Contains("ImpedeGerar: O fim passa dos 20 meses", Da(7));
-        Assert.Contains("PrecisaConferir: O início (dez/26) é diferente do mês da Data da OS da base (nov/26)", Da(8));
+        Assert.DoesNotContain("diferente do mês da Data da OS", Da(8)); // o início é livre (19/11/2026)
         Assert.Contains("Informacao: Início previsto", Da(9));
 
         Assert.True(ValidadorCronograma.Validar([Obra(1)], ["3362"]).PodeGerar);

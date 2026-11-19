@@ -160,16 +160,10 @@ public static partial class CalculoCronograma
                 avisosDasObras.Add(new AvisoDeLinha(n, Aviso.Conferir(avisoDaDotacao)));
             }
 
-            var mesDaOs = o.DataOsDaBase is { } os ? new DateOnly(os.Year, os.Month, 1) : (DateOnly?)null;
+            // O inicio do cronograma e livre: nao precisa bater com a Data da OS (decisao do usuario, 19/11/2026).
             if (o.OrigemDoInicio == OrigemInicio.Previsto)
             {
                 avisosDasObras.Add(new AvisoDeLinha(n, Aviso.Info("Início previsto (a obra não tem Data da OS na base).")));
-            }
-
-            if (mesDaOs is { } mes && o.Inicio is { } inicio && inicio != mes)
-            {
-                avisosDasObras.Add(new AvisoDeLinha(n, Aviso.Conferir(
-                    $"O início ({ColagemCronograma.Mes(inicio)}) é diferente do mês da Data da OS da base ({ColagemCronograma.Mes(mes)}). A base não é alterada.")));
             }
         }
 

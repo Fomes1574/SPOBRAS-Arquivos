@@ -17,7 +17,15 @@ namespace Spobras.App.ViewModels;
 
 public sealed record LinhaRascunho(
     string Portaria, string Lote, string Dotacao, string Nome, string Escopo, string Valor, string Inicio, string Fim, OrigemInicio Origem, DateOnly? DataOs,
-    int Distribuicao = 0, string? ContratoOrigem = null);
+    int Distribuicao = 0, string? ContratoOrigem = null, string? Base = null);
+
+/// <summary>Um resultado da busca "Adicionar contrato": um contrato em andamento ou um grupo sem contrato (base + lote + modalidade).</summary>
+public sealed record ItemBuscaCronograma(BaseDeObras Base, string Titulo, string Detalhe, OpcaoContratoResumo? Contrato = null, GrupoPrevisto? Grupo = null)
+{
+    public string Selo => BasesDeObras.Nome(Base);
+    public bool EhLicitacao => Base == BaseDeObras.EmLicitacao;
+    public bool EhALicitar => Base == BaseDeObras.ALicitar;
+}
 
 public sealed record AjusteRascunho(string Mes, bool EmReais, string Quantia, int Para);
 
@@ -112,6 +120,9 @@ public sealed partial class AjusteCronogramaVm(Action aoMudar) : ObservableObjec
 /// <summary>Uma linha do resumo do calculo (mes, ano ou dotacao).</summary>
 public sealed record ItemCronograma(string Rotulo, string Valor, string Detalhe = "", bool Destaque = false);
 
+/// <summary>Uma linha da miniatura do cronograma ("Como fica"): a obra e o valor de cada mes, como na planilha.</summary>
+public sealed record LinhaMiniatura(string Nome, IReadOnlyList<string> Valores, string Total, bool Destaque = false);
+
 public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
 {
     private bool _carregando;
@@ -153,9 +164,30 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     [ObservableProperty]
     private string _calculo = "";
 
-    /// <summary>0 = como o cronograma; 1 = linear; 2 = curva S (so nesta obra).</summary>
+    /// <summary>1 = linear; 2 = curva S. Cada obra escolhe a sua (0 so em rascunho antigo: vira a do cronograma ao abrir).</summary>
     [ObservableProperty]
-    private int _distribuicao;
+    [NotifyPropertyChangedFor(nameof(IndiceDistribuicao))]
+    private int _distribuicao = 1;
+
+    /// <summary>Posicao na lista "Linear / Curva S".</summary>
+    public int IndiceDistribuicao
+    {
+        get => Distribuicao == 2 ? 1 : 0;
+        set => Distribuicao = value == 1 ? 2 : 1;
+    }
+
+    /// <summary>De qual base a obra veio (obra sem contrato mostra o selo "Em licitação" ou "A licitar").</summary>
+    [ObservableProperty]
+    private BaseDeObras _base;
+
+    public string Selo => Base == BaseDeObras.EmAndamento ? "" : BasesDeObras.Nome(Base);
+    public bool EhLicitacao => Base == BaseDeObras.EmLicitacao;
+
+    partial void OnBaseChanged(BaseDeObras value)
+    {
+        OnPropertyChanged(nameof(Selo));
+        OnPropertyChanged(nameof(EhLicitacao));
+    }
 
     /// <summary>Obras da base que combinam com o nome digitado (cada contrato com portaria, lote e dotacao).</summary>
     public ObservableCollection<OpcaoDeContrato> Sugestoes { get; } = [];
@@ -183,7 +215,8 @@ public sealed partial class LinhaCronogramaVm(Action aoMudar) : ObservableObject
     protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
     {
         base.OnPropertyChanged(e);
-        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero) or nameof(Calculo) or nameof(TemSugestoes)))
+        if (!_carregando && e.PropertyName is not (nameof(Avisos) or nameof(Impedida) or nameof(Numero) or nameof(Calculo) or nameof(TemSugestoes)
+                or nameof(IndiceDistribuicao) or nameof(Selo) or nameof(EhLicitacao) or nameof(Base)))
         {
             if (e.PropertyName == nameof(Nome))
             {
@@ -277,14 +310,17 @@ public sealed partial class CronogramaVm : TelaVm
     public ObservableCollection<string> OpcoesDeObra { get; } = [TodasAsObras];
 
     public ObservableCollection<ItemCronograma> Meses { get; } = [];
+
+    /// <summary>Miniatura: os meses (colunas) e uma linha por obra, mais a linha TOTAL.</summary>
+    public ObservableCollection<string> MesesMiniatura { get; } = [];
+
+    public ObservableCollection<LinhaMiniatura> Miniatura { get; } = [];
     public ObservableCollection<ItemCronograma> Anos { get; } = [];
     public ObservableCollection<ItemCronograma> Dotacoes { get; } = [];
 
     public IReadOnlyList<string> TiposDeAjuste { get; } = ["% do total", "R$"];
 
-    public IReadOnlyList<string> TiposDeDistribuicao { get; } = ["Linear (partes iguais)", "Curva S"];
-
-    public IReadOnlyList<string> DistribuicoesDaObra { get; } = ["Como o cronograma", "Linear", "Curva S"];
+    public IReadOnlyList<string> DistribuicoesDaObra { get; } = ["Linear", "Curva S"];
 
     /// <summary>Meses do cronograma ("out/26"), para escolher o mes de um ajuste sem digitar.</summary>
     public ObservableCollection<string> MesesDoCronograma { get; } = [];
@@ -294,6 +330,9 @@ public sealed partial class CronogramaVm : TelaVm
 
     public bool TemSugestoesDoContrato => SugestoesDoContrato.Count > 0;
 
+    /// <summary>Mais de uma obra: aparece o atalho "Usar esta distribuição em todas".</summary>
+    public bool TemVariasObras => Linhas.Count > 1;
+
     /// <summary>Obras da base pelo nome da escola (varios contratos possiveis).</summary>
     public Func<string, IReadOnlyList<ObraLida>>? ObrasDaEscola { get; set; }
 
@@ -302,35 +341,168 @@ public sealed partial class CronogramaVm : TelaVm
 
     public Func<string, IReadOnlyList<OpcaoContratoResumo>>? BuscarContratos { get; set; }
 
+    /// <summary>Grupos sem contrato (Em licitacao e A licitar) para a busca: base + lote + modalidade.</summary>
+    public Func<string, IReadOnlyList<GrupoPrevisto>>? BuscarPrevistas { get; set; }
+
+    /// <summary>Busca "Adicionar contrato" aberta.</summary>
+    [ObservableProperty]
+    private bool _buscandoContrato;
+
     [ObservableProperty]
     private string _pesquisaContrato = "";
 
-    public ObservableCollection<OpcaoContratoResumo> ContratosEncontrados { get; } = [];
+    /// <summary>Resultados agrupados por base: Em andamento, Em licitacao e A licitar, cada um com o selo.</summary>
+    public ObservableCollection<ItemBuscaCronograma> ItensBusca { get; } = [];
+
+    public bool TemItensBusca => ItensBusca.Count > 0;
+
+    public string AvisoBusca => PesquisaContrato.Trim().Length switch
+    {
+        0 => "",
+        1 => "Continue digitando…",
+        _ => ItensBusca.Count == 0 ? "Nenhum contrato, lote ou modalidade com esse texto." : "",
+    };
+
+    [RelayCommand]
+    private void AlternarBuscaContrato()
+    {
+        BuscandoContrato = !BuscandoContrato;
+        if (!BuscandoContrato) PesquisaContrato = "";
+    }
 
     partial void OnPesquisaContratoChanged(string value)
     {
-        ContratosEncontrados.Clear();
-        if (value.Trim().Length < 2 || BuscarContratos is null) return;
-        foreach (var contrato in BuscarContratos(value)) ContratosEncontrados.Add(contrato);
+        ItensBusca.Clear();
+        string texto = value.Trim();
+        if (texto.Length >= 2)
+        {
+            foreach (var c in BuscarContratos?.Invoke(texto) ?? [])
+            {
+                ItensBusca.Add(new ItemBuscaCronograma(BaseDeObras.EmAndamento, c.Titulo, c.Detalhe, Contrato: c));
+            }
+
+            foreach (var g in BuscarPrevistas?.Invoke(texto) ?? [])
+            {
+                ItensBusca.Add(new ItemBuscaCronograma(g.Base, g.Titulo, g.Detalhe, Grupo: g));
+            }
+        }
+
+        OnPropertyChanged(nameof(TemItensBusca));
+        OnPropertyChanged(nameof(AvisoBusca));
+    }
+
+    /// <summary>Linhas da ultima inclusao pela busca (para Desfazer).</summary>
+    private List<LinhaCronogramaVm> _ultimaInclusao = [];
+
+    [ObservableProperty]
+    private bool _podeDesfazerInclusao;
+
+    [RelayCommand]
+    private void AdicionarItemBusca(ItemBuscaCronograma? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        int antes = Linhas.Count, repetidas = 0;
+        if (item.Contrato is { } contrato)
+        {
+            foreach (var obra in ObrasDoContrato?.Invoke(contrato.Contrato) ?? [])
+            {
+                if (JaEsta(BaseDeObras.EmAndamento, obra.Empreendimento)) repetidas++;
+                else Adicionar(DaBase(obra), obra.Contrato.Trim());
+            }
+        }
+        else if (item.Grupo is { } grupo)
+        {
+            foreach (var obra in grupo.Obras)
+            {
+                if (JaEsta(obra.Base, obra.Nome)) repetidas++;
+                else AdicionarLinhaPrevista(obra);
+            }
+        }
+
+        int novas = Linhas.Count - antes;
+        _ultimaInclusao = [.. Linhas.Skip(antes)];
+        PodeDesfazerInclusao = novas > 0;
+        PesquisaContrato = "";
+        BuscandoContrato = false;
+        Conferir();
+        string escolas = Formato.Plural(novas, "escola adicionada", "escolas adicionadas");
+        Resultado = novas == 0 ? $"Nenhuma escola nova: {Formato.Plural(repetidas, "já estava", "já estavam")} no cronograma."
+            : repetidas == 0 ? $"{escolas}." : $"{escolas}; {Formato.Plural(repetidas, "já estava", "já estavam")} no cronograma.";
+        if (novas > 0 && item.Grupo is not null) Resultado += " Obra sem contrato: informe o início e o fim.";
+        ResultadoComFalha = false;
     }
 
     [RelayCommand]
-    private void AdicionarEscolasDoContrato(OpcaoContratoResumo opcao)
+    private void DesfazerInclusao()
     {
-        var nomes = Linhas.Select(l => Normalizacao.Busca(l.Nome.Trim())).ToHashSet();
-        foreach (var obra in ObrasDoContrato?.Invoke(opcao.Contrato) ?? [])
+        foreach (var linha in _ultimaInclusao.Where(Linhas.Contains).ToList())
         {
-            if (nomes.Add(Normalizacao.Busca(obra.Empreendimento.Trim())))
-                AdicionarDaBase(obra);
+            RemoverLinha(linha);
         }
-        PesquisaContrato = "";
+
+        Resultado = $"Desfeito: {Formato.Plural(_ultimaInclusao.Count, "escola tirada", "escolas tiradas")} do cronograma.";
+        _ultimaInclusao = [];
+        PodeDesfazerInclusao = false;
+        Conferir();
     }
 
-    /// <summary>0 = linear; 1 = curva S. Vale para todas as obras, menos as que escolheram outra na linha.</summary>
-    [ObservableProperty]
-    private int _distribuicao;
+    /// <summary>Mesma escola da mesma base ja na lista (nome sem acento e caixa).</summary>
+    private bool JaEsta(BaseDeObras base_, string nome) =>
+        Linhas.Any(l => l.Base == base_ && Normalizacao.Busca(l.Nome.Trim()) == Normalizacao.Busca(nome.Trim()));
 
-    partial void OnDistribuicaoChanged(int value) => Conferir();
+    /// <summary>Atalho da Base: leva uma obra em licitacao ou a licitar para o cronograma.</summary>
+    public void AdicionarPrevista(ObraPrevista obra)
+    {
+        if (JaEsta(obra.Base, obra.Nome))
+        {
+            Orientar($"{obra.Nome} ({obra.NomeDaBase}) já está no cronograma.");
+            return;
+        }
+
+        AdicionarLinhaPrevista(obra);
+        Conferir();
+        Orientar($"{obra.Nome} ({obra.NomeDaBase}) entrou com o valor da obra antes dos 10%; o cronograma soma a remuneração. Informe o início e o fim.");
+    }
+
+    /// <summary>
+    /// Obra sem contrato: o valor e o da planilha antes dos 10% ("Valor do Contrato com ADM" ou "Valor do Contrato");
+    /// o cronograma soma a remuneracao uma vez so. Nao ha datas: a linha pede inicio e fim.
+    /// </summary>
+    private void AdicionarLinhaPrevista(ObraPrevista obra)
+    {
+        var linha = CriarLinha();
+        linha.Origem = OrigemInicio.Informado;
+        linha.Carregar(() =>
+        {
+            linha.Base = obra.Base;
+            linha.Portaria = PrevistaNoCronograma.Portaria(obra, _vinculos());
+            linha.Lote = PrevistaNoCronograma.Lote(obra.Lote);
+            linha.Dotacao = obra.Dotacao ?? "";
+            linha.Nome = obra.Nome;
+            linha.Escopo = obra.Modalidade ?? "";
+            linha.Valor = obra.ValorObra is { } v ? FormatoBase.Reais(v) : "";
+        });
+        Linhas.Add(linha);
+    }
+
+    /// <summary>A distribuicao de uma obra passa a valer para todas.</summary>
+    [RelayCommand]
+    private void UsarDistribuicaoEmTodas(LinhaCronogramaVm? linha)
+    {
+        if (linha is null)
+        {
+            return;
+        }
+
+        foreach (var l in Linhas) l.Carregar(() => l.Distribuicao = linha.Distribuicao);
+        Conferir();
+        Resultado = $"Todas as obras com distribuição {(linha.Distribuicao == 2 ? "Curva S" : "linear")}.";
+        ResultadoComFalha = false;
+    }
 
     [ObservableProperty]
     private bool _gerarPdf;
@@ -692,6 +864,7 @@ public sealed partial class CronogramaVm : TelaVm
         }
 
         AtualizarOpcoesDeObra();
+        OnPropertyChanged(nameof(TemVariasObras));
         Avisos.Clear();
         var obras = Linhas.Select(l => l.ParaObra()).ToList();
         var ajustes = new List<AjusteMensal>();
@@ -707,7 +880,7 @@ public sealed partial class CronogramaVm : TelaVm
 
         var vinculos = _vinculos();
         _calculo = CalculoCronograma.Calcular(obras, PercentualRemuneracao ?? CalculoCronograma.PadraoRemuneracao, ajustes,
-            o => CalculoCronograma.Resolver(o, vinculos), Distribuicao == 1 ? Core.Cronograma.Distribuicao.CurvaS : Core.Cronograma.Distribuicao.Linear);
+            o => CalculoCronograma.Resolver(o, vinculos), Core.Cronograma.Distribuicao.Linear);
         AtualizarMeses();
         AtualizarSugestoesDoContrato();
 
@@ -762,9 +935,10 @@ public sealed partial class CronogramaVm : TelaVm
         MostrarCalculo(ajustes);
         GerarCommand.NotifyCanExecuteChanged();
         _rascunhos.Gravar(ChaveRascunho, new RascunhoCronograma(
-            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase, l.Distribuicao, l.ContratoOrigem))],
+            [.. Linhas.Select(l => new LinhaRascunho(l.Portaria, l.Lote, l.Dotacao, l.Nome, l.Escopo, l.Valor, l.Inicio, l.Fim, l.Origem, l.DataOsDaBase, l.Distribuicao, l.ContratoOrigem,
+                l.Base == BaseDeObras.EmAndamento ? null : BasesDeObras.Id(l.Base)))],
             true, GerarPdf, NomeCronograma, Remuneracao,
-            [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))], Distribuicao), _relogio.Agora);
+            [.. Ajustes.Select(a => new AjusteRascunho(a.Mes, a.Tipo == 1, a.Quantia, a.Para))]), _relogio.Agora);
     }
 
     /// <summary>O que vai para a planilha: total de cada mes e de cada ano e a tabela por dotacao.</summary>
@@ -774,6 +948,8 @@ public sealed partial class CronogramaVm : TelaVm
         Meses.Clear();
         Anos.Clear();
         Dotacoes.Clear();
+        MesesMiniatura.Clear();
+        Miniatura.Clear();
         int validas = Linhas.Count(l => !l.ParaObra().Vazia);
         TemCalculo = c.Obras.Count > 0;
         if (!TemCalculo)
@@ -793,6 +969,15 @@ public sealed partial class CronogramaVm : TelaVm
         {
             Anos.Add(new ItemCronograma($"Total {ano}", FormatoBase.Reais(c.DoAno(ano))));
         }
+
+        static string Curto(decimal v) => v == 0 ? "" : v.ToString("N2", Formato.PtBr);
+        foreach (var mes in c.Meses) MesesMiniatura.Add(ColagemCronograma.Mes(mes));
+        foreach (var o in c.Obras)
+        {
+            Miniatura.Add(new LinhaMiniatura(o.Obra.Nome, [.. c.Meses.Select(m => Curto(o.DoMes(m)))], FormatoBase.Reais(o.Total)));
+        }
+
+        Miniatura.Add(new LinhaMiniatura("TOTAL", [.. c.Meses.Select(m => Curto(c.DoMes(m)))], FormatoBase.Reais(c.Total), Destaque: true));
 
         foreach (var d in c.Dotacoes)
         {
@@ -893,7 +1078,6 @@ public sealed partial class CronogramaVm : TelaVm
         GerarPdf = r.GerarPdf;
         Remuneracao = string.IsNullOrWhiteSpace(r.Remuneracao) ? "10" : r.Remuneracao;
         NomeCronograma = r.NomeCronograma ?? "";
-        Distribuicao = r.Distribuicao;
         foreach (var l in r.Linhas)
         {
             var linha = CriarLinha();
@@ -902,7 +1086,9 @@ public sealed partial class CronogramaVm : TelaVm
             linha.ContratoOrigem = l.ContratoOrigem;
             linha.Carregar(() =>
             {
-                linha.Distribuicao = l.Distribuicao;
+                // Rascunho antigo: 0 era "como o cronograma" (a distribuicao geral, que saiu da tela).
+                linha.Distribuicao = l.Distribuicao is 1 or 2 ? l.Distribuicao : r.Distribuicao == 1 ? 2 : 1;
+                linha.Base = BasesDeObras.DoId(l.Base);
                 linha.Portaria = l.Portaria;
                 linha.Lote = l.Lote;
                 linha.Dotacao = l.Dotacao;
