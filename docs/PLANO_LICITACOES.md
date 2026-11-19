@@ -59,9 +59,42 @@ As abas "Em licitação" e "A Licitar" não são tabelas nomeadas do Excel. São
 
 **Fora da Base:** o relatório fotográfico e o resumo por contrato continuam só com obras em andamento.
 
-## 4. Perguntas ao usuário
+## 4. Decisões do usuário (19/11/2026)
 
-1. **Onde usar:** "Em licitação" e "A licitar" servem só para consulta na Base, ou também devem entrar no Cronograma (para a pressão orçamentária)? Para o cronograma, essas obras não têm datas; elas teriam de ser digitadas.
-2. **Valores:** em "Em licitação", "Valor do Contrato com ADM" é o valor com os 10% e "Recursos para 2027" é esse valor × 1,1 de novo? Ou o primeiro é o valor sem ADM? (O app não pode deduzir regra financeira.)
-3. **Celular:** também no celular, ou só no computador?
-4. **Abas de resumo:** as abas "PRESSÃO EM LICITAÇÃO" e "PRESSÃO A LICITAR" são só resumos. O app pode ignorá-las e fazer as contas a partir das listas?
+- **Busca de contrato ao digitar:** a partir de 3 caracteres, a lista mostra os contratos parecidos ("012" mostra 012/SPOBRAS/2022, 012/SPOBRAS/2023…).
+  - Hoje a busca procura o texto em qualquer parte e não ordena, então "012" também acha "LOTE 012" no meio.
+  - Ordem proposta: primeiro os contratos cujo número começa com o que foi digitado, do ano mais novo para o mais antigo; depois os que contêm o texto.
+- **Processo SEI em "A Licitar":** algumas linhas têm, numa coluna que a planilha de 18/11 ainda não tinha (na tela do usuário, a coluna G, antes de STATUS). O app procura essa coluna pelo nome, como opcional: sem a coluna, ou com a célula vazia, a ficha fica sem SEI.
+- **Contrato SIURB:** é o contrato de receita (o pagamento para a SPOBRAS).
+  - 015/SIURB/2025 e 164/SIURB/2025 são sempre da Portaria 3.
+  - Só indica dentro de qual contrato de receita a obra está; quando a obra for contratada, o empenho vem por ele.
+  - A ficha mostra "Contrato de receita: 015/SIURB/2025 (Portaria 3)", separado do contrato da obra.
+- **Onde usar as duas bases novas:**
+  - **Base de dados:** consulta com exportação, com um modelo de exportação para cada base, só com as colunas que ela tem.
+  - **Cronograma:** dá para pedir recurso para uma escola antes de ela ser contratada.
+  - **Relatório fotográfico:** por enquanto não.
+- **Valores:** "Recursos para 2027" (Em licitação) e "Valor com ADM" (A licitar) já têm os 10% finais. No cronograma, o valor da obra é "Valor do Contrato com ADM" (Em licitação) ou "Valor do Contrato" (A licitar), e o próprio cronograma soma a remuneração, chegando ao mesmo total da planilha. Isso precisa ser confirmado antes de implementar.
+- **Abas de resumo:** as abas de pressão são ignoradas.
+
+## 5. Cronograma pelo lote ou pela modalidade, sem misturar
+
+Na planilha de 18/11, 10 lotes de Em licitação e 9 de A licitar têm o mesmo número de um lote em andamento, mas com outra modalidade (ex.: LOTE 64 é "Manutenção" no contrato e "Manutenção CEU" na licitação; LOTE 09 tem "Pista de Skate" a licitar e contratos de manutenção). Por isso o lote nunca é usado sozinho.
+
+**Busca no cronograma**
+- **Mesma busca, resultados agrupados por base:** procura escola, contrato, lote ou modalidade e mostra o resultado separado por base, com selo. Exemplo:
+  - **Em andamento:** LOTE 64 · Manutenção · contrato 216/EX/2023 · 3 escolas
+  - **Em licitação:** LOTE 64 · Manutenção CEU · Homologação · 1 escola
+  - **A licitar:** LOTE 09 · Pista de Skate · 1 escola
+- **Grupo:** cada grupo é **base + lote + modalidade**. Escolher um grupo traz só as escolas daquele grupo.
+- **Linha no cronograma:** cada linha mostra o selo da base. Obra em licitação ou a licitar não tem datas: a linha pede início e término, como uma obra digitada à mão.
+
+**Ligação com a vista oculta "escola vwSGCOE"**
+- **Quase todas aparecem lá:** 112 das 115 em licitação e 215 das 218 a licitar aparecem com o mesmo nome e lote, sem contrato, e com um código próprio da escola (`idEmpreendimento`).
+- **Uso:** só para ligar a mesma escola entre as bases (o aviso "também está em…") e para separar escolas de nomes iguais.
+- **O que não se usa dela:** a situação dessa vista ("Elaborando RD", "Elaborando Material Técnico"…) é diferente da situação das abas. As abas mandam, e nada da vista sobrescreve o que elas dizem.
+
+## 6. Perguntas ao usuário
+
+1. **Valores:** confirmar a regra do cronograma da seção 4 (valor da obra sem os 10%, e a remuneração somada pelo próprio cronograma).
+2. **Planilha atual:** enviar a planilha atual, com a coluna de processo SEI em "A Licitar", para conferir o nome do cabeçalho dessa coluna.
+3. **Liberação:** liberar a implementação.
