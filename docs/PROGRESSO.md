@@ -455,6 +455,8 @@ Conferi as mensagens da conversa e cada tela de `docs/interface/` contra o app. 
 
 ## Pendências com o usuário
 
+- **Cronograma e licitações (19/11/2026):** botão "Adicionar contrato" e bases "Em licitação" e "A licitar" separadas da base em andamento. Plano e perguntas em `docs/PLANO_LICITACOES.md`.
+
 - **Relatório, Excel:** conferir no Excel do PC do trabalho que "ajustar todas as colunas em uma página" respeita a quebra no fim de cada página (no LibreOffice respeita). O PDF não depende disso.
 
 - **Resumo por contrato:** confirmar o nome sugerido para vários contratos, `Resumo dos contratos - AAAA-MM-DD.pdf`.
