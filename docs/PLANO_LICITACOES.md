@@ -73,7 +73,7 @@ As abas "Em licitação" e "A Licitar" não são tabelas nomeadas do Excel. São
   - **Base de dados:** consulta com exportação, com um modelo de exportação para cada base, só com as colunas que ela tem.
   - **Cronograma:** dá para pedir recurso para uma escola antes de ela ser contratada.
   - **Relatório fotográfico:** por enquanto não.
-- **Valores:** "Recursos para 2027" (Em licitação) e "Valor com ADM" (A licitar) já têm os 10% finais. No cronograma, o valor da obra é "Valor do Contrato com ADM" (Em licitação) ou "Valor do Contrato" (A licitar), e o próprio cronograma soma a remuneração, chegando ao mesmo total da planilha. Isso precisa ser confirmado antes de implementar.
+- **Valores:** "Recursos para 2027" (Em licitação) e "Valor com ADM" (A licitar) já têm os 10% finais. No cronograma, o valor da obra é "Valor do Contrato com ADM" (Em licitação) ou "Valor do Contrato" (A licitar), e o próprio cronograma soma a remuneração, chegando ao mesmo total da planilha. Confirmado pelas fórmulas da planilha de 19/11 (ver seção 6).
 - **Abas de resumo:** as abas de pressão são ignoradas.
 
 ## 5. Cronograma pelo lote ou pela modalidade, sem misturar
