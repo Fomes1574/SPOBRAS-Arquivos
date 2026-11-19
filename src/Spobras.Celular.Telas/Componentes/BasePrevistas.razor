@@ -1,0 +1,191 @@
+@inherits Tela
+@* Lista das obras Em licitação ou A licitar: busca, filtros e totais proprios (nunca misturados com as obras em andamento). *@
+
+<div class="busca">
+    <Icone Nome="busca" Cor="#9A9A96" />
+    <input type="search" placeholder="Escola, lote, modalidade, processo…" aria-label="Buscar" value="@Filtro.Texto" @oninput="Digitou" />
+</div>
+<div class="chips">
+    @foreach (var f in FiltrosDaBase)
+    {
+        var valores = f.Valor(Filtro);
+        <div class="grupo-chip @(valores.Count > 0 ? "on" : "")">
+            <button class="chip resumo-acao" @onclick="() => Abrir(f)">@ResumoFiltro(f, valores) ▾</button>
+            @if (valores.Count > 0)
+            {
+                <button class="chip limpar-chip resumo-acao" aria-label="@($"Limpar {f.Nome}")" @onclick="() => Limpar(f)">✕</button>
+            }
+        </div>
+    }
+</div>
+
+@if (Erro is not null) { <Aviso Tipo="erro">@Erro</Aviso> }
+@if (_todas.Count == 0)
+{
+    <div class="vazio-lista">Nenhuma obra @(Qual == BaseDeObras.EmLicitacao ? "em licitação" : "a licitar") na base. Ela vem da aba “@(Qual == BaseDeObras.EmLicitacao ? "Em licitação" : "A Licitar")” da planilha mestra.</div>
+}
+else
+{
+    <div class="mini previstas-totais">
+        <span>@Formato.Plural(_obras.Count, "obra", "obras")@(_obras.Count < _todas.Count ? $" de {_todas.Count}" : "")</span><span>Valor da obra</span>
+    </div>
+    @if (_obras.Count > 0)
+    {
+        var (_, valor, com10) = Previstas.Totais(_obras);
+        <div class="painel previstas-soma"><span>Soma: <b>@Formato.Reais(valor)</b></span><span class="mini">com os 10%: @Formato.Reais(com10)</span></div>
+    }
+    @foreach (var o in _obras.Take(_limite))
+    {
+        <a class="obra" href="@($"prevista/{BasesDeObras.Id(Qual)}/{o.Id}")">
+            <div class="l1"><span class="nome">@o.Nome</span><span class="selo @(Qual == BaseDeObras.EmLicitacao ? "atencao" : "andamento")">@(o.Status ?? o.NomeDaBase)</span></div>
+            <div class="l2">@string.Join(" · ", new[] { o.Lote ?? "sem lote", o.Modalidade, o.PortariaTexto }.Where(x => !string.IsNullOrWhiteSpace(x)))</div>
+            <div class="l3"><span>@(Qual == BaseDeObras.EmLicitacao ? FichaPrevista.Empresa(o) : (o.Processo ?? "Sem processo SEI"))</span><b>@Formato.Reais(o.ValorObra)</b></div>
+        </a>
+    }
+    @if (_obras.Count == 0)
+    {
+        <div class="vazio-lista">Nenhuma obra com esses filtros.</div>
+    }
+    else
+    {
+        @if (_obras.Count > _limite)
+        {
+            <button class="btn linha" @onclick="() => _limite += Pagina">Mostrar mais (@(_obras.Count - _limite) restantes)</button>
+        }
+        <button class="btn linha resumo-acao" disabled="@(Trabalhando is not null)" @onclick="Exportar">Exportar planilha (@Formato.Plural(_obras.Count, "obra", "obras"))</button>
+    }
+}
+
+<Folha Aberta="_aberto is not null" Titulo="@_aberto?.Nome" AoFechar="() => _aberto = null">
+    @if (_aberto is { } filtro)
+    {
+        <div class="folha-resumo">
+            <div class="opcoes-filtro">
+                @foreach (var op in filtro.Opcoes(_todas))
+                {
+                    bool marcado = filtro.Valor(Filtro).Contains(op, StringComparer.OrdinalIgnoreCase);
+                    <label class="opcao opcao-filtro">
+                        <span>@op</span>
+                        <input type="checkbox" checked="@marcado" @onchange="() => Escolher(filtro, op)" />
+                    </label>
+                }
+            </div>
+            <button class="btn primario resumo-acao" @onclick="() => _aberto = null">Pronto</button>
+        </div>
+    }
+</Folha>
+
+@code {
+    [Parameter, EditorRequired] public BaseDeObras Qual { get; set; }
+
+    private sealed record FiltroChip(string Id, string Nome, Func<FiltroPrevistas, IReadOnlyList<string>> Valor,
+        Func<IReadOnlyList<ObraPrevista>, IReadOnlyList<string>> Opcoes, Func<FiltroPrevistas, IReadOnlyList<string>, FiltroPrevistas> Definir);
+
+    private IEnumerable<FiltroChip> FiltrosDaBase
+    {
+        get
+        {
+            yield return new("lote", Qual == BaseDeObras.ALicitar ? "Lote ou agrupamento" : "Lote", f => f.Lote, Previstas.Lotes, (f, v) => f with { Lote = v });
+            yield return new("modalidade", "Modalidade", f => f.Modalidade, o => Previstas.Opcoes(o, x => x.Modalidade), (f, v) => f with { Modalidade = v });
+            yield return new("portaria", "Portaria", f => f.Portaria, o => Previstas.Opcoes(o, x => x.PortariaTexto), (f, v) => f with { Portaria = v });
+            yield return new("dotacao", "Dotação", f => f.Dotacao, o => Previstas.Opcoes(o, x => x.Dotacao), (f, v) => f with { Dotacao = v });
+            if (Qual == BaseDeObras.EmLicitacao)
+            {
+                yield return new("status", "Situação", f => f.Status, o => Previstas.Opcoes(o, x => x.Status), (f, v) => f with { Status = v });
+                yield return new("empresa", "Empresa", f => f.Empresa, o => [FiltroPrevistas.SemEmpresa, .. Previstas.Opcoes(o, x => x.Empresa)], (f, v) => f with { Empresa = v });
+            }
+        }
+    }
+
+    private const int Pagina = 40;
+    private int _limite = Pagina;
+    private IReadOnlyList<ObraPrevista> _todas = [];
+    private IReadOnlyList<ObraPrevista> _obras = [];
+    private FiltroChip? _aberto;
+    private CancellationTokenSource? _digitando;
+    private BaseDeObras? _carregada;
+
+    private FiltroPrevistas Filtro
+    {
+        get => App.FiltrosPrevistas[Qual];
+        set => App.FiltrosPrevistas[Qual] = value;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (_carregada != Qual)
+        {
+            _carregada = Qual;
+            _aberto = null;
+            _limite = Pagina;
+            Carregar();
+        }
+    }
+
+    protected override void BaseMudou() => Carregar();
+
+    private void Carregar()
+    {
+        _todas = App.Base.TemDados ? App.Base.Previstas(Qual) : [];
+        _obras = Previstas.Filtrar(_todas, Filtro);
+    }
+
+    private async Task Digitou(ChangeEventArgs e)
+    {
+        string texto = e.Value?.ToString() ?? "";
+        _digitando?.Cancel();
+        var cancelar = _digitando = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(250, cancelar.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        Filtro = Filtro with { Texto = texto.Trim() };
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private static string ResumoFiltro(FiltroChip filtro, IReadOnlyList<string> valores) => valores.Count switch
+    {
+        0 => filtro.Nome,
+        1 => valores[0],
+        _ => $"{valores[0]} + {valores.Count - 1}",
+    };
+
+    private void Abrir(FiltroChip filtro) => _aberto = filtro;
+
+    private void Escolher(FiltroChip filtro, string valor)
+    {
+        var atuais = filtro.Valor(Filtro);
+        var outros = atuais.Where(v => !string.Equals(v, valor, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (outros.Count == atuais.Count) outros.Add(valor);
+        Filtro = filtro.Definir(Filtro, outros);
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private void Limpar(FiltroChip filtro)
+    {
+        Filtro = filtro.Definir(Filtro, []);
+        _limite = Pagina;
+        Carregar();
+    }
+
+    private Task Exportar() => Executar("Gerando planilha…", async () =>
+    {
+        var salvo = await App.ResumoPdf.ExportarPrevistasAsync(Qual, _obras, Filtro);
+        if (salvo is null) return;
+        App.UltimoResumoPdf = salvo;
+        Ir("base/resumo-pdf");
+    });
+
+    public override void Dispose()
+    {
+        _digitando?.Cancel();
+        base.Dispose();
+    }
+}

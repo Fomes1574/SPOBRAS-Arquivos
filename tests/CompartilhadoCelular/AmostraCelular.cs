@@ -50,7 +50,26 @@ public static class AmostraCelular
             Medicao("007/EX/2022", "9", "EMEI Exemplo Alfa", "ANÁLISE GEC", 2_707.03m, statusContrato: "ENCERRADO / TRD"),
             Medicao("070/EX/2025", "2", "EMEI Exemplo Zeta", "ANÁLISE GEC", 50_000m, statusContrato: "SOB GESTÃO DA SIURB"))
         .Tabela("contratos_VW_EMPENHOS_SOF", BaseSintetica.ColunasEmpenhos,
-            BaseSintetica.Empenho("015/EX/2025", "100001", 5000m));
+            BaseSintetica.Empenho("015/EX/2025", "100001", 5000m))
+        .Aba("Em licitação",
+        [
+            ["Obras em Licitação", null, null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null, null, null],
+            ["UNIDADES EM LICITAÇÃO: 3", null, null, null, null, null, null, "TOTAIS", 5_350_000m, 5_885_000m, null],
+            ["Portaria ", "Contrato Receita", "Dotação ", "Lote", "Modalidade", "Nome da Obra", "Empresa", "STATUS", "Valor do Contrato com ADM", "Recursos para 2027", "Processo "],
+            [4m, "015/EX/2025", 3364m, "LOTE 64", "Manutenção CEU", "CEU Exemplo Ômega do Jardim Comprido de Nome Longo", "Construtora Exemplo 07 Ltda", "Homologação", 1_250_000m, 1_375_000m, "7910.2026/0000010-0"],
+            [3m, "Sem Contrato Receita", 3366m, "LOTE 216", "Reforma e Manutenção", "EMEI Exemplo Alfa", null, "Publicada", 3_500_000m, 3_850_000m, "7910.2026/0000011-0"],
+            ["3 (2025)", "016/EX/2026", 3360m, "LOTE 64", "Muro de Arrimo", "CEI Exemplo Sigma", "Outra Empresa Exemplo", "Homologação", 600_000m, 660_000m, "7910.2026/0000012-0"],
+        ])
+        .Aba("A Licitar",
+        [
+            ["Obras a Licitar", null, null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null, null, null],
+            ["UNIDADES A LICITAR: 2", null, null, null, null, null, null, "TOTAIS", 1_300_000m, 1_430_000m],
+            ["Portaria ", "Contrato Receita", "Dotação ", "Lote", "Modalidade", "Nome da Obra", "Processo", "STATUS", "Valor do Contrato", "Valor com ADM"],
+            [3m, "015/EX/2025", 3359m, "LOTE 09", "Pista de Skate", "EMEI Exemplo Alfa", "", "A Licitar Obras", 500_000m, 550_000m],
+            [3m, "Não tem", 3361m, "PREVISÃO DE MUROS – EMEI'S – PORTARIA 03", "Muro de Arrimo", "EMEI Exemplo Kappa", "7910.2026/0000020-0", "A Licitar Obras", 800_000m, 880_000m],
+        ]);
 
     public static void GravarMestra(string caminho) => XlsxSintetico.Gravar(Mestra(), caminho);
 

@@ -267,6 +267,17 @@ public sealed class BaseCelular
 
     public ObraLida? Obra(long id) => Repositorio.Obra(id);
 
+    /// <summary>Obras de uma base sem contrato (Em licitação ou A licitar).</summary>
+    public IReadOnlyList<ObraPrevista> Previstas(BaseDeObras qual) => Repositorio.Previstas(qual);
+
+    public ObraPrevista? Prevista(BaseDeObras qual, long id) => Repositorio.Prevista(qual, id);
+
+    /// <summary>Onde mais a escola aparece (atalho; os dados nao se juntam).</summary>
+    public IReadOnlyList<OutraBase> TambemEm(string escola, BaseDeObras naoIncluir, long? idAtual = null) =>
+        [.. Repositorio.TambemEm(escola, naoIncluir, idAtual).Where(o => o.Base != BaseDeObras.EmAndamento || Visivel(o.Id))];
+
+    private bool Visivel(long id) => Repositorio.Obra(id) is { } obra && !Ocultos().Contains(obra.StatusContrato ?? "", StringComparer.OrdinalIgnoreCase);
+
     public SituacaoContrato Situacao(ObraLida obra) => MedicoesEmTramite.Situacao(obra, Repositorio.Medicoes(obra.Contrato));
 
     public IReadOnlyList<MedicaoEmTramite> EmTramite(ObraLida obra) => MedicoesEmTramite.DaObra(obra, Repositorio.Medicoes(obra.Contrato));

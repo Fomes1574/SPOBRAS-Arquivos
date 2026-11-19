@@ -95,6 +95,18 @@ else
             </div>
         }
 
+        @if (_previstas.Count > 0)
+        {
+            <div class="painel tambem-em">
+                <h2>Também em licitação ou a licitar</h2>
+                @foreach (var x in _previstas)
+                {
+                    <a class="link-outra" href="@($"prevista/{BasesDeObras.Id(x.Base)}/{x.Id}")">@x.Texto ›</a>
+                }
+                <p class="mini" style="margin:6px 0 0">Outra obra da mesma escola, ainda sem contrato; os dados não se juntam.</p>
+            </div>
+        }
+
         @if (!string.IsNullOrWhiteSpace(o.Lote))
         {
             <button class="btn linha" @onclick="VerContrato">Ver as escolas do contrato</button>
@@ -139,6 +151,7 @@ else
     private IReadOnlyList<MedicaoEmTramite> _tramite = [];
     private decimal _totalTramite;
     private IReadOnlyList<ObraLida> _outros = [];
+    private IReadOnlyList<Spobras.Dados.Base.OutraBase> _previstas = [];
     private bool _perguntar;
 
     protected override void OnParametersSet() => Carregar();
@@ -157,6 +170,7 @@ else
         _tramite = App.Base.EmTramite(_obra);
         _totalTramite = _tramite.Sum(m => m.Valor);
         _outros = App.Base.OutrosContratos(_obra);
+        _previstas = [.. App.Base.TambemEm(_obra.Empreendimento, BaseDeObras.EmAndamento).Where(x => x.Base != BaseDeObras.EmAndamento)];
     }
 
     private static string Pct(decimal v) => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%";

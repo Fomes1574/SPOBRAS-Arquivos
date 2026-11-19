@@ -62,6 +62,16 @@ public sealed class AppCelular
     /// <summary>Filtro da tela Base (continua igual ao voltar da ficha).</summary>
     public Spobras.Core.Base.FiltroObras FiltroBase { get; set; } = new();
 
+    /// <summary>Base mostrada na tela Base (Em andamento, Em licitação ou A licitar).</summary>
+    public Spobras.Core.Base.BaseDeObras BaseAtual { get; set; } = Spobras.Core.Base.BaseDeObras.EmAndamento;
+
+    /// <summary>Filtro de cada base sem contrato (continua igual ao voltar da ficha).</summary>
+    public Dictionary<Spobras.Core.Base.BaseDeObras, Spobras.Core.Base.FiltroPrevistas> FiltrosPrevistas { get; } = new()
+    {
+        [Spobras.Core.Base.BaseDeObras.EmLicitacao] = new(),
+        [Spobras.Core.Base.BaseDeObras.ALicitar] = new(),
+    };
+
     public RelatorioPronto? UltimoRelatorio { get; set; }
     public PdfPronto? UltimoPdf { get; set; }
     public ResumoPdfCelular ResumoPdf { get; }

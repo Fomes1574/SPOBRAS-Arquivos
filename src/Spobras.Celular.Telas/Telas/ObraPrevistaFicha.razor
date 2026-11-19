@@ -1,0 +1,71 @@
+@page "/prevista/{BaseId}/{Id:long}"
+@using Spobras.Dados.Base
+@inherits Tela
+
+@if (_obra is not { } o)
+{
+    <Barra Titulo="Obra" Voltar="base" />
+    <div class="conteudo"><Aviso Tipo="atencao">Esta obra não está mais na base (a planilha mudou).</Aviso><a class="btn" href="base">Voltar à lista</a></div>
+}
+else
+{
+    <Barra Titulo="@o.Nome" Sub="@string.Join(" · ", new[] { o.NomeDaBase, o.Lote }.Where(x => !string.IsNullOrWhiteSpace(x)))" Voltar="base" />
+    <div class="conteudo ficha-prevista">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <span class="selo @(o.Base == BaseDeObras.EmLicitacao ? "atencao" : "andamento")">@o.NomeDaBase</span>
+            @if (o.Status is not null) { <span class="mini">@o.Status</span> }
+        </div>
+        <div class="painel">
+            <h2>Valores</h2>
+            <div class="kv">
+                <div><span>@(o.Base == BaseDeObras.ALicitar ? "Valor da obra (estimado)" : "Valor da obra")</span><b>@Formato.Reais(o.ValorObra)</b></div>
+                <div><span>Com os 10% (recursos)</span><b>@Formato.Reais(o.ValorComRemuneracao)</b></div>
+            </div>
+            <p class="mini" style="margin:8px 0 0">Obra ainda sem contrato: não há medições nem pagamentos.</p>
+        </div>
+        <div class="painel">
+            <h2>Dados</h2>
+            <div class="kv">
+                @foreach (var c in FichaPrevista.Campos(o).Where(c => !c.Key.StartsWith("Valor", StringComparison.Ordinal) && !c.Key.StartsWith("Com os", StringComparison.Ordinal)))
+                {
+                    <div class="@(c.Value.Length > 28 ? "largo" : "")"><span>@c.Key</span><b>@c.Value</b></div>
+                }
+            </div>
+        </div>
+        @if (_outras.Count > 0)
+        {
+            <div class="painel tambem-em">
+                <h2>Esta escola também está em</h2>
+                @foreach (var outra in _outras)
+                {
+                    <a class="link-outra" href="@Rota(outra)">@outra.Texto ›</a>
+                }
+                <p class="mini" style="margin:6px 0 0">Cada base tem os seus dados; nada é juntado.</p>
+            </div>
+        }
+    </div>
+}
+<Nav Ativo="base" />
+
+@code {
+    [Parameter] public string BaseId { get; set; } = "";
+    [Parameter] public long Id { get; set; }
+
+    private ObraPrevista? _obra;
+    private IReadOnlyList<OutraBase> _outras = [];
+
+    protected override void OnParametersSet() => Carregar();
+
+    protected override void BaseMudou() => Carregar();
+
+    private void Carregar()
+    {
+        var qual = BasesDeObras.DoId(BaseId);
+        _obra = qual == BaseDeObras.EmAndamento ? null : App.Base.Prevista(qual, Id);
+        _outras = _obra is { } o ? App.Base.TambemEm(o.Nome, qual, o.Id) : [];
+        if (_obra is not null) App.BaseAtual = qual; // voltar leva para a lista desta base
+    }
+
+    private static string Rota(OutraBase outra) =>
+        outra.Base == BaseDeObras.EmAndamento ? $"obra/{outra.Id}" : $"prevista/{BasesDeObras.Id(outra.Base)}/{outra.Id}";
+}

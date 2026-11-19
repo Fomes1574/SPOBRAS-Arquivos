@@ -232,40 +232,12 @@ public sealed partial class PrevistasVm : ObservableObject
         }
 
         string pasta = _apoio.Preferencias.DestinoDe(BaseVm.Modulo);
-        string baseNome = Spobras.Core.Nomes.NomeArquivo.Corrigir($"Consulta - {Titulo} - " + _apoio.Relogio.Agora.ToString("yyyy-MM-dd", Formato.PtBr));
-        string caminho = Path.Combine(pasta, Spobras.Core.Nomes.NomeArquivo.Livre(baseNome + ".xlsx", n => File.Exists(Path.Combine(pasta, n))));
-        var (n, valor, com10) = Previstas.Totais(obras);
-        List<object?[]> sobre =
-        [
-            ["Base", Titulo],
-            ["Data da consulta", _apoio.Relogio.Agora.ToString("dd/MM/yyyy HH:mm", Formato.PtBr)],
-            ["Obras exportadas", n],
-            ["Valor das obras (antes dos 10%)", valor],
-            ["Com os 10%", com10],
-        ];
-        var f = Filtro();
-        void Filtrado(string nome, IReadOnlyList<string> valores)
-        {
-            if (valores.Count > 0) sobre.Add([$"Filtro: {nome}", string.Join(", ", valores)]);
-        }
-
-        if (f.Texto.Trim().Length > 0) sobre.Add(["Filtro: procurar", f.Texto.Trim()]);
-        Filtrado("Portaria", f.Portaria);
-        Filtrado(RotuloLote, f.Lote);
-        Filtrado("Modalidade", f.Modalidade);
-        Filtrado("Dotação", f.Dotacao);
-        Filtrado("Situação", f.Status);
-        Filtrado("Empresa", f.Empresa);
-        if (f.Vazio) sobre.Add(["Filtros", "nenhum (todas as obras da base)"]);
-        sobre.Add(["Observação", "O valor da obra é o da planilha antes dos 10%; a coluna com os 10% é a da própria planilha. Obras sem contrato: não há medições nem pagamentos."]);
-
+        var agora = _apoio.Relogio.Agora;
+        string caminho = Path.Combine(pasta, Spobras.Core.Nomes.NomeArquivo.Livre(Spobras.Documentos.Planilhas.ExportacaoPrevistas.Nome(Qual, agora), n => File.Exists(Path.Combine(pasta, n))));
+        int n = obras.Count;
         try
         {
-            Spobras.Documentos.Planilhas.GravadorXlsx.Gravar(caminho,
-            [
-                new Spobras.Documentos.Planilhas.AbaNova("Obras", FichaPrevista.Titulos(Qual), [.. obras.Select(FichaPrevista.Linha)]),
-                new Spobras.Documentos.Planilhas.AbaNova("Sobre esta consulta", ["Item", "Valor"], sobre, ComFiltro: false),
-            ], Logo?.Invoke(), $"Consulta da Base de dados - {Titulo}");
+            Spobras.Documentos.Planilhas.ExportacaoPrevistas.Gravar(caminho, Qual, obras, Filtro(), agora, Logo?.Invoke());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

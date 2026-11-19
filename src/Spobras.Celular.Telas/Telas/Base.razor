@@ -10,6 +10,18 @@
     {
         <SituacaoBase />
     }
+    <div class="segmento bases" role="tablist" aria-label="Qual base mostrar">
+        @foreach (var b in new[] { BaseDeObras.EmAndamento, BaseDeObras.EmLicitacao, BaseDeObras.ALicitar })
+        {
+            <button role="tab" aria-selected="@(App.BaseAtual == b ? "true" : "false")" class="@(App.BaseAtual == b ? "on" : "")" @onclick="() => App.BaseAtual = b">@BasesDeObras.Nome(b)</button>
+        }
+    </div>
+    @if (App.BaseAtual != BaseDeObras.EmAndamento)
+    {
+        <BasePrevistas Qual="App.BaseAtual" />
+    }
+    else
+    {
     <div class="busca">
         <Icone Nome="busca" Cor="#9A9A96" />
         <input type="search" placeholder="Escola, contrato, lote, processo…" aria-label="Buscar" value="@App.FiltroBase.Texto" @oninput="Digitou" />
@@ -64,6 +76,7 @@
         {
             <button class="btn linha" @onclick="Mais">Mostrar mais (@(_total - _obras.Count) restantes)</button>
         }
+    }
     }
 </div>
 <Nav Ativo="base" />

@@ -144,6 +144,21 @@ async function texto(page, seletor, contem) {
     const page = await abrir(browser, urlPronto, w, h);
     await foto(page, '03-inicio', w, h, salvar);
     await ir(page, urlPronto, 'base'); await foto(page, '04-base', w, h, salvar);
+    // Bases sem contrato: seletor, lista, ficha com "também está em" e volta para Em andamento
+    await page.getByRole('tab', { name: 'Em licitação' }).click();
+    await esperar(page, () => document.querySelectorAll('a.obra').length === 3, null, `${w}x${h} Em licitação não mostrou as 3 obras`);
+    await foto(page, '04a-base-em-licitacao', w, h, salvar);
+    await page.locator('a.obra', { hasText: 'EMEI Exemplo Alfa' }).click();
+    await esperar(page, () => document.querySelectorAll('.tambem-em a').length >= 2 && document.body.innerText.includes('Sem vencedora ainda'), null, `${w}x${h} ficha da licitação sem "também está em" ou sem "Sem vencedora ainda"`);
+    await foto(page, '04b-ficha-licitacao', w, h, salvar);
+    await page.locator('.tambem-em a', { hasText: 'A licitar' }).click();
+    await esperar(page, () => document.body.innerText.includes('Pista de Skate'), null, `${w}x${h} o atalho para A licitar não abriu a ficha`);
+    await foto(page, '04c-ficha-a-licitar', w, h, salvar);
+    await ir(page, urlPronto, 'base');
+    await esperar(page, () => document.querySelector('[role=tab][aria-selected=true]')?.textContent.includes('A licitar'), null, `${w}x${h} voltar da ficha não manteve A licitar`);
+    await foto(page, '04d-base-a-licitar', w, h, salvar);
+    await page.getByRole('tab', { name: 'Em andamento' }).click();
+    await page.waitForTimeout(300);
     const contratoChip = page.locator('.chips .chip:not(.limpar-chip)').first();
     const pesquisaContrato = page.getByRole('searchbox', { name: 'Pesquisar opções' });
     const fecharFiltro = () => page.getByRole('button', { name: 'Pronto', exact: true }).click();

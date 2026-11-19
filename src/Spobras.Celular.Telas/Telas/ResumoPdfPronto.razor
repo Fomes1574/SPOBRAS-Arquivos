@@ -5,10 +5,10 @@
 <div class="conteudo resumo-salvo">
     @if (App.UltimoResumoPdf is { } r)
     {
-        <Aviso Tipo="ok"><b>PDF salvo</b> em @r.Arquivo.Onde.</Aviso>
+        <Aviso Tipo="ok"><b>@(r.Planilha ? "Planilha salva" : "PDF salvo")</b> em @r.Arquivo.Onde.</Aviso>
         <div class="painel resumo-arquivo"><b>@r.Arquivo.Nome</b><p>@Formato.Tamanho(r.Arquivo.Tamanho)</p></div>
         <button class="btn primario resumo-acao" @onclick="() => App.Plataforma.CompartilharAsync([r.Local])">Compartilhar (WhatsApp, e-mail…)</button>
-        <button class="btn linha resumo-acao" @onclick="() => App.Plataforma.AbrirAsync(r.Arquivo)">Abrir o PDF</button>
+        <button class="btn linha resumo-acao" @onclick="() => App.Plataforma.AbrirAsync(r.Arquivo)">@(r.Planilha ? "Abrir a planilha" : "Abrir o PDF")</button>
     }
     <a class="btn linha resumo-acao" href="base">Voltar à Base</a>
 </div>
