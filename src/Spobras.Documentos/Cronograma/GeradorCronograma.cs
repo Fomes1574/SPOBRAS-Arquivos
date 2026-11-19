@@ -22,7 +22,10 @@ public static class GeradorCronograma
 
     // Indices dos estilos (ver Estilos()).
     private const int ETitulo = 1, ECabecalho = 2, ECabecalhoMes = 3, ETexto = 4, EDinheiro = 5, EMes = 6, ETotalRotulo = 7,
-        ETotalDinheiro = 8, ESubtitulo = 9, ECentro = 10, EAno = 11, ESecao = 12;
+        ETotalDinheiro = 8, ESubtitulo = 9, ECentro = 10, EAno = 11, ESecao = 12, ELoteLongo = 13;
+
+    /// <summary>Lote ate este tamanho cabe numa coluna estreita ("161", "CEI R. DA SAFRA"); maior que isso e um nome de lote.</summary>
+    private const int LoteCurto = 8;
 
     private sealed record Celula(int Estilo, string? Texto = null, decimal? Numero = null, string? Formula = null, double? Data = null);
 
@@ -59,18 +62,68 @@ public static class GeradorCronograma
         }
     }
 
-    /// <summary>"Cronograma SPOBRAS - Lote 216" (lote comum a todas as obras); sem lote comum, a portaria; senao so o nome.</summary>
+    /// <summary>
+    /// Titulo automatico, como no modelo de formulas: uma obra = "Cronograma SPOBRAS - nome da obra"; varias =
+    /// "Cronograma SPOBRAS - Portaria Nº 06 (2022) / Lote 161 - 4 unidades" (portaria e lote quando sao os mesmos em todas).
+    /// </summary>
     public static string TituloSugerido(IReadOnlyList<ObraCronograma> obras)
     {
         var validas = obras.Where(o => !o.Vazia).ToList();
-        string? Comum(Func<ObraCronograma, string> campo) =>
-            validas.Select(o => campo(o).Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() is [var unico] && unico.Length > 0 ? unico : null;
-        if (Comum(o => o.Lote) is { } lote)
+        if (validas.Count == 0)
         {
-            return "Cronograma SPOBRAS - " + (lote.StartsWith("lote", StringComparison.OrdinalIgnoreCase) ? lote : "Lote " + lote);
+            return "Cronograma SPOBRAS";
         }
 
-        return Comum(o => o.Portaria) is { } portaria ? "Cronograma SPOBRAS - Portaria " + portaria : "Cronograma SPOBRAS";
+        if (validas.Count == 1)
+        {
+            return "Cronograma SPOBRAS - " + validas[0].Nome.Trim();
+        }
+
+        string? Comum(Func<ObraCronograma, string> campo) =>
+            validas.Select(o => campo(o).Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() is [var unico] && unico.Length > 0 ? unico : null;
+        var partes = new List<string>();
+        if (Comum(o => o.Portaria) is { } portaria)
+        {
+            partes.Add("Portaria " + portaria);
+        }
+
+        if (Comum(o => o.Lote) is { } lote)
+        {
+            partes.Add(lote.StartsWith("lote", StringComparison.OrdinalIgnoreCase) ? lote : "Lote " + lote);
+        }
+
+        string unidades = $"{validas.Count} unidades";
+        return partes.Count == 0 ? $"Cronograma SPOBRAS - {unidades}" : $"Cronograma SPOBRAS - {string.Join(" / ", partes)} - {unidades}";
+    }
+
+    /// <summary>
+    /// Largura da coluna Lote pelo conteudo: estreita quando os lotes sao numeros ou nomes curtos; mais larga (com letra
+    /// menor) quando ha um nome de lote comprido, para ele nao virar uma coluna fina com varias linhas.
+    /// </summary>
+    public static double LarguraDoLote(IEnumerable<string> lotes)
+    {
+        int maior = lotes.Select(l => l.Trim().Length).DefaultIfEmpty(0).Max();
+        return maior <= LoteCurto ? 10 : Math.Clamp(maior / 2.6, 16, 26);
+    }
+
+    /// <summary>
+    /// Altura igual para todas as obras: a da obra que mais precisa de linhas (nome, escopo ou lote quebrados), entre
+    /// 30 e 90 pontos. Conta aproximada pela largura das colunas (letra de 10 pontos).
+    /// </summary>
+    public static double AlturaDasObras(IEnumerable<ObraCronograma> obras, double larguraLote)
+    {
+        static int Linhas(string texto, double largura, double fator = 1.15) =>
+            texto.Length == 0 ? 1 : (int)Math.Ceiling(texto.Length / Math.Max(1, (largura - 1) * fator));
+        int maximo = 1;
+        foreach (var o in obras)
+        {
+            bool loteLongo = o.Lote.Trim().Length > LoteCurto;
+            maximo = Math.Max(maximo, Math.Max(Linhas(o.Nome.Trim(), 40), Linhas(o.Escopo.Trim(), 34)));
+            maximo = Math.Max(maximo, Linhas(o.Lote.Trim(), larguraLote, loteLongo ? 1.3 : 1.15));
+            maximo = Math.Max(maximo, Linhas(o.Portaria.Trim(), 13));
+        }
+
+        return Math.Clamp(maximo * 13.5 + 6, 30, 90);
     }
 
     private static void Escrever(CronogramaCalculado c, string caminho, string titulo, string? logo)
@@ -114,7 +167,7 @@ public static class GeradorCronograma
             int l = primeira + k;
             string resumida = o.Dotacoes is { } d ? CalculoCronograma.Resumida(d.Obra) ?? o.Obra.Dotacao : o.Obra.Dotacao;
             Por(l, 1, new Celula(ECentro, o.Obra.Portaria));
-            Por(l, 2, LoteOuNumero(o.Obra.Lote));
+            Por(l, 2, o.Obra.Lote.Trim().Length > LoteCurto ? new Celula(ELoteLongo, o.Obra.Lote.Trim()) : LoteOuNumero(o.Obra.Lote));
             Por(l, 3, LoteOuNumero(resumida));
             Por(l, 4, new Celula(ECentro, o.Obra.Nome));
             Por(l, 5, new Celula(ECentro, o.Obra.Escopo));
@@ -208,7 +261,9 @@ public static class GeradorCronograma
         xml.Append("""<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>""");
         xml.Append("""<sheetViews><sheetView showGridLines="0" zoomScale="85" zoomScaleNormal="85" workbookViewId="0"><pane xSplit="10" ySplit="5" topLeftCell="K6" activePane="bottomRight" state="frozen"/><selection activeCell="A1" sqref="A1"/><selection pane="topRight"/><selection pane="bottomLeft"/><selection pane="bottomRight"/></sheetView></sheetViews>""");
         xml.Append("""<sheetFormatPr defaultRowHeight="15"/><cols>""");
-        double[] larguras = [13, 9, 10, 40, 37, 17, 21, 17, 9, 9];
+        double larguraLote = LarguraDoLote(c.Obras.Select(o => o.Obra.Lote));
+        double alturaObras = AlturaDasObras(c.Obras.Select(o => o.Obra), larguraLote);
+        double[] larguras = [13, larguraLote, 10, 40, 34, 17, 21, 17, 9, 9]; // o escopo (E) tambem guarda a dotacao completa do resumo
         for (int i = 0; i < larguras.Length; i++)
         {
             xml.Append(CultureInfo.InvariantCulture, $"""<col min="{i + 1}" max="{i + 1}" width="{larguras[i]}" customWidth="1"/>""");
@@ -220,7 +275,11 @@ public static class GeradorCronograma
         foreach (var grupo in celulas.GroupBy(k => k.Key.Linha))
         {
             int l = grupo.Key;
-            string altura = l is 2 or 3 ? """ ht="22" customHeight="1" """ : l == LinhaDosTitulos ? """ ht="32" customHeight="1" """ : " ";
+            string altura = l is 2 or 3 ? """ ht="22" customHeight="1" """
+                : l == LinhaDosTitulos ? """ ht="32" customHeight="1" """
+                : l >= primeira && l <= ultima ? string.Create(CultureInfo.InvariantCulture, $""" ht="{alturaObras:0.##}" customHeight="1" """)
+                : l == linhaTotal ? """ ht="22" customHeight="1" """
+                : " ";
             xml.Append(CultureInfo.InvariantCulture, $"""<row r="{l}"{altura.TrimEnd()}>""");
             foreach (var ((_, coluna), celula) in grupo)
             {
@@ -310,8 +369,9 @@ public static class GeradorCronograma
         string Xf(int fonte, int preenchimento, int bordaId, string alinhamento, int formato = 0) =>
             $"""<xf numFmtId="{formato}" fontId="{fonte}" fillId="{preenchimento}" borderId="{bordaId}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"{(formato != 0 ? " applyNumberFormat=\"1\"" : "")}><alignment {alinhamento}/></xf>""";
 
-        // Fontes: 0 normal, 1 titulo 24, 2 negrito, 3 cinza 10, 4 branco negrito 12 (cabecalho azul).
-        // Preenchimentos: 2 azul-marinho do cabecalho, 3 cinza claro dos totais.
+        // Fontes: 0 normal 10, 1 titulo 22 azul-marinho, 2 negrito 10, 3 cinza 10, 4 branco negrito 11 (cabecalho azul),
+        // 5 lote comprido 9, 6 negrito azul-marinho 10 (linha TOTAL).
+        // Preenchimentos: 2 azul-marinho do cabecalho, 3 cinza claro dos totais por ano, 4 azul claro da linha TOTAL.
         string[] xfs =
         [
             """<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>""",
@@ -321,18 +381,19 @@ public static class GeradorCronograma
             Xf(0, 0, 1, """vertical="center" wrapText="1" """),                             // 4 texto
             Xf(0, 0, 1, """vertical="center" """, 166),                                     // 5 dinheiro
             Xf(0, 0, 1, """horizontal="center" vertical="center" """, 165),                 // 6 mes
-            Xf(2, 3, 1, """vertical="center" """),                                          // 7 rotulo do total
-            Xf(2, 3, 1, """vertical="center" """, 166),                                     // 8 dinheiro do total
+            Xf(6, 4, 1, """vertical="center" """),                                          // 7 rotulo do total
+            Xf(6, 4, 1, """vertical="center" """, 166),                                     // 8 dinheiro do total
             Xf(3, 0, 0, """vertical="center" """),                                          // 9 subtitulo
             Xf(0, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),         // 10 texto centralizado
             Xf(0, 3, 1, """vertical="center" """, 166),                                     // 11 dinheiro do ano
-            Xf(2, 0, 1, """horizontal="center" vertical="center" """),                      // 12 titulo de secao
+            Xf(6, 0, 1, """horizontal="center" vertical="center" """),                      // 12 titulo de secao
+            Xf(5, 0, 1, """horizontal="center" vertical="center" wrapText="1" """),         // 13 lote comprido
         ];
 
         return """<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"""
                + $"""<numFmts count="2"><numFmt numFmtId="165" formatCode="[$-416]mmm/yy"/><numFmt numFmtId="166" formatCode="{Contabil}"/></numFmts>"""
-               + """<fonts count="5"><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="24"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><sz val="10"/><color rgb="FF595959"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font></fonts>"""
-               + """<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF002060"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill></fills>"""
+               + """<fonts count="7"><font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="22"/><color rgb="FF002060"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><sz val="10"/><color rgb="FF595959"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font><font><sz val="9"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font><font><b/><sz val="10"/><color rgb="FF002060"/><name val="Calibri"/><family val="2"/></font></fonts>"""
+               + """<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF002060"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCE6F2"/><bgColor indexed="64"/></patternFill></fill></fills>"""
                + $"""<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>{borda}</borders>"""
                + """<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>"""
                + $"""<cellXfs count="{xfs.Length}">{string.Concat(xfs)}</cellXfs>"""
