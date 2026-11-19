@@ -26,7 +26,6 @@ public sealed class Composicao : IDisposable
         Novidades = new ServicoNovidades(arquivos, relogio, Preferencias, new RegraRepositorio(banco), pastaDados);
         Modelos = new ServicoModelos(pastaDados);
         _ = Task.Run(() => Modelos.LimparMiniaturasAntigas()); // miniaturas sem uso ha 30 dias
-        ModelosExcel = new ServicoModelosExcel(pastaDados, new ConfigRepositorio(banco));
         Base = new Spobras.Dados.Base.BaseRepositorio(banco);
         Fontes = new ServicoFontes(Base, abrirPlanilha ?? (caminho => new Spobras.Documentos.Planilhas.LeitorXlsx(caminho)), relogio, Operacoes.Fila, Preferencias)
         {
@@ -54,8 +53,6 @@ public sealed class Composicao : IDisposable
                 "M3 6h18v13H3zM3 16l5-5 4 4 3-3 6 5"),
             new ModuloVm(CronogramaVm.Modulo, "Cronograma padrão", "Meses, anos, remuneração e dotações calculados, prontos para enviar.",
                 "M3 5h18v15H3zM3 10h18M8 3v4M16 3v4"),
-            new ModuloVm(ModelosVm.Modulo, "Modelos Excel", "Preenche as suas planilhas modelo, uma ou várias de uma vez.",
-                "M4 4h16v16H4zM4 9h16M4 14h16M10 4v16"),
             new ModuloVm(PdfVm.Modulo, "PDF", "Juntar, separar, fotos em PDF, reduzir, numerar e passar para o Excel.",
                 "M6 3h9l4 4v14H6zM15 3v4h4"),
             new ModuloVm(FerramentasVm.Modulo, "Ferramentas", "Buscar dentro dos arquivos, juntar planilhas, achar repetidos e Excel para PDF.",
@@ -73,8 +70,6 @@ public sealed class Composicao : IDisposable
             [PdfVm.Modulo] = new PdfVm(dialogos, Operacoes, Preferencias, () => Modelos.Logo, ocr),
             [CronogramaVm.Modulo] = new CronogramaVm(dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(banco),
                 exportadorPdf ?? new SemExportadorPdf(), relogio, () => Base.Vinculos()),
-            [ModelosVm.Modulo] = new ModelosVm(dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(banco),
-                exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FerramentasVm.Modulo] = new FerramentasVm(dialogos, Operacoes, Preferencias, indice,
                 exportadorPdf ?? new SemExportadorPdf(), relogio),
             [FontesVm.Modulo] = new FontesVm(Fontes, Base, dialogos, @interface, Preferencias, id => Principal!.Navegar(id)),
@@ -101,11 +96,7 @@ public sealed class Composicao : IDisposable
         {
             ((CronogramaVm)telas[CronogramaVm.Modulo]).AdicionarDaBase(obra);
             Principal!.Navegar(CronogramaVm.Modulo);
-        }, obra =>
-        {
-            ((ModelosVm)telas[ModelosVm.Modulo]).AdicionarDaBase(obra);
-            Principal!.Navegar(ModelosVm.Modulo);
-        }, new ApoioConsultas(dialogos, new PerfilRepositorio(banco), Operacoes, Preferencias, relogio));
+        }, apoio: new ApoioConsultas(dialogos, new PerfilRepositorio(banco), Operacoes, Preferencias, relogio));
         ((BaseVm)telas[BaseVm.Modulo]).AoBuscarNosArquivos = termo =>
         {
             ((FerramentasVm)telas[FerramentasVm.Modulo]).BuscarPor(termo);
@@ -141,7 +132,6 @@ public sealed class Composicao : IDisposable
         ((FontesVm)telas[FontesVm.Modulo]).Operacoes = Operacoes;
         ((FontesVm)telas[FontesVm.Modulo]).Relogio = relogio;
         ((OrganizarVm)telas[OrganizarVm.Modulo]).Navegar = Ir;
-        ((ModelosVm)telas[ModelosVm.Modulo]).Navegar = Ir;
         var inicio = (InicioVm)telas["inicio"];
         inicio.EstadoDaMestra = () =>
         {
@@ -184,7 +174,6 @@ public sealed class Composicao : IDisposable
     public ServicoOperacoes Operacoes { get; }
     public ServicoNovidades Novidades { get; }
     public ServicoModelos Modelos { get; }
-    public ServicoModelosExcel ModelosExcel { get; }
     public Spobras.Dados.Base.BaseRepositorio Base { get; }
     public ServicoFontes Fontes { get; }
     public IReadOnlyList<ModuloVm> Modulos { get; }

@@ -1,5 +1,17 @@
 # Progresso
 
+## Modelos Excel retirado em 19/11/2026
+
+A pedido do usuário, a tela Modelos Excel saiu do app (só existia no computador; o celular não tinha):
+- **Telas:** saíram o item do menu, o cartão da tela inicial, a tela e o botão "Usar em modelo Excel" da ficha da obra na Base.
+- **Código:** saíram o cadastro dos modelos, o preenchimento genérico de planilhas e os testes deles.
+- **Continuam iguais:** Cronograma padrão, Relatório fotográfico, logo, "Usar no relatório fotográfico" e "Usar no cronograma" da Base.
+- **Dados antigos:** as cópias internas de modelos que o app tenha guardado ficam onde estão e não são mais lidas. Nenhum arquivo do usuário foi tocado.
+
+**Testes:** 465 passando no Linux, mais 2 de estresse que só rodam sob pedido; os testes de tela do Windows rodam no CI. Há um teste novo: o menu não tem mais Modelos Excel, e a Base continua levando ao cronograma e ao relatório).
+
+As seções abaixo sobre Modelos Excel ficam só como histórico.
+
 ## Carimbo nas fotos e GPS retirados em 18/11/2026
 
 A pedido do usuário, o carimbo nas fotos e o endereço pelo GPS saíram do app por completo:

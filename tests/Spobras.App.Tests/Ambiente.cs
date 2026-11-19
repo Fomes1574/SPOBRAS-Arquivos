@@ -130,8 +130,6 @@ public abstract class ComApp : IDisposable
         new(Dialogos, new InterfaceDireta(), Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Relogio);
     protected PdfVm NovoPdf() => new(Dialogos, Operacoes, Preferencias);
     protected FerramentasVm NovoFerramentas() => new(Dialogos, Operacoes, Preferencias, new Spobras.Dados.Busca.IndiceSqlite(Banco), Exportador, Relogio);
-    protected ServicoModelosExcel ModelosExcel => new(Em("dados"), new ConfigRepositorio(Banco));
-    protected ModelosVm NovoModelos() => new(Dialogos, Operacoes, Preferencias, ModelosExcel, new RascunhoRepositorio(Banco), Exportador, Relogio);
     protected CronogramaVm NovoCronograma() =>
         new(Dialogos, Operacoes, Preferencias, Modelos, new RascunhoRepositorio(Banco), Exportador, Relogio, () => Base.Vinculos());
 

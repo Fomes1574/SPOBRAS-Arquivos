@@ -215,7 +215,6 @@ public sealed partial class BaseVm : TelaVm
     private readonly Action<string> _navegar;
     private readonly Action<ObraLida>? _usarNoRelatorio;
     private readonly Action<ObraLida>? _usarNoCronograma;
-    private readonly Action<ObraLida>? _usarEmModelo;
     private readonly ApoioConsultas? _apoio;
     private const string ModuloConsultas = "consulta-base";
     private string? _ultimaExportacao;
@@ -224,10 +223,9 @@ public sealed partial class BaseVm : TelaVm
 
     public BaseVm(
         BaseRepositorio @base, ServicoFontes fontes, IInterface @interface, Action<string> navegar, Action<ObraLida>? usarNoRelatorio = null,
-        Action<ObraLida>? usarNoCronograma = null, Action<ObraLida>? usarEmModelo = null, ApoioConsultas? apoio = null)
+        Action<ObraLida>? usarNoCronograma = null, ApoioConsultas? apoio = null)
     {
         _apoio = apoio;
-        _usarEmModelo = usarEmModelo;
         _usarNoCronograma = usarNoCronograma;
         _base = @base;
         _fontes = fontes;
@@ -693,15 +691,6 @@ public sealed partial class BaseVm : TelaVm
         if (Selecionada is { } obra)
         {
             AoBuscarNosArquivos?.Invoke(oQue == "escola" ? obra.Escola : obra.Contrato);
-        }
-    }
-
-    [RelayCommand]
-    private void UsarEmModelo()
-    {
-        if (Selecionada is { } obra)
-        {
-            _usarEmModelo?.Invoke(obra.Obra);
         }
     }
 

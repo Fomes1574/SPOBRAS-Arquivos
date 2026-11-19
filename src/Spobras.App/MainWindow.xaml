@@ -16,7 +16,6 @@
         <DataTemplate DataType="{x:Type vm:RelatorioVm}"><t:RelatorioTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:PdfVm}"><t:PdfTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:CronogramaVm}"><t:CronogramaTela /></DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ModelosVm}"><t:ModelosTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:FerramentasVm}"><t:FerramentasTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:BaseVm}"><t:BaseTela /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:FontesVm}"><t:FontesTela /></DataTemplate>

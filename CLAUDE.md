@@ -1,6 +1,6 @@
 # Arquivos SPOBRAS
 
-App Windows (C# / .NET 10 / WPF) de uso individual para organizar, renomear e compactar arquivos, gerar relatório fotográfico e cronograma, preencher modelos Excel e consultar uma base de contratos, portarias e dotações.
+App Windows (C# / .NET 10 / WPF) de uso individual para organizar, renomear e compactar arquivos, gerar relatório fotográfico e cronograma e consultar uma base de contratos, portarias e dotações.
 
 ## Onde está cada coisa
 

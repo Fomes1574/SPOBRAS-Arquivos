@@ -1,6 +1,6 @@
 # Arquivos SPOBRAS
 
-App Windows de uso individual para organizar, renomear e compactar arquivos, gerar relatório fotográfico e cronograma, preencher modelos Excel e consultar uma base de contratos, portarias e dotações.
+App Windows de uso individual para organizar, renomear e compactar arquivos, gerar relatório fotográfico e cronograma e consultar uma base de contratos, portarias e dotações.
 
 Estado atual e pendências: [docs/PROGRESSO.md](docs/PROGRESSO.md). Como é construído: [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 

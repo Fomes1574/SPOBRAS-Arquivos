@@ -148,7 +148,6 @@ Toda linha importada guarda `fonte_id` e a versão da importação. Dinheiro em 
 | Organizar, Renomear, Compactar | plano + prévia + execução + histórico | regras, perfis, histórico | zip, leitura leve de conteúdo | não usa |
 | Relatório fotográfico | paginação e encaixe das fotos | rascunho, dados da obra | gera o xlsx, miniaturas, EXIF | só para exportar PDF fiel |
 | Cronograma | validação das linhas | portaria, dotação, data da OS | copia o modelo e preenche entradas | recalcula e confere totais |
-| Modelos Excel | validação do mapeamento | mapeamentos, listas | cópia + preenchimento | recálculo, macro cadastrada |
 | PDF | regras de intervalo, nomes | perfis | todas as operações | Excel → PDF em lote |
 | Base de dados | filtros vinculados | importação e consultas | exportar consulta | não usa |
 

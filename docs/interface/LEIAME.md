@@ -17,7 +17,6 @@ Dez telas do protótipo feito na fase de projeto, mais o menu lateral. Servem de
 | Compactar.dc.html | Compactar |
 | Relatorio.dc.html | Relatório fotográfico |
 | Cronograma.dc.html | Cronograma padrão |
-| Modelos.dc.html | Modelos Excel |
 | Pdf.dc.html | PDF |
 | Base.dc.html | Base de dados |
 | Automatico.dc.html | Aviso do modo automático |

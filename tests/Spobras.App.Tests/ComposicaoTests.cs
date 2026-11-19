@@ -48,6 +48,17 @@ public class ComposicaoTests : IDisposable
         var busca = Assert.IsType<FerramentasVm>(app.Principal.PaginaAtual);
         Assert.Equal("004/EX/2025", busca.Termo);
         Assert.True(busca.EhBuscar);
+
+        // Modelos Excel foi retirado (19/11/2026): nem no menu, nem como tela; a Base continua levando ao relatório e ao cronograma.
+        Assert.DoesNotContain(app.Modulos, m => m.Id == "modelos" || m.Titulo.Contains("Modelos", StringComparison.OrdinalIgnoreCase));
+        app.Principal.Navegar(BaseVm.Modulo);
+        tela.Selecionada = tela.Obras.First(o => o.Contrato == "004/EX/2025");
+        tela.UsarNoCronogramaCommand.Execute(null);
+        var cronograma = Assert.IsType<CronogramaVm>(app.Principal.PaginaAtual);
+        Assert.Contains(cronograma.Linhas, l => l.ContratoOrigem == "004/EX/2025");
+        app.Principal.Navegar(BaseVm.Modulo);
+        tela.UsarNoRelatorioCommand.Execute(null);
+        Assert.IsType<RelatorioVm>(app.Principal.PaginaAtual);
     }
 }
 

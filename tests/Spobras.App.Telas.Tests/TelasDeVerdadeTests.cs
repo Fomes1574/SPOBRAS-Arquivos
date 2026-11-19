@@ -284,35 +284,6 @@ public class TelasDeVerdadeTests
             cronograma.Ajustes[^1].Para = 2;
             Fotografar(janela, saida, "43-cronograma-ajustes-e-como-fica");
 
-            // Modelos Excel: vazio, cadastro com problema, preenchimento
-            principal.Navegar(ModelosVm.Modulo);
-            var modelosExcel = (ModelosVm)principal.PaginaAtual!;
-            Fotografar(janela, saida, "44-modelos-vazio");
-            dialogos.Arquivos.Enqueue([modeloCronograma]);
-            modelosExcel.NovoModeloCommand.Execute(null);
-            modelosExcel.EdNome = "Ficha de vistoria";
-            modelosExcel.EdPadraoNome = "Ficha - {Escola}";
-            var campo = modelosExcel.EdCampos[0];
-            campo.Nome = "Escola";
-            campo.Aba = "Cronograma Dois";
-            campo.Celula = "E3";
-            campo.Origem = "Escola / obra";
-            modelosExcel.AdicionarCampoCommand.Execute(null);
-            modelosExcel.EdCampos[1].Nome = "Total";
-            modelosExcel.EdCampos[1].Celula = "G18";
-            modelosExcel.EdCampos[1].Tipo = "Número";
-            Fotografar(janela, saida, "45-modelos-cadastro-com-problema");
-            modelosExcel.EdCampos[1].Nome = "Valor";
-            modelosExcel.EdCampos[1].Celula = "G3";
-            modelosExcel.SalvarModeloCommand.Execute(null);
-            Assert.False(modelosExcel.Editando, modelosExcel.EdProblemas);
-            modelosExcel.NovaLinhaCommand.Execute(null);
-            modelosExcel.NovaLinhaCommand.Execute(null);
-            modelosExcel.Linhas[0].Celulas[0].Valor = "EMEF Professora Fulana de Tal da Silva Sauro - Unidade II";
-            modelosExcel.Linhas[0].Celulas[1].Valor = "1.250.000,00";
-            modelosExcel.Linhas[1].Celulas[1].Valor = "abc";
-            Fotografar(janela, saida, "46-modelos-preencher");
-
             // Ferramentas: busca com resultado, repetidos, juntar com previa, Excel para PDF
             principal.Navegar(FerramentasVm.Modulo);
             var ferramentas = (FerramentasVm)principal.PaginaAtual!;

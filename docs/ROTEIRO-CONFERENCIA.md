@@ -46,11 +46,6 @@ Marque o que funcionou. Onde algo parecer estranho, tire um print e anote o que 
 - [ ] Gere com **Gerar também o PDF** marcado. Abra o Excel: logo, título, meses como "out/26", total de cada ano, total solicitado e, embaixo, a tabela por dotação (obra e remuneração).
 - [ ] Mude a **Remuneração** para outro percentual e gere de novo.
 
-### Modelos Excel
-
-- [ ] Cadastre uma planilha sua (pode ser uma ficha simples), com 2 ou 3 campos e a célula de cada um. Tente apontar uma célula com fórmula: o app recusa.
-- [ ] Preencha duas linhas e gere: cada linha vira um arquivo.
-
 ### Organizar, renomear e compactar (na pasta de cópias)
 
 - [ ] **Renomear**: 10 arquivos para "Relatório 01, 02…". Confira a prévia, renomeie e use **Desfazer**.

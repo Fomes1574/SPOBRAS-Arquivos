@@ -293,7 +293,7 @@ O usuário pode começar por qualquer um dos três campos. Cada seleção atuali
 - **Opções sem duplicatas.** Exibir cada escola, contrato e portaria uma vez na respectiva lista, mesmo que o vínculo apareça em várias medições ou empenhos. Usar identificadores da base para distinguir homônimos.
 - **Desempenho.** Consultar os vínculos já importados e indexados na base local. Atualizar as listas ao mudar a seleção, sem reler a planilha ou recalcular suas fórmulas a cada interação.
 
-Usar a mesma consulta na tela Base de dados e nos campos de seleção do Relatório fotográfico e dos Modelos Excel que usam esses dados. No Cronograma, aplicar a regra quando a linha for vinculada a uma obra da base. A consulta permite começar com qualquer vínculo já disponível e sinaliza quando uma relação necessária ainda não está na fonte.
+Usar a mesma consulta na tela Base de dados e nos campos de seleção do Relatório fotográfico que usam esses dados. No Cronograma, aplicar a regra quando a linha for vinculada a uma obra da base. A consulta permite começar com qualquer vínculo já disponível e sinaliza quando uma relação necessária ainda não está na fonte.
 
 #### Filtros de consulta e verificação financeira
 
@@ -359,19 +359,9 @@ O Claude já recebeu uma das planilhas base, segundo o usuário. Começar pela i
 - Para cruzar fontes, usar chaves comprovadas. Quando duas fontes informarem o mesmo campo, definir a origem de referência no mapeamento e sinalizar divergências relevantes. Publicar uma importação validada de cada fonte de forma consistente. Em caso de falha, manter a última versão válida daquela fonte e indicar sua data, enquanto as outras fontes podem continuar atualizando.
 - Manter a consulta aberta e reaplicar os filtros ativos após uma atualização válida. Se um valor selecionado deixar de existir ou perder o vínculo, mostrar o efeito na consulta e permitir ajustar ou limpar o filtro.
 
-### 4.7 Modelos Excel e preenchimento automático
+### 4.7 Modelos Excel (retirado em 19/11/2026)
 
-Copiar modelo .xlsx ou .xlsm e preencher somente entradas mapeadas. Modelos iniciais: Cronograma revisado e Relatório fotográfico; outros podem ser cadastrados. A planilha Pressão Medições.xlsm continua fora do escopo atual.
-
-Funções: um arquivo por formulário; vários arquivos a partir de lista (uma linha por obra); atualização explícita de áreas de dados em arquivo existente; macro cadastrada após o preenchimento quando necessária.
-
-Cada modelo registra versão, identificação, formato, campos, tipos e destinos permitidos. Preferir intervalos nomeados/tabelas; coordenadas de célula continuam suportadas para os modelos existentes, com verificação de estrutura. Bloquear escrita sobre fórmulas fora das áreas de entrada.
-
-A Data da OS pode ser mapeada como campo próprio ou para o campo de início efetivo de um modelo. Conferir a origem na prévia e gravar a data no formato esperado pelo Excel e pelo modelo.
-
-Mudança de versão ou estrutura exige revisar o mapeamento antes de gerar. Não depender somente do nome do arquivo. Preservar imagens, tabelas, nomes, impressão, validações e projeto VBA aplicáveis, com testes de compatibilidade por modelo.
-
-Cronograma e relatório têm suas telas próprias para o uso diário. A tela Modelos Excel concentra cadastro/mapeamento e usos genéricos, sem obrigar o usuário a configurar campos toda vez.
+A tela Modelos Excel saiu do app a pedido do usuário: cronograma e relatório já têm telas próprias e o preenchimento genérico de planilhas não será mais usado.
 
 Arquivos recebidos para classificação/leitura não executam macros nem atualizam vínculos externos. Macro de geração só é executada quando cadastrada num modelo autorizado e selecionada no fluxo/perfil. Respeitar as políticas do Office/TI; não instruir o app a liberar globalmente macros ou remover proteções.
 
@@ -485,7 +475,7 @@ Português brasileiro. Cores SPOBRAS: preto #231F20, branco/cinzas e vermelho #C
 
 Fonte Inter se incluída no pacote; alternativa do sistema caso necessário. Base equivalente a 15 unidades independentes de dispositivo no WPF, botões de aproximadamente 44, ajustados nos testes de escala/acessibilidade. Fonte do documento impresso é tratada em pontos, conforme o relatório.
 
-Menu lateral: Início, Organizar arquivos, Renomear em lote, Compactar, Relatório fotográfico, Cronograma padrão, Modelos Excel, PDF e Base de dados. Histórico e Configurações têm acesso fixo. Em janela estreita, menu recolhível; não comprimir tabelas e campos até ficarem ilegíveis.
+Menu lateral: Início, Organizar arquivos, Renomear em lote, Compactar, Relatório fotográfico, Cronograma padrão, PDF e Base de dados. Histórico e Configurações têm acesso fixo. Em janela estreita, menu recolhível; não comprimir tabelas e campos até ficarem ilegíveis.
 
 Uma ação principal clara por etapa. Barra inferior mostra Salvar em e nome do resultado nas telas que geram arquivo; escolher outra pasta é uma ação secundária. Não pedir destino novamente na execução se ele já foi mostrado e continua válido.
 
@@ -503,7 +493,6 @@ Fila de tarefas e resumo persistente mostram concluídos, pendentes e falhas, co
 | Compactar | Escolher um ZIP por pasta, ZIP único ou ZIPs por limite; entradas e resultados previstos; redução de cópias de fotos em opção secundária; Descompactar como ferramenta própria no módulo. |
 | Relatório fotográfico | Etapas Dados, Fotos e legendas, Conferência e geração. Filtros vinculados por portaria, contrato e escola na etapa Dados. Miniaturas, edição em lote, rascunho automático e prévia real. Saída Excel por padrão, com opção PDF. |
 | Cronograma padrão | Colar/importar/adicionar obras; breve escopo incluído; dados da base e inconsistências junto das linhas; remuneração e destino claros; prévia do resultado e tratamento acima de 15 obras. |
-| Modelos Excel | Modelos disponíveis, preencher um/vários/atualizar; cadastro e mapeamento em área avançada; informar versão e necessidade de Excel/macro sem exigir conhecimento técnico para preencher. |
 | PDF | Escolher ferramenta primeiro e mostrar apenas seu painel. Juntar, separar, fotos em PDF e reduzir nas primeiras entregas; extração, Excel para PDF e logo conforme suas fases. |
 | Base de dados | Busca e filtros combináveis por contrato, contrato de receita, portaria, dotação, escola, Data da OS e valores. **Mais filtros** reúne os demais campos. Os filtros continuam ativos ao mudar de visão. Ações para salvar a consulta, exportar resultados, abrir a ficha da obra e consultar pendências. **Fontes de dados** mostra o estado e o histórico de cada planilha cadastrada. |
 | Novidades de Downloads | Indicador/notificação agrupada; painel aberto por escolha do usuário. Contagem, sugestões e pendências; Abrir app e Mover N sugeridos. Sem janela automática fixa de 420 × 600 a cada chegada. |
